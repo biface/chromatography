@@ -1,17 +1,18 @@
 # Chromatography
 
-## Overview
+## Presentation
 
-Chromatography is a technique used to separate and analyze complex mixtures of compounds. The Hartree-Fock method is 
-a quantum model that calculates the properties of molecular systems.
-
-In this project, we use the Hartree-Fock method to calculate the properties of molecular systems and display 
-the results graphically.
+This project aims to model and predict liquid-phase chromatograms. It simulates the behavior of chemical species in a chromatographic column using physical models and numerical methods.
 
 ## Features
 
-`Chromatography` which consists of three main modules :
+`Chromatography` is an application developed in the `Rust` programming language that offers:
 
-* Calculation of properties of molecular systems using the Hartree-Fock method
-* Command Line Interface module to launch calculations and display results
-* Graphic User Interface  module to visualize the results of calculations
+- Modeling of adsorption phenomena using Langmuir isotherms
+- Prediction of chromatograms for one or multiple chemical species
+- Discretization methods starting with the Euler method, with potential implementations of Runge-Kutta or finite differences
+- Various injection profiles available:
+    - Dirac pulse (instantaneous injection)
+    - Gaussian profile (concentration distribution)
+    - Rectangular profile (continuous injection)
+- Command-line interface for running simulations
