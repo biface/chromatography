@@ -1,6 +1,10 @@
 [package]
-name = "chromatography"
+name = "chrom-rs"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+dynamic-cli = "0.1.1"
+nalgebra = "0.34.1"
+num = "0.4.3"
+serde = { version = "1.0.228", features = ["derive"] }
