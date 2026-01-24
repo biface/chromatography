@@ -8,11 +8,6 @@ exclude = [
     "tests/integration/*",
 ]
 
-[features]
-default = ["parallel"]
-parallel = ["rayon"]
-
-
 [package.metadata.coverage]
 min-coverage = 80
 
@@ -28,14 +23,5 @@ num = "0.4.3"
 serde = { version = "1.0.228", features = ["derive"] }
 log = "0.4.29"
 
-# Parallelism (optional)
-rayon = { version = "1.11", optional = true }
-ndarray = "0.17.2"
-
 [dev-dependencies]
 cargo-llvm-cov = "0.7.1"
-criterion = { version = "0.8", features = ["html_reports"] }
-
-[[bench]]
-name = "solver_performance"
-harness = false
