@@ -2,9 +2,26 @@
 name = "chrom-rs"
 version = "0.1.0"
 edition = "2024"
+exclude = [
+    "examples/*",
+    "benches/*",
+    "tests/integration/*",
+]
+
+[package.metadata.coverage]
+min-coverage = 80
+
+[profile.coverage]
+inherits = "test"
+opt-level = 0
+
 
 [dependencies]
 dynamic-cli = "0.1.1"
 nalgebra = "0.34.1"
 num = "0.4.3"
 serde = { version = "1.0.228", features = ["derive"] }
+log = "0.4.29"
+
+[dev-dependencies]
+cargo-llvm-cov = "0.7.1"
