@@ -228,3 +228,109 @@ pub trait PhysicalModel : Send + Sync {
     }
 
 }
+
+// =================================================================================================
+// Tests
+// =================================================================================================
+#[cfg(test)]
+mod tests {
+    use std::ops::Mul;
+    use super::*;
+
+    #[test]
+    fn test_empty_physical_state() {
+        let physics = PhysicalState::empty();
+
+        assert_eq!(physics.quantities.len(), 0);
+        assert_eq!(physics.metadata.len(), 0);
+    }
+
+    #[test]
+    fn test_new_physical_state() {
+        let quantity = PhysicalQuantity::Custom("Tesla");
+        let physics = PhysicalState::new(
+            quantity,
+            DVector::from_row_slice(&[1.0, 2.0]),
+        );
+
+        assert_eq!(physics.quantities.len(), 1);
+        assert_eq!(physics.metadata.len(), 0);
+        assert!(physics.available_quantities().contains(&quantity));
+
+        let values = physics.get(quantity).unwrap();
+
+        assert_eq!(values.len(), 2);
+    }
+
+    #[test]
+    fn test_modify_physical_state() {
+        let mut physics = PhysicalState::new(
+            PhysicalQuantity::Custom("Tesla"),
+            DVector::from_row_slice(&[1.0, 2.0]),
+        );
+
+        let mut values = physics.get_mut(PhysicalQuantity::Custom("Tesla")).unwrap();
+        assert_eq!(values.len(), 2);
+        let mut values = values.push(10.0);
+        physics.set(PhysicalQuantity::Custom("Tesla"), values);
+
+        assert_eq!(physics.available_quantities().len(), 1);
+        assert_eq!(physics.get(PhysicalQuantity::Custom("Tesla")).unwrap().len(), 3);
+
+    }
+
+    #[test]
+    fn test_metadata() {
+        let mut physics = PhysicalState::new(
+            PhysicalQuantity::Custom("Tesla"),
+            DVector::from_row_slice(&[1.0, 2.0]),
+        );
+
+        physics.set_metadata("molecule".to_string(), 10.0);
+        assert_eq!(physics.get_metadata("molecule").unwrap(), 10.0);
+    }
+
+    #[test]
+    fn test_addition() {
+        let state_one = PhysicalState::new(
+            PhysicalQuantity::Pressure,
+            DVector::from_row_slice(&[780.0, 1024.0]),
+        );
+        let state_two = PhysicalState::new(
+            PhysicalQuantity::Pressure,
+            DVector::from_row_slice(&[230.0, -24.0]),
+        );
+        let false_one = PhysicalState::new(
+            PhysicalQuantity::Temperature,
+            DVector::from_row_slice(&[0.0, 273.15]),
+        );
+
+        let pressure = state_one.clone() + state_two;
+        let temperature = false_one + state_one ;
+
+        assert_eq!(pressure.get(PhysicalQuantity::Pressure).unwrap()[0], 1010.0);
+        assert_eq!(pressure.get(PhysicalQuantity::Pressure).unwrap()[1], 1000.0);
+
+        assert_ne!(temperature.get(PhysicalQuantity::Temperature).unwrap()[0], 780.0);
+        assert_eq!(temperature.get(PhysicalQuantity::Temperature).unwrap()[0], 0.0);
+    }
+
+    #[test]
+    fn test_multiplication() {
+        let mut state_one = PhysicalState::new(
+            PhysicalQuantity::Concentration,
+            DVector::from_row_slice(&[1.0, 2.0]),
+        );
+
+        state_one = state_one * 10.0;
+
+        assert_eq!(state_one.get(PhysicalQuantity::Concentration).unwrap()[0], 10.0);
+        assert_eq!(state_one.get(PhysicalQuantity::Concentration).unwrap()[1], 20.0);
+
+        let result = state_one.clone() * 2.0;
+
+        assert_eq!(result.get(PhysicalQuantity::Concentration).unwrap()[0], 20.0);
+        assert_eq!(result.get(PhysicalQuantity::Concentration).unwrap()[1], 40.0);
+    }
+
+}
