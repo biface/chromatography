@@ -73,7 +73,7 @@
 
 // module declaration
 pub mod traits;
-
+mod data;
 // Model implementation
 
 // re-export commonly used types for convenience

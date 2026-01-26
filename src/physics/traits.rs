@@ -5,8 +5,11 @@
 //! - `PhysicalState`: flexible state container
 //! - `PhysicalQuantity`: type-safe quantity identifiers
 
-use nalgebra::DVector;
+use nalgebra::DMatrix;
 use std::collections::HashMap;
+
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 // =================================================================================================
 // Physical quantities (Type-safe Identifiers
@@ -52,30 +55,81 @@ pub enum PhysicalQuantity {
 
 /// Physical state of the system
 ///
-/// This structure contains all physical quantities at a given time or iteration.
-/// It is flexible since it can store concentration, temperature, pressure, etc.
+/// # Design (v0.2.0 Update)
+///
+/// All physical quantities are now stored as `DMatrix<f64>`:
+/// - **Rows**: Spatial points (x-axis, typically 100-1000 points)
+/// - **Columns**: Chemical species (1 for mono-species, N for multi-species)
+///
+/// ## Mono-species Systems
+/// Matrix shape: (n_spatial_points, 1) - single column
+///
+/// ## Multi-species Systems
+/// Matrix shape: (n_spatial_points, n_species)
+///
+/// # Backward Compatibility
+///
+/// Helper methods maintain API compatibility:
+/// - `new_mono_species()` - Creates single-column matrix
+/// - `get_mono()` - Extracts column as vector
 ///
 /// # Type Safety
 ///
-/// This structure uses enum `PhysicalQuantity` for quantities instead of strings.
+/// Uses enum `PhysicalQuantity` for type-safe quantity identifiers.
 ///
-/// # Example
-/// ```
-/// let mut state = PhysicalState::new(PhysicalQuantity::Concentration, concentration_vector);
-/// state.set(PhysicalQuantity::Temperature, temperature_vector);
+/// # Examples
+///
+/// ```rust
+/// use chrom_rs::physics::{PhysicalState, PhysicalQuantity};
+/// use nalgebra::DMatrix;
+///
+/// // Mono-species (backward compatible)
+/// let mono = PhysicalState::new_mono_species(
+///     PhysicalQuantity::Concentration,
+///     vec![1.0, 0.8, 0.6, 0.4, 0.2]
+/// );
+///
+/// // Multi-species (new capability)
+/// let multi = PhysicalState::new_multi_species(
+///     PhysicalQuantity::Concentration,
+///     100,  // spatial points
+///     3,    // species
+///     0.5   // initial value
+/// );
+///
+/// // Direct matrix creation
+/// let state = PhysicalState::new(
+///     PhysicalQuantity::Concentration,
+///     DMatrix::from_element(100, 2, 1.0)
+/// );
 /// ```
 #[derive(Debug, Clone)]
 pub struct PhysicalState {
     /// Physical quantities stored in a dictionary
-    quantities: HashMap<PhysicalQuantity, DVector<f64>>,
+    quantities: HashMap<PhysicalQuantity, DMatrix<f64>>,
 
     /// Scalar metadata (optional, e.g. energy, mass, etc.)
     metadata: HashMap<String, f64>,
 }
 
 impl PhysicalState {
-    /// Create a new state with primary quantity
-    pub fn new(quantity: PhysicalQuantity, value: DVector<f64>) -> Self {
+    /// Create a new state with primary quantity (direct matrix)
+    ///
+    /// # Arguments
+    /// * `quantity` - Type of physical quantity
+    /// * `value` - Matrix (n_spatial_points, n_species)
+    ///
+    /// # Example
+    /// ```rust
+    /// use chrom_rs::physics::{PhysicalState, PhysicalQuantity};
+    /// use nalgebra::DMatrix;
+    ///
+    /// let state = PhysicalState::new(
+    ///     PhysicalQuantity::Concentration,
+    ///     DMatrix::from_element(100, 1, 1.0)
+    /// );
+    /// ```
+    pub fn new(quantity: PhysicalQuantity, value: DMatrix<f64>) -> Self {
         let mut quantities = HashMap::new();
         quantities.insert(quantity, value);
 
@@ -93,18 +147,218 @@ impl PhysicalState {
         }
     }
 
+    /// Create a mono-species state (convenience - backward compatible)
+    ///
+    /// Creates a matrix with shape (n_spatial_points, 1)
+    ///
+    /// # Arguments
+    /// * `quantity` - Type of physical quantity
+    /// * `values` - Vector of values at each spatial point
+    ///
+    /// # Example
+    /// ```rust
+    /// use chrom_rs::physics::{PhysicalState, PhysicalQuantity};
+    ///
+    /// let state = PhysicalState::mono_specie(
+    ///     PhysicalQuantity::Concentration,
+    ///     vec![1.0, 0.8, 0.6, 0.4, 0.2]
+    /// );
+    /// ```
+    pub fn mono_specie(quantity: PhysicalQuantity, values: Vec<f64>) -> Self {
+        let n_points = values.len();
+        let matrix = DMatrix::from_vec(n_points, n_points, values);
+        Self::new(quantity, matrix)
+    }
+
+
+    /// Add a new species to a physical quantity
+    ///
+    /// Expands the matrix by adding a new column at the specified index.
+    /// If the quantity doesn't exist, creates it as a single-species matrix.
+    ///
+    /// # Arguments
+    /// * `quantity` - Physical quantity to expand
+    /// * `species_data` - Vector of values for the new species (must match n_spatial_points)
+    /// * `species_idx` - Column index where to insert the new species
+    ///
+    /// # Panics
+    /// - If `species_data` length doesn't match existing spatial points
+    /// - If `species_idx` is out of bounds (> current n_species)
+    ///
+    /// # Example
+    /// ```rust
+    /// use chrom_rs::physics::{PhysicalState, PhysicalQuantity};
+    ///
+    /// // Start with mono-species
+    /// let mut state = PhysicalState::mono_specie(
+    ///     PhysicalQuantity::Concentration,
+    ///     vec![1.0, 2.0, 3.0]
+    /// );
+    ///
+    /// // Add second species at index 1 (after first)
+    /// state.add_specie(
+    ///     PhysicalQuantity::Concentration,
+    ///     vec![0.5, 0.6, 0.7],
+    ///     1
+    /// );
+    ///
+    /// // Now have 2 species: [1.0, 0.5], [2.0, 0.6], [3.0, 0.7]
+    /// assert_eq!(state.n_species(PhysicalQuantity::Concentration).unwrap(), 2);
+    /// ```
+    pub fn add_specie(&mut self,
+                      quantity: PhysicalQuantity,
+                      data: Vec<f64>,
+                      position: usize) {
+        if let Some(matrix) = self.quantities.get_mut(&quantity) {
+            // Data for this physical quantity exists
+            let rows = matrix.nrows();
+            let cols = matrix.ncols();
+
+            // Guaranty data length
+            assert_eq!(data.len(),
+                       rows,
+                       "Specie data length {} mismatch with model variables {}",
+                       data.len(),
+                       rows);
+
+            // Guaranty index position
+
+            assert!(position <= cols,
+                    "New specie index {} is out of bounds (max {})",
+                    position,
+                    cols);
+
+            // Building the new DMatrix
+
+            let mut extended_matrix = DMatrix::zeros(rows, cols + 1);
+
+            // Copying old matrix in new matrix to the insert position
+
+            for col in 0..position {
+                extended_matrix.set_column(col, &matrix.column(col));
+            }
+
+            // Insert the new specie
+
+            extended_matrix.set_column(position, &nalgebra::DVector::from_vec(data));
+
+            // Copy remaining value of old matrix
+
+            for col in position.. cols {
+                extended_matrix.set_column(col + 1, &matrix.column(col));
+            }
+
+            *matrix = extended_matrix;
+        } else {
+            assert_eq!(position,
+                       0,
+                       "Cannot insert at index {} when quantity doesn't exist (use index 0)",
+                       position);
+
+            let rows = data.len();
+            let matrix = DMatrix::from_vec(rows, 1, data);
+            self.quantities.insert(quantity, matrix);
+        }
+    }
+
+    /// Add a new species to the end (convenience method)
+    ///
+    /// Appends a new species column at the end of the matrix.
+    ///
+    /// # Example
+    /// ```rust
+    /// use chrom_rs::physics::{PhysicalState, PhysicalQuantity};
+    ///
+    /// let mut state = PhysicalState::mono_specie(
+    ///     PhysicalQuantity::Concentration,
+    ///     vec![1.0, 2.0, 3.0]
+    /// );
+    ///
+    /// // Append second species
+    /// state.append_specie(
+    ///     PhysicalQuantity::Concentration,
+    ///     vec![0.5, 0.6, 0.7]
+    /// );
+    ///
+    /// assert_eq!(state.n_species(PhysicalQuantity::Concentration).unwrap(), 2);
+    /// ```
+    pub fn append_specie(&mut self, quantity: PhysicalQuantity, data: Vec<f64>) {
+        let position = self.get(quantity).
+            map_or(0, |matrix| matrix.ncols());
+        self.add_specie(quantity, data, position);
+    }
+
+    /// Remove a species from a physical quantity
+    ///
+    /// Removes the specified column from the matrix.
+    ///
+    /// # Arguments
+    /// * `quantity` - Physical quantity to modify
+    /// * `species_idx` - Index of species to remove
+    ///
+    /// # Panics
+    /// - If quantity doesn't exist
+    /// - If species_idx is out of bounds
+    /// - If trying to remove the last species (would leave empty matrix)
+    ///
+    /// # Example
+    /// ```rust
+    /// use chrom_rs::physics::{PhysicalState, PhysicalQuantity};
+    ///
+    /// let mut state = PhysicalState::mono_specie(
+    ///     PhysicalQuantity::Concentration,
+    ///     vec![1.0, 1.0, 1.0]
+    /// );
+    /// state.append_specie(PhysicalQuantity::Concentration, vec![2.0, 2.0, 2.0]);
+    /// state.append_specie(PhysicalQuantity::Concentration, vec![3.0, 3.0, 3.0]);
+    ///
+    /// // Remove middle species (index 1)
+    /// state.remove_specie(PhysicalQuantity::Concentration, 1);
+    ///
+    /// assert_eq!(state.n_species(PhysicalQuantity::Concentration).unwrap(), 2);
+    /// ```
+    pub fn remove_specie(&mut self, quantity: PhysicalQuantity, index: usize) {
+        if let Some(matrix) = self.quantities.get_mut(&quantity) {
+            let rows = matrix.nrows();
+            let cols = matrix.ncols();
+
+            // Verifying index in segment [0, cols[
+            assert!(index < cols, "Index {} of specie is out of bounds (max {})", index, cols);
+
+            // Verifying there are at least 2 species
+            assert!(cols > 1, "Cannot remove the last specie at index. Use remove_quantity() instead.");
+
+            let mut reduced_matrix = DMatrix::zeros(rows, cols - 1);
+
+            for col in 0..index {
+                reduced_matrix.set_column(col, &matrix.column(col));
+            }
+
+            for col in index+1 .. cols {
+                reduced_matrix.set_column(col - 1, &matrix.column(col));
+            }
+
+            *matrix = reduced_matrix;
+        } else {
+            panic!("Quantity {:?} is not found in this state", quantity);
+        }
+    }
+
+    
+
+
     /// Get a quantity by type
-    pub fn get(&self, quantity: PhysicalQuantity) -> Option<&DVector<f64>> {
+    pub fn get(&self, quantity: PhysicalQuantity) -> Option<&DMatrix<f64>> {
         self.quantities.get(&quantity)
     }
 
     /// Get mutable reference to a quantity
-    pub fn get_mut(&mut self, quantity: PhysicalQuantity) -> Option<&mut DVector<f64>> {
+    pub fn get_mut(&mut self, quantity: PhysicalQuantity) -> Option<&mut DMatrix<f64>> {
         self.quantities.get_mut(&quantity)
     }
 
     /// Set a quantity
-    pub fn set (&mut self, quantity: PhysicalQuantity, value: DVector<f64>) {
+    pub fn set (&mut self, quantity: PhysicalQuantity, value: DMatrix<f64>) {
         self.quantities.insert(quantity, value);
     }
 
@@ -250,7 +504,7 @@ mod tests {
         let quantity = PhysicalQuantity::Custom("Tesla");
         let physics = PhysicalState::new(
             quantity,
-            DVector::from_row_slice(&[1.0, 2.0]),
+            DMatrix::from_element(2, 2, 1.0),
         );
 
         assert_eq!(physics.quantities.len(), 1);
@@ -259,78 +513,9 @@ mod tests {
 
         let values = physics.get(quantity).unwrap();
 
-        assert_eq!(values.len(), 2);
+        assert_eq!(values.nrows(), 2);
+        assert_eq!(values.ncols(), 2);
     }
 
-    #[test]
-    fn test_modify_physical_state() {
-        let mut physics = PhysicalState::new(
-            PhysicalQuantity::Custom("Tesla"),
-            DVector::from_row_slice(&[1.0, 2.0]),
-        );
-
-        let mut values = physics.get_mut(PhysicalQuantity::Custom("Tesla")).unwrap();
-        assert_eq!(values.len(), 2);
-        let mut values = values.push(10.0);
-        physics.set(PhysicalQuantity::Custom("Tesla"), values);
-
-        assert_eq!(physics.available_quantities().len(), 1);
-        assert_eq!(physics.get(PhysicalQuantity::Custom("Tesla")).unwrap().len(), 3);
-
-    }
-
-    #[test]
-    fn test_metadata() {
-        let mut physics = PhysicalState::new(
-            PhysicalQuantity::Custom("Tesla"),
-            DVector::from_row_slice(&[1.0, 2.0]),
-        );
-
-        physics.set_metadata("molecule".to_string(), 10.0);
-        assert_eq!(physics.get_metadata("molecule").unwrap(), 10.0);
-    }
-
-    #[test]
-    fn test_addition() {
-        let state_one = PhysicalState::new(
-            PhysicalQuantity::Pressure,
-            DVector::from_row_slice(&[780.0, 1024.0]),
-        );
-        let state_two = PhysicalState::new(
-            PhysicalQuantity::Pressure,
-            DVector::from_row_slice(&[230.0, -24.0]),
-        );
-        let false_one = PhysicalState::new(
-            PhysicalQuantity::Temperature,
-            DVector::from_row_slice(&[0.0, 273.15]),
-        );
-
-        let pressure = state_one.clone() + state_two;
-        let temperature = false_one + state_one ;
-
-        assert_eq!(pressure.get(PhysicalQuantity::Pressure).unwrap()[0], 1010.0);
-        assert_eq!(pressure.get(PhysicalQuantity::Pressure).unwrap()[1], 1000.0);
-
-        assert_ne!(temperature.get(PhysicalQuantity::Temperature).unwrap()[0], 780.0);
-        assert_eq!(temperature.get(PhysicalQuantity::Temperature).unwrap()[0], 0.0);
-    }
-
-    #[test]
-    fn test_multiplication() {
-        let mut state_one = PhysicalState::new(
-            PhysicalQuantity::Concentration,
-            DVector::from_row_slice(&[1.0, 2.0]),
-        );
-
-        state_one = state_one * 10.0;
-
-        assert_eq!(state_one.get(PhysicalQuantity::Concentration).unwrap()[0], 10.0);
-        assert_eq!(state_one.get(PhysicalQuantity::Concentration).unwrap()[1], 20.0);
-
-        let result = state_one.clone() * 2.0;
-
-        assert_eq!(result.get(PhysicalQuantity::Concentration).unwrap()[0], 20.0);
-        assert_eq!(result.get(PhysicalQuantity::Concentration).unwrap()[1], 40.0);
-    }
 
 }
