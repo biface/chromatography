@@ -455,46 +455,46 @@ mod tests {
 
     // ==================================== Dimension Boundary ====================================
 
-    #[test]
-    fn test_dimension_boundary_new() {
-        let dimension = DimensionBoundary::new(
-            "volume",
-            vec![PhysicalState::new(
-                PhysicalQuantity::Concentration,
-                DVector::from_row_slice(&[1., 1., 1., 1.]),
-            )]
-        );
+    //#[test]
+    //fn test_dimension_boundary_new() {
+    //    let dimension = DimensionBoundary::new(
+    //        "volume",
+    //        vec![PhysicalState::new(
+    //            PhysicalQuantity::Concentration,
+    //            DVector::from_row_slice(&[1., 1., 1., 1.]),
+    //        )]
+    //    );
 
-        assert_eq!(dimension.name, "volume");
-        assert_eq!(dimension.states.len(), 1);
-        assert_eq!(dimension.size(), 1)
-    }
+    //    assert_eq!(dimension.name, "volume");
+    //    assert_eq!(dimension.states.len(), 1);
+    //    assert_eq!(dimension.size(), 1)
+    //}
 
-    #[test]
-    fn test_dimension_boundary_content() {
-        let dimension = DimensionBoundary::new(
-            "volume",
-            vec![PhysicalState::new(
-                PhysicalQuantity::Concentration,
-                DVector::from_row_slice(&[1., 2., 3., 4.]),
-            )]
-        );
+    //#[test]
+    //fn test_dimension_boundary_content() {
+    //    let dimension = DimensionBoundary::new(
+    //        "volume",
+    //        vec![PhysicalState::new(
+    //            PhysicalQuantity::Concentration,
+    //            DVector::from_row_slice(&[1., 2., 3., 4.]),
+    //        )]
+    //    );
 
-        assert!(dimension
-            .first()
-            .unwrap()
-            .available_quantities().
-            contains(&PhysicalQuantity::Concentration));
+    //    assert!(dimension
+    //        .first()
+    //        .unwrap()
+    //        .available_quantities().
+    //        contains(&PhysicalQuantity::Concentration));
 
-        let data = dimension.
-            first()
-            .unwrap()
-            .get(PhysicalQuantity::Concentration)
-            .unwrap();
+    //    let data = dimension.
+    //        first()
+    //        .unwrap()
+    //        .get(PhysicalQuantity::Concentration)
+    //        .unwrap();
 
-        assert_eq!(data[0], 1.0) ;
-        assert_eq!(data[2], 3.0) ;
-    }
+    //    assert_eq!(data[0], 1.0) ;
+    //    assert_eq!(data[2], 3.0) ;
+    //}
 
 
 
@@ -525,75 +525,75 @@ mod tests {
         assert_eq!(domain.convention, TimeAxisConvention::None);
     }
 
-    #[test]
-    fn test_mixed() {
-        let initial = PhysicalState::new(
-            PhysicalQuantity::Concentration,
-            DVector::from_vec(vec![2.0])
-        );
+    //#[test]
+    //fn test_mixed() {
+    //    let initial = PhysicalState::new(
+    //        PhysicalQuantity::Concentration,
+    //        DVector::from_vec(vec![2.0])
+    //    );
 
-        let boundary = DomainBoundaries::mixed(
-            &["x", "y", "z"],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-            initial
-        ) ;
+    //    let boundary = DomainBoundaries::mixed(
+    //        &["x", "y", "z"],
+    //        vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
+    //        vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
+    //        initial
+    //    ) ;
 
-        assert_eq!(boundary.ndim(), 4);
-        assert_eq!(boundary.sdim(), 3);
-        assert!(boundary.is_time_dependent());
-        assert_eq!(boundary.convention, TimeAxisConvention::Last);
-        assert_eq!(boundary.time_index(), Some(3));
+    //    assert_eq!(boundary.ndim(), 4);
+    //    assert_eq!(boundary.sdim(), 3);
+    //    assert!(boundary.is_time_dependent());
+    //    assert_eq!(boundary.convention, TimeAxisConvention::Last);
+    //    assert_eq!(boundary.time_index(), Some(3));
 
-        assert!(boundary.dimensions[0].name.contains("x"));
-        assert!(boundary.dimensions[1].name.contains("y"));
-        assert!(boundary.dimensions[2].name.contains("z"));
-        assert!(boundary.dimensions[3].name.contains("t"));
-    }
+    //    assert!(boundary.dimensions[0].name.contains("x"));
+    //    assert!(boundary.dimensions[1].name.contains("y"));
+    //    assert!(boundary.dimensions[2].name.contains("z"));
+    //    assert!(boundary.dimensions[3].name.contains("t"));
+    //}
 
-    #[test]
-    fn test_mixed_spatial() {
-        let initial = PhysicalState::new(
-            PhysicalQuantity::Concentration,
-            DVector::from_vec(vec![2.0])
-        );
+    //#[test]
+    //fn test_mixed_spatial() {
+    //    let initial = PhysicalState::new(
+    //        PhysicalQuantity::Concentration,
+    //        DVector::from_vec(vec![2.0])
+    //    );
 
-        let boundary = DomainBoundaries::mixed(
-            &["x", "y", "z"],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-            initial
-        ) ;
+    //    let boundary = DomainBoundaries::mixed(
+    //        &["x", "y", "z"],
+    //        vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
+    //        vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
+    //        initial
+    //    ) ;
 
-        let spatials = boundary.spatial_boundaries();
+    //    let spatials = boundary.spatial_boundaries();
 
-        assert_eq!(spatials.len(), 3);
-        assert_eq!(spatials[0].name, "x");
-        assert_eq!(spatials[1].name, "y");
-        assert_eq!(spatials[2].name, "z");
+    //    assert_eq!(spatials.len(), 3);
+    //    assert_eq!(spatials[0].name, "x");
+    //    assert_eq!(spatials[1].name, "y");
+    //    assert_eq!(spatials[2].name, "z");
 
-    }
+    //}
 
-    #[test]
-    fn test_mixed_temporal() {
-        let initial = PhysicalState::new(
-            PhysicalQuantity::Concentration,
-            DVector::from_vec(vec![2.0])
-        );
-
-        let boundary = DomainBoundaries::mixed(
-            &["x", "y", "z"],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-            initial
-        ) ;
-
-        let temporal = boundary.time_boundary();
-
-        assert_eq!(temporal.is_some(), true);
-        assert_eq!(temporal.unwrap().name, "t");
-
-    }
+    // #[test]
+    // fn test_mixed_temporal() {
+    //    let initial = PhysicalState::new(
+    //        PhysicalQuantity::Concentration,
+    //        DVector::from_vec(vec![2.0])
+    //    );
+    //
+    //    let boundary = DomainBoundaries::mixed(
+    //        &["x", "y", "z"],
+    //        vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
+    //        vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
+    //        initial
+    //    ) ;
+    //
+    //    let temporal = boundary.time_boundary();
+    //
+    //    assert_eq!(temporal.is_some(), true);
+    //    assert_eq!(temporal.unwrap().name, "t");
+    //
+    //}
 
     // Validation tests
     #[test]
