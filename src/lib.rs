@@ -74,6 +74,6 @@ pub mod prelude {
     //!
     //! use chrom_rs::prelude::*;
     //! ```
-    pub use crate::physics::{PhysicalModel, PhysicalState, PhysicalQuantity};
+    pub use crate::physics::{PhysicalData, PhysicalQuantity, PhysicalState, PhysicalModel};
 
 }

@@ -73,11 +73,12 @@
 
 // module declaration
 pub mod traits;
-
+pub mod data;
 // Model implementation
 
 // re-export commonly used types for convenience
+pub use data::PhysicalData;
 pub use traits::{
     PhysicalModel,
     PhysicalState,
-    PhysicalQuantity};
+    PhysicalQuantity,};
