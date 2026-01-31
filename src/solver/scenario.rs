@@ -85,9 +85,8 @@ impl std::fmt::Debug for Scenario {
 
 #[cfg(test)]
 mod tests {
-    use nalgebra::DVector;
     use super::*;
-    use crate::physics::traits::{PhysicalState, PhysicalQuantity};
+    use crate::physics::traits::PhysicalState;
     use crate::solver::boundary::DomainBoundaries;
 
     // Mocking a Physical model

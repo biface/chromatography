@@ -421,9 +421,6 @@ impl fmt::Display for TimeAxisConvention {
 
 #[cfg(test)]
 mod tests {
-    use nalgebra::DVector;
-    use num::integer::div_mod_floor;
-    use crate::physics::PhysicalQuantity;
     use super::*;
 
     // =================================== Time Axis Convention ===================================
