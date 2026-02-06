@@ -34,3 +34,8 @@ ndarray = "0.17.2"
 
 [dev-dependencies]
 cargo-llvm-cov = "0.7.1"
+criterion = { version = "0.8", features = ["html_reports"] }
+
+[[bench]]
+name = "solver_performance"
+harness = false
