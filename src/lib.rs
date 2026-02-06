@@ -74,6 +74,15 @@ pub mod prelude {
     //!
     //! use chrom_rs::prelude::*;
     //! ```
-    pub use crate::physics::{PhysicalData, PhysicalQuantity, PhysicalState, PhysicalModel};
-
+    pub use crate::physics::{PhysicalData,
+                             PhysicalQuantity,
+                             PhysicalState,
+                             PhysicalModel};
+    pub use crate::solver::{Solver,
+                            SolverConfiguration,
+                            SolverType,
+                            Scenario,
+                            SimulationResult,
+                            EulerSolver,
+                            RK4Solver};
 }
