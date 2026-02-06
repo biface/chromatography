@@ -48,8 +48,8 @@
 //!   - Validation and introspection methods
 //!
 //! - **Solver implementations**:
-//!   - `euler`: Forward Euler method
-//!   - `runge_kutta`: RK4 method (future)
+//!   - `EulerSolver`: Forward Euler method
+//!   - `RK4Solver`: 4 Steps Runge Kutta method
 //!   - etc.
 //!
 //! # Quick Start Example
