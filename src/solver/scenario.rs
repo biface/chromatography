@@ -18,12 +18,30 @@ use crate::solver::boundary::DomainBoundaries;
 /// # Examples
 ///
 /// ```rust
+/// # use chrom_rs::solver::{Scenario, DomainBoundaries, EulerSolver, Solver, SolverConfiguration};
+/// # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use nalgebra::DVector;
+/// # struct MyModel;
+/// # impl PhysicalModel for MyModel {
+/// #     fn points(&self) -> usize { 1 }
+/// #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+/// #     fn setup_initial_state(&self) -> PhysicalState {
+/// #         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])))
+/// #     }
+/// #     fn name(&self) -> &str { "MyModel" }
+/// # }
+/// # fn main() -> Result<(), String> {
+/// # let model = Box::new(MyModel);
+/// # let boundaries = DomainBoundaries::temporal(model.setup_initial_state());
+/// # let config = SolverConfiguration::time_evolution(1.0, 10);
+/// # let euler_solver = EulerSolver::new();
 /// // Define scenario
 /// let scenario = Scenario::new(model, boundaries);
 ///
 /// // Solve with different methods
-/// let result1 = euler_solver.solve(&scenario, &config1)?;
-/// let result2 = newton_solver.solve(&scenario, &config2)?;
+/// let result = euler_solver.solve(&scenario, &config)?;
+/// # Ok(())
+/// # }
 /// ```
 
 pub struct Scenario {

@@ -50,14 +50,30 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
-//! use chrom_rs::solver::{EulerSolver, Solver, SolverConfiguration, Scenario};
-//!
-//! let solver = EulerSolver;
+//! ```rust
+//! # use chrom_rs::solver::{EulerSolver, Solver, SolverConfiguration, Scenario, DomainBoundaries};
+//! # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+//! # use nalgebra::DVector;
+//! # struct MyModel;
+//! # impl PhysicalModel for MyModel {
+//! #     fn points(&self) -> usize { 1 }
+//! #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+//! #     fn setup_initial_state(&self) -> PhysicalState {
+//! #         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])))
+//! #     }
+//! #     fn name(&self) -> &str { "MyModel" }
+//! # }
+//! # fn main() -> Result<(), String> {
+//! # let model = Box::new(MyModel);
+//! # let boundaries = DomainBoundaries::temporal(model.setup_initial_state());
+//! # let scenario = Scenario::new(model, boundaries);
+//! let solver = EulerSolver::new();
 //! let config = SolverConfiguration::time_evolution(600.0, 10000);
 //!
 //! // scenario must be created with model + boundaries
 //! let result = solver.solve(&scenario, &config)?;
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::physics::PhysicalState;
@@ -104,19 +120,28 @@ use crate::solver::{Scenario, SimulationResult, Solver, SolverConfiguration, Sol
 ///
 /// # Example
 ///
-/// ```rust,ignore
-/// use chrom_rs::solver::{EulerSolver, Solver};
-///
-/// let solver = EulerSolver;
-///
-/// // Solver requires TimeEvolution configuration
-/// let config = SolverConfiguration::time_evolution(
-///     600.0,    // Total time (seconds)
-///     10000,    // Number of time steps
-/// );
-///
+/// ```rust
+/// # use chrom_rs::solver::{EulerSolver, Solver, Scenario, DomainBoundaries, SolverConfiguration};
+/// # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use nalgebra::DVector;
+/// # struct MyModel;
+/// # impl PhysicalModel for MyModel {
+/// #     fn points(&self) -> usize { 1 }
+/// #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+/// #     fn setup_initial_state(&self) -> PhysicalState {
+/// #         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])))
+/// #     }
+/// #     fn name(&self) -> &str { "MyModel" }
+/// # }
+/// # fn main() -> Result<(), String> {
+/// # let model = Box::new(MyModel);
+/// # let boundaries = DomainBoundaries::temporal(model.setup_initial_state());
+/// # let scenario = Scenario::new(model, boundaries);
+/// # let config = SolverConfiguration::time_evolution(1.0, 10);
+/// let solver = EulerSolver::new();
 /// let result = solver.solve(&scenario, &config)?;
-/// println!("Final time: {}", result.time_points.last().unwrap());
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Debug, Clone, Copy, Default)]
 pub struct EulerSolver;
@@ -127,8 +152,7 @@ impl EulerSolver {
     /// # Example
     ///
     /// ```rust
-    /// use chrom_rs::solver::EulerSolver;
-    /// use chrom_rs::solver::traits::Solver;
+    /// use chrom_rs::solver::{EulerSolver, Solver};
     ///
     /// let solver = EulerSolver::new();
     /// assert_eq!(solver.name(), "Forward Euler");

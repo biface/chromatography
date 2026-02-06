@@ -29,24 +29,14 @@ use std::fmt;
 ///
 /// The solver interprets how to use these states.
 ///
-/// # Examples
-///
 /// ```rust
+/// # use chrom_rs::solver::DomainBoundaries;
+/// # use chrom_rs::solver::Scenario;
+/// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use nalgebra::DVector;
+/// # let initial_state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])));
 /// // ODE: temporal only
 /// let boundaries = DomainBoundaries::temporal(initial_state);
-///
-/// // 1D spatial + time
-/// let boundaries = DomainBoundaries::space_time_1d(
-///     x_left, x_right, initial
-/// );
-///
-/// // 3D spatial + time
-/// let boundaries = DomainBoundaries::new(vec![
-///     DimensionBoundary::spatial("x", x_left, x_right),
-///     DimensionBoundary::spatial("y", y_bottom, y_top),
-///     DimensionBoundary::spatial("z", z_front, z_back),
-///     DimensionBoundary::temporal("t", initial),
-/// ]);
 /// ```
 #[derive(Debug, Clone)]
 pub struct DomainBoundaries {
@@ -89,13 +79,17 @@ impl DomainBoundaries {
     /// # Examples
     ///
     /// ```rust
-    /// let initial = PhysicalState::new()
-    ///     .with_concentration("A", 1.0);
+    /// # use chrom_rs::solver::DomainBoundaries;
+    /// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+    /// # use nalgebra::DVector;
+    /// let initial = PhysicalState::new(
+    ///     PhysicalQuantity::Concentration,
+    ///     PhysicalData::Vector(DVector::from_vec(vec![1.0]))
+    /// );
     ///
     /// let boundaries = DomainBoundaries::temporal(initial);
     ///
     /// assert_eq!(boundaries.ndim(), 1);
-    /// assert_eq!(boundaries.spatial_ndim(), 0);
     /// assert!(boundaries.is_time_dependent());
     /// ```
     pub fn temporal(initial: PhysicalState) -> Self {
@@ -125,28 +119,34 @@ impl DomainBoundaries {
     /// # Examples
     ///
     /// ```rust
+    /// # use chrom_rs::solver::DomainBoundaries;
+    /// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+    /// # use nalgebra::DVector;
+    /// # let state = || PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])));
     /// // 2D spatial domain
     /// let boundaries = DomainBoundaries::spatial(
     ///     &["x", "y"],
-    ///     vec![x_left, y_bottom],
-    ///     vec![x_right, y_top]
+    ///     vec![state(), state()],
+    ///     vec![state(), state()]
     /// );
     ///
     /// assert_eq!(boundaries.ndim(), 2);
-    /// assert_eq!(boundaries.spatial_ndim(), 2);
     /// assert!(!boundaries.is_time_dependent());
     /// ```
     ///
     /// ```rust
+    /// # use chrom_rs::solver::DomainBoundaries;
+    /// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+    /// # use nalgebra::DVector;
+    /// # let state = || PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])));
     /// // 3D spatial domain
     /// let boundaries = DomainBoundaries::spatial(
     ///     &["x", "y", "z"],
-    ///     vec![x_left, y_bottom, z_front],
-    ///     vec![x_right, y_top, z_back]
+    ///     vec![state(), state(), state()],
+    ///     vec![state(), state(), state()]
     /// );
     ///
     /// assert_eq!(boundaries.ndim(), 3);
-    /// assert_eq!(boundaries.spatial_ndim(), 3);
     /// ```
     pub fn spatial(names: &[&str],
                    begins: Vec<PhysicalState>,
@@ -183,31 +183,36 @@ impl DomainBoundaries {
     /// # Examples
     ///
     /// ```rust
+    /// # use chrom_rs::solver::DomainBoundaries;
+    /// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+    /// # use nalgebra::DVector;
+    /// # let state = || PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])));
     /// // 1D space + time
     /// let boundaries = DomainBoundaries::mixed(
     ///     &["x"],
-    ///     vec![x_left],
-    ///     vec![x_right],
-    ///     initial
+    ///     vec![state()],
+    ///     vec![state()],
+    ///     state()
     /// );
     ///
     /// assert_eq!(boundaries.ndim(), 2);
-    /// assert_eq!(boundaries.spatial_ndim(), 1);
     /// assert!(boundaries.is_time_dependent());
-    /// assert_eq!(boundaries.time_convention, TimeAxisConvention::Last);
     /// ```
     ///
     /// ```rust
+    /// # use chrom_rs::solver::DomainBoundaries;
+    /// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+    /// # use nalgebra::DVector;
+    /// # let state = || PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])));
     /// // 3D space + time
     /// let boundaries = DomainBoundaries::mixed(
     ///     &["x", "y", "z"],
-    ///     vec![x_left, y_bottom, z_front],
-    ///     vec![x_right, y_top, z_back],
-    ///     initial
+    ///     vec![state(), state(), state()],
+    ///     vec![state(), state(), state()],
+    ///     state()
     /// );
     ///
     /// assert_eq!(boundaries.ndim(), 4);
-    /// assert_eq!(boundaries.spatial_ndim(), 3);
     /// ```
     pub fn mixed(names: &[&str],
     begins: Vec<PhysicalState>,

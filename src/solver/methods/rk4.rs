@@ -129,9 +129,23 @@ use crate::solver::{Solver, SolverConfiguration, SolverType, SimulationResult, S
 ///
 /// # Example
 ///
-/// ```rust,ignore
-/// use chrom_rs::solver::{RK4Solver, Solver};
-///
+/// ```rust
+/// # use chrom_rs::solver::{RK4Solver, Solver, SolverConfiguration, Scenario, DomainBoundaries};
+/// # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use nalgebra::DVector;
+/// # struct MyModel;
+/// # impl PhysicalModel for MyModel {
+/// #     fn points(&self) -> usize { 1 }
+/// #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+/// #     fn setup_initial_state(&self) -> PhysicalState {
+/// #         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])))
+/// #     }
+/// #     fn name(&self) -> &str { "MyModel" }
+/// # }
+/// # fn main() -> Result<(), String> {
+/// # let model = Box::new(MyModel);
+/// # let boundaries = DomainBoundaries::temporal(model.setup_initial_state());
+/// # let scenario = Scenario::new(model, boundaries);
 /// let solver = RK4Solver::new();
 ///
 /// // Can use larger time steps than Euler for same accuracy
@@ -142,6 +156,8 @@ use crate::solver::{Solver, SolverConfiguration, SolverType, SimulationResult, S
 ///
 /// let result = solver.solve(&scenario, &config)?;
 /// println!("Solved with {} evaluations", 4 * 1000);
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RK4Solver;
@@ -152,10 +168,10 @@ impl RK4Solver {
     /// # Example
     ///
     /// ```rust
-    /// use chrom_rs::solver::RK4Solver;
+    /// use chrom_rs::solver::{RK4Solver, Solver};
     ///
     /// let solver = RK4Solver::new();
-    /// assert_eq!(solver.name(), "Runge-Kutta 4");
+    /// assert_eq!(solver.name(), "Runge Kutta (RK4)");
     /// ```
     pub fn new() -> Self {
         Self
