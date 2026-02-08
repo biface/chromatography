@@ -23,17 +23,27 @@
 //! # Example
 //!
 //! ```rust
-//! use chrom_rs::physics::{PhysicalModel, PhysicalState};
-//! use chrom_rs::physics::langmuir1d::LangmuirModel1D;
+//! use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
 //!
+//! # struct MyModel;
+//! # impl PhysicalModel for MyModel {
+//! #     fn points(&self) -> usize { 1 }
+//! #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+//! #     fn setup_initial_state(&self) -> PhysicalState {
+//! #         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(nalgebra::DVector::from_vec(vec![1.0])))
+//! #     }
+//! #     fn name(&self) -> &str { "MyModel" }
+//! # }
+//! # fn main() {
 //! // Create a physical model
-//! let model = LangmuirModel1D::new(isotherm_params, system_params)?;
+//! let model = MyModel;
 //!
 //! // Get initial state
-//! let initial_state = model.create_initial_state();
+//! let initial_state = model.setup_initial_state();
 //!
 //! // Compute physics at current state
 //! let physics_result = model.compute_physics(&initial_state);
+//! # }
 //! ```
 //!
 //! # Implementing a New Physical Model
@@ -48,16 +58,21 @@
 //! }
 //!
 //! impl PhysicalModel for MyCustomModel {
-//!     fn n_spatial_points(&self) -> usize {
+//!     fn points(&self) -> usize {
 //!         // Return number of spatial points
+//!         1
 //!     }
 //!
 //!     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
 //!         // Compute and return the physics equations
+//!         state.clone()
 //!     }
 //!
-//!     fn create_initial_state(&self) -> PhysicalState {
+//!     fn setup_initial_state(&self) -> PhysicalState {
 //!         // Create initial state
+//!         # use chrom_rs::physics::{PhysicalQuantity, PhysicalData};
+//!         # PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(nalgebra::DVector::from_vec(vec![1.0])))
+//!         /* ... */
 //!     }
 //!
 //!     fn name(&self) -> &str {

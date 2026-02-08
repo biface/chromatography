@@ -19,41 +19,41 @@
 //! # Quick Start
 //!
 //! ```rust
-//! use chrom_rs::physics::langmuir1d::{LangmuirModel1D, LangmuirIsothermParams, System1DParams};
-//! use chrom_rs::solver::{EulerSolver, Solver, SolverConfig};
+//! use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+//! use chrom_rs::solver::{EulerSolver, Solver, SolverConfiguration, Scenario, DomainBoundaries};
+//! use nalgebra::DVector;
 //!
-//! // 1. Configure physical model
-//! let isotherm = LangmuirIsothermParams {
-//!     lambda: 1.0,
-//!     capacity: 6.0,
-//!     langmuir_constant: 0.5,
-//! };
-//!
-//! let system = System1DParams {
-//!     length: 0.3,
-//!     n_points: 35,
-//!     velocity: 0.0025,
-//!     dispersion: 1e-9,
-//!     retention_factor: 1.5,
-//! };
-//!
-//! let model = LangmuirModel1D::new(isotherm, system)?;
+//! # struct MyModel;
+//! # impl PhysicalModel for MyModel {
+//! #     fn points(&self) -> usize { 1 }
+//! #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+//! #     fn setup_initial_state(&self) -> PhysicalState {
+//! #         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(nalgebra::DVector::from_vec(vec![1.0])))
+//! #     }
+//! #     fn name(&self) -> &str { "MyModel" }
+//! # }
+//! # fn main() -> Result<(), String> {
+//! // 1. Configure physical model and scenario
+//! let model = Box::new(MyModel);
+//! let initial_state = model.setup_initial_state();
+//! let boundaries = DomainBoundaries::temporal(initial_state);
+//! let scenario = Scenario::new(model, boundaries);
 //!
 //! // 2. Configure solver
-//! let config = SolverConfig {
-//!     total_time: 600.0,
-//!     time_steps: 10000,
-//!     tolerance: None,
-//!     max_iterations: None,
-//! };
+//! let config = SolverConfiguration::time_evolution(
+//!     600.0,    // 10 minutes total time
+//!     1000,     // 1000 time steps
+//! );
 //!
 //! // 3. Run simulation
-//! let solver = EulerSolver;
-//! let result = solver.solve(&model, &config)?;
+//! let solver = EulerSolver::new();
+//! let result = solver.solve(&scenario, &config)?;
 //!
 //! // 4. Access results
 //! println!("Simulation completed!");
-//! println!("Time points: {}", result.time_points.len());
+//! println!("Trajectory length: {}", result.len());
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! # Modules
@@ -74,6 +74,15 @@ pub mod prelude {
     //!
     //! use chrom_rs::prelude::*;
     //! ```
-    pub use crate::physics::{PhysicalData, PhysicalQuantity, PhysicalState, PhysicalModel};
-
+    pub use crate::physics::{PhysicalData,
+                             PhysicalQuantity,
+                             PhysicalState,
+                             PhysicalModel};
+    pub use crate::solver::{Solver,
+                            SolverConfiguration,
+                            SolverType,
+                            Scenario,
+                            SimulationResult,
+                            EulerSolver,
+                            RK4Solver};
 }

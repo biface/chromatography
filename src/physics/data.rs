@@ -1050,7 +1050,7 @@ impl PhysicalData {
             PhysicalData::Scalar(value) => *value = f(*value),
 
             PhysicalData::Vector(v) => {
-                if v.len() > 999 {
+                if v.len() > crate::solver::parallel_threshold() {
                     #[cfg(feature = "parallel")]
                     v.as_mut_slice().par_iter_mut().for_each(|x| *x = f(*x));
                     #[cfg(not(feature = "parallel"))]
@@ -1061,7 +1061,7 @@ impl PhysicalData {
             }
 
             PhysicalData::Matrix(m) => {
-                if m.len() > 999 {
+                if m.len() > crate::solver::parallel_threshold() {
                     #[cfg(feature = "parallel")]
                     m.as_mut_slice().par_iter_mut().for_each(|x| *x = f(*x));
                     #[cfg(not(feature = "parallel"))]
@@ -1768,6 +1768,30 @@ mod tests {
         data.apply(|v| v * v + 2.0 * v + 1.0);
 
         assert_eq!(data.as_matrix()[(500,500)], 4.0);
+    }
+
+    #[test]
+    fn test_apply_function_to_large_vector() {
+        let mut data = PhysicalData::uniform_vector(1100, 1.0);
+        data.apply(|v| v * v + 2.0 * v + 1.0);
+
+        assert_eq!(data.as_vector()[500], 4.0);
+    }
+
+    #[test]
+    fn test_apply_respects_configurable_threshold() {
+        let _guard = crate::solver::ThresholdGuard::save(5);
+
+        let mut vec_data = PhysicalData::from_vec(vec![1.0; 10]);
+        vec_data.apply(|x| x + 1.0);
+        for i in 0..10 {
+            assert_eq!(vec_data.as_vector()[i], 2.0);
+        }
+
+        let mut mat_data = PhysicalData::uniform_matrix(10, 10, 3.0);
+
+        mat_data.apply(|x| x * 2.0);
+        assert_eq!(mat_data.as_matrix()[(5, 5)], 6.0);
     }
 
     // =================================== Arithmetic Operators ===================================

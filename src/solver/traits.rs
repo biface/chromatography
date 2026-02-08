@@ -40,6 +40,7 @@ use crate::solver::scenario::Scenario;
 /// # Examples
 ///
 /// ```rust
+/// # use chrom_rs::solver::SolverType;
 /// // Time evolution solution
 /// let solver_type = SolverType::TimeEvolution {
 ///     total_time: 10.0,
@@ -111,13 +112,16 @@ pub enum SolverType {
     ///
     /// # Example
     /// ```rust
-    /// SolverType::Custom(
+    /// # use chrom_rs::solver::SolverType;
+    /// # use std::collections::HashMap;
+    /// let mut data = HashMap::new();
+    /// data.insert("tolerance".to_string(), 1e-6);
+    /// data.insert("initial_dt".to_string(), 0.01);
+    ///
+    /// let custom = SolverType::Custom(
     ///     "Adaptive-Step-RK45".to_string(),
-    ///     vec![
-    ///         ("tolerance".to_string(), 1e-6),
-    ///         ("initial_dt".to_string(), 0.01),
-    ///     ].into_iter().collect()
-    /// )
+    ///     data
+    /// );
     /// ```
     Custom(String, HashMap<String, f64>),
 }
@@ -231,24 +235,23 @@ impl SolverType {
 /// # Examples
 ///
 /// ```rust
+/// # use chrom_rs::solver::{SolverConfiguration, SolverType};
+/// # use std::collections::HashMap;
 /// // Time evolution config
-/// let config = SolverConfig {
-///     solver_type: SolverType::TimeEvolution {
+/// let config = SolverConfiguration::new(
+///     SolverType::TimeEvolution {
 ///         total_time: 10.0,
 ///         time_steps: 1000,
-///     },
-///     metadata: HashMap::new(),
-/// };
+///     }
+/// );
 ///
-/// // With metadata
-/// let mut config = SolverConfig {
-///     solver_type: SolverType::Iterative {
+/// // Iterative convergence config
+/// let config = SolverConfiguration::new(
+///     SolverType::Iterative {
 ///         tolerance: 1e-6,
 ///         max_iterations: 100,
-///     },
-///     metadata: HashMap::new(),
-/// };
-/// config.metadata.insert("relaxation_factor".to_string(), "0.8".to_string());
+///     }
+/// );
 /// ```
 #[derive(Clone, Debug)]
 pub struct SolverConfiguration {
@@ -375,14 +378,17 @@ impl SolverConfiguration {
 /// # Examples
 ///
 /// ```rust
-/// use chrom_rs::solver::SimulationResult;
-/// use chrom_rs::physics::PhysicalState;
-/// use nalgebra::DVector;
-///
+/// # use chrom_rs::solver::SimulationResult;
+/// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use nalgebra::DVector;
+/// # let final_state = PhysicalState::new(
+/// #     PhysicalQuantity::Concentration,
+/// #     PhysicalData::Vector(DVector::from_vec(vec![1.0, 2.0, 3.0]))
+/// # );
 /// // Time evolution result
 /// let result = SimulationResult::new(
 ///     vec![0.0, 0.1, 0.2],  // time points
-///     vec![/* states */],    // state trajectory
+///     vec![final_state.clone(), final_state.clone(), final_state.clone()],    // state trajectory
 ///     final_state,
 /// );
 /// ```
@@ -423,13 +429,13 @@ impl SimulationResult {
     ///
     /// # Example
     /// ```rust
-    /// use chrom_rs::solver::SimulationResult;
-    /// use chrom_rs::physics::{PhysicalState, PhysicalQuantity};
-    /// use nalgebra::DVector;
+    /// # use chrom_rs::solver::SimulationResult;
+    /// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+    /// # use nalgebra::DVector;
     ///
     /// let final_state = PhysicalState::new(
     ///     PhysicalQuantity::Concentration,
-    ///     DVector::from_vec(vec![1.0, 2.0, 3.0])
+    ///     PhysicalData::Vector(DVector::from_vec(vec![1.0, 2.0, 3.0]))
     /// );
     ///
     /// let result = SimulationResult::new(
@@ -456,11 +462,11 @@ impl SimulationResult {
     /// # Example
     /// ```rust
     /// # use chrom_rs::solver::SimulationResult;
-    /// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity};
+    /// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
     /// # use nalgebra::DVector;
     /// # let final_state = PhysicalState::new(
     /// #     PhysicalQuantity::Concentration,
-    /// #     DVector::zeros(3)
+    /// #     PhysicalData::Vector(DVector::zeros(3))
     /// # );
     /// let mut result = SimulationResult::new(vec![], vec![], final_state);
     ///
