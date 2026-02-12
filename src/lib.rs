@@ -65,6 +65,8 @@
 
 // Core modules
 pub mod physics;
+
+pub mod models;
 pub mod solver;
 
 pub mod prelude {
