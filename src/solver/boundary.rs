@@ -24,8 +24,8 @@ use std::fmt;
 /// Stores boundary states directly as vectors of PhysicalState,
 /// without typing them as Dirichlet/Neumann/etc.
 ///
-/// - Spatial dimension: [left_state, right_state]
-/// - Temporal dimension: [initial_state] or [initial, final]
+/// - Spatial dimension: \[left_state, right_state\]
+/// - Temporal dimension: \[initial_state\] or \[initial, final\]
 ///
 /// The solver interprets how to use these states.
 ///
@@ -426,7 +426,7 @@ impl fmt::Display for TimeAxisConvention {
 
 #[cfg(test)]
 mod tests {
-    use nalgebra::{DVector, DMatrix};
+    use nalgebra::DVector;
     use super::*;
     use crate::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
 

@@ -25,10 +25,10 @@
 //! - Simplest implementation
 //! - ~72 bytes memory
 //!
-//! ```rust,ignore
-//! use chrom_rs::models::LangmuirSingleSimple;
+//! ```rust
+//! use chrom_rs::models::{LangmuirSingle, TemporalInjection};
 //!
-//! let model = LangmuirSingleSimple::new(
+//! let model = LangmuirSingle::new(
 //!     1.2,   // λ
 //!     0.4,   // K̃
 //!     2.0,   // N
@@ -36,6 +36,7 @@
 //!     0.001, // u
 //!     0.25,  // L
 //!     100,   // nz
+//!     TemporalInjection::dirac(5.0, 0.1)
 //! );
 //! ```
 //!
@@ -45,7 +46,8 @@
 // =================================================================================================
 
 mod langmuir_single_simple;
-
+mod injection;
+mod langmuir_single;
 // =================================================================================================
 // Public Re-exports
 // =================================================================================================
@@ -57,21 +59,26 @@ mod langmuir_single_simple;
 ///
 /// # Example
 ///
-/// ```rust,ignore
-/// use chrom_rs::models::LangmuirSingleSimple;
+/// ```rust
+/// use chrom_rs::models::{LangmuirSingle, TemporalInjection};
+/// use chrom_rs::physics::PhysicalModel;
 ///
-/// let model = LangmuirSingleSimple::new(
+/// let model = LangmuirSingle::new(
 ///     1.2,   // λ
-///     0.4,   // K̃ [L/mol]
-///     2.0,   // N [mol/L]
+///     0.4,   // K̃ \[L/mol\]
+///     2.0,   // N \[mol/L\]
 ///     0.4,   // ε (porosity)
-///     0.001, // u [m/s]
-///     0.25,  // L [m]
-///     100,   // nz
+///     0.001, // u \[m/s\]
+///     0.25,  // L \[m\]
+///     100,   // `nz`
+///     TemporalInjection::dirac(5.0, 0.1)
 /// );
 ///
 /// // Direct field access
-/// let lambda = model.lambda;
-/// let langmuir_k = model.langmuir_k;
+/// assert_eq!(model.length(), 0.25);
+/// assert_eq!(model.name(), "Langmuir single specie with temporal injection");
 /// ```
+
 pub use langmuir_single_simple::LangmuirSingleSimple;
+pub use langmuir_single::LangmuirSingle;
+pub use injection::TemporalInjection;

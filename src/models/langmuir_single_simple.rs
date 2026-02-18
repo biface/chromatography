@@ -167,21 +167,21 @@ use nalgebra::DVector;
 ///
 /// ## Species-specific parameters
 /// - **lambda** (λ) : Linear term (y-intercept of isotherm, dimensionless)
-/// - **langmuir_k** (K̃) : Equilibrium constant [L/mol]
-/// - **port_number** (N) : Adsorption capacity [mol/L]
+/// - **langmuir_k** (K̃) : Equilibrium constant \[L/mol\]
+/// - **port_number** (N) : Adsorption capacity \[mol/L\]
 ///
 /// ## Column parameters
-/// - **length** (L) : Column length [m]
+/// - **length** (L) : Column length \[m\]
 /// - **nz** : Number of spatial discretization points
-/// - **dz** : Spatial step size [m] = L / nz
+/// - **dz** : Spatial step size \[m\] = L / nz
 /// - **porosity** (ε) : Extragranular porosity (0 < ε < 1)
-/// - **velocity** (u) : Superficial velocity [m/s]
+/// - **velocity** (u) : Superficial velocity \[m/s\]
 ///
 /// # Derived Parameters
 ///
 /// The constructor precomputes these for efficiency:
 /// - **fe** (Fₑ) : Phase ratio = (1-ε)/ε
-/// - **ue** (uₑ) : Interstitial velocity [m/s] = u/ε
+/// - **ue** (uₑ) : Interstitial velocity \[m/s\] = u/ε
 /// - **dz** : Spatial step = L / nz
 ///
 /// # Physical Interpretation
@@ -201,7 +201,7 @@ use nalgebra::DVector;
 ///
 /// - All parameters are stored as primitive types for cache efficiency
 /// - Derived quantities (fe, ue, dz) are precomputed once
-/// - Hot methods (derivative_isotherm, propagation_factor) are marked #[inline]
+/// - Hot methods (derivative_isotherm, propagation_factor) are marked `#[inline]`
 ///
 /// # Example
 ///
@@ -233,7 +233,7 @@ pub struct LangmuirSingleSimple {
     /// Typically, between 0.5 and 2.0 for common solutes.
     lambda: f64,
 
-    /// Equilibrium constant K̃ [L/mol]
+    /// Equilibrium constant K̃ \[L/mol\]
     ///
     /// Measures the affinity between solute and stationary phase.
     /// Higher values indicate stronger adsorption:
@@ -242,7 +242,7 @@ pub struct LangmuirSingleSimple {
     /// - K̃ > 5 : Strong retention
     langmuir_k: f64,
 
-    /// Adsorption capacity N [mol/L]
+    /// Adsorption capacity N \[mol/L\]
     ///
     /// Maximum amount of solute that can be adsorbed per unit volume
     /// of stationary phase. Typically, 1-5 mol/L for liquid chromatography.
@@ -250,7 +250,7 @@ pub struct LangmuirSingleSimple {
 
     // ==================== Column Geometry ====================
 
-    /// Column length L [m]
+    /// Column length L \[m\]
     ///
     /// Total length of the chromatographic column.
     /// Typical values: 0.05-0.50 m (5-50 cm)
@@ -277,7 +277,7 @@ pub struct LangmuirSingleSimple {
     /// Precomputed from porosity for efficiency.
     fe: f64,
 
-    /// Interstitial velocity uₑ = u/ε [m/s]
+    /// Interstitial velocity uₑ = u/ε \[m/s\]
     ///
     /// True velocity of the mobile phase in the void space.
     /// Higher than superficial velocity by factor 1/ε.
@@ -285,7 +285,7 @@ pub struct LangmuirSingleSimple {
 
     // ==================== Initial Condition ====================
 
-    /// Initial concentration C₀ [mol/L]
+    /// Initial concentration C₀ \[mol/L\]
     ///
     /// Concentration at all spatial points at t=0.
     /// Typically very small (1e-12 ≈ 0) for empty column before injection.
@@ -298,12 +298,12 @@ impl LangmuirSingleSimple {
     /// # Arguments
     ///
     /// * `lambda` - Linear term λ (dimensionless), typically 0.5-2.0
-    /// * `langmuir_k` - Equilibrium constant K̃ [L/mol], typically 0.1-10.0
-    /// * `port_number` - Adsorption capacity N [mol/L], typically 1.0-5.0
+    /// * `langmuir_k` - Equilibrium constant K̃ \[L/mol\], typically 0.1-10.0
+    /// * `port_number` - Adsorption capacity N \[mol/L\], typically 1.0-5.0
     /// * `porosity` - Extragranular porosity ε (must be in ]0, 1[)
-    /// * `velocity` - Superficial velocity u [m/s], typically 0.0001-0.01
-    /// * `column_length` - Column length L [m], typically 0.05-0.50
-    /// * `spatial_points` - Number of discretization points nz, typically 50-200
+    /// * `velocity` - Superficial velocity u \[m/s\], typically 0.0001-0.01
+    /// * `column_length` - Column length L \[m\], typically 0.05-0.50
+    /// * `spatial_points` - Number of discretization points `nz`, typically 50-200
     ///
     /// # Panics
     ///
@@ -411,7 +411,7 @@ impl LangmuirSingleSimple {
 
     // ==================== Accessors (Public Interface) ====================
 
-    /// Returns the column length [m]
+    /// Returns the column length \[m\]
     ///
     /// # Example
     /// ```rust
@@ -423,9 +423,9 @@ impl LangmuirSingleSimple {
     pub fn length(&self) -> f64 {
         self.length
     }
-    /// Returns the spatial step size dz [m]
+    /// Returns the spatial step size `dz` \[m\]
     ///
-    /// This is the distance between consecutive spatial points: dz = L / nz
+    /// This is the distance between consecutive spatial points: `dz` = L / `nz`
     ///
     /// # Example
     /// ```rust
@@ -453,7 +453,7 @@ impl LangmuirSingleSimple {
         self.nz
     }
 
-    /// Returns the interstitial velocity uₑ [m/s]
+    /// Returns the interstitial velocity uₑ \[m/s\]
     ///
     /// This is the actual velocity in the void space: uₑ = u/ε
     ///
@@ -484,7 +484,7 @@ impl LangmuirSingleSimple {
         self.fe
     }
 
-    /// Returns the equilibrium constant K̃ [L/mol]
+    /// Returns the equilibrium constant K̃ \[L/mol\]
     #[inline]
     pub fn langmuir_k(&self) -> f64 {
         self.langmuir_k
@@ -496,19 +496,19 @@ impl LangmuirSingleSimple {
         self.lambda
     }
 
-    /// Returns the adsorption capacity N [mol/L]
+    /// Returns the adsorption capacity N \[mol/L\]
     #[inline]
     pub fn port_number(&self) -> f64 {
         self.port_number
     }
 
-    /// Sets the initial concentration C₀ [mol/L]
+    /// Sets the initial concentration C₀ \[mol/L\]
     ///
     /// This will be used at all spatial points at t=0 by `setup_initial_state()`.
     ///
     /// # Arguments
     ///
-    /// * `conc` - Initial concentration [mol/L], typically very small (1e-12 ≈ 0)
+    /// * `conc` - Initial concentration \[mol/L\], typically very small (1e-12 ≈ 0)
     ///
     /// # Example
     ///
@@ -534,7 +534,7 @@ impl LangmuirSingleSimple {
     ///
     /// # Arguments
     ///
-    /// * `concentration` - Mobile phase concentration C [mol/L]
+    /// * `concentration` - Mobile phase concentration C \[mol/L\]
     ///
     /// # Returns
     ///
@@ -608,7 +608,7 @@ impl LangmuirSingleSimple {
     ///
     /// # Arguments
     ///
-    /// * `concentration` - Mobile phase concentration C [mol/L]
+    /// * `concentration` - Mobile phase concentration C \[mol/L\]
     ///
     /// # Returns
     ///
@@ -717,7 +717,7 @@ impl PhysicalModel for LangmuirSingleSimple {
     ///
     /// # Mathematical Implementation
     ///
-    /// For each spatial point j ∈ [0, nz-1], we compute:
+    /// For each spatial point `j` ∈ \[0, `nz`-1\], we compute:
     ///
     /// ```text
     /// dC/dt|ⱼ = -factor(Cⱼ) · uₑ · (Cⱼ - Cⱼ₋₁)/dz
@@ -725,31 +725,31 @@ impl PhysicalModel for LangmuirSingleSimple {
     ///
     /// Where:
     /// - **factor(C)** = 1/(1 + Fₑ·dC̄/dC) : Propagation factor
-    /// - **uₑ** : Interstitial velocity [m/s]
+    /// - **uₑ** : Interstitial velocity \[m/s\]
     /// - **(Cⱼ - Cⱼ₋₁)/dz** : Upwind spatial derivative
     ///
     /// # Boundary Conditions
     ///
-    /// At the **inlet** (j=0), we use a simple approximation:
+    /// At the **inlet** (`j`=0), we use a simple approximation:
     /// - For now: dC/dt|₀ = 0 (no change at inlet)
     /// - Future: Proper injection profile from boundary conditions
     ///
-    /// At the **outlet** (j=nz-1), the upwind scheme naturally handles it.
+    /// At the **outlet** (`j`=`nz`-1), the upwind scheme naturally handles it.
     ///
     /// # Arguments
     ///
-    /// * `state` - Current physical state containing concentration profile C[j]
+    /// * `state` - Current physical state containing concentration profile `C[j]`
     ///
     /// # Returns
     ///
-    /// A `PhysicalState` containing dC/dt[j] for all spatial points.
+    /// A `PhysicalState` containing `dC/dt[j]` for all spatial points.
     ///
     /// # Panics
     ///
     /// Panics if:
     /// - State does not contain `PhysicalQuantity::Concentration`
     /// - Concentration is not stored as a Vector
-    /// - Vector length does not match nz
+    /// - Vector length does not match `nz`
     ///
     /// These would indicate programming errors, not user errors.
     ///
@@ -757,10 +757,10 @@ impl PhysicalModel for LangmuirSingleSimple {
     ///
     /// ```rust,ignore
     /// // Inside a solver's time-stepping loop:
-    /// let current_state = ...; // PhysicalState with Vector[nz]
+    /// let current_state = ...; // PhysicalState with Vector[`nz`]
     /// let derivatives = model.compute_physics(&current_state);
     ///
-    /// // derivatives contains dC/dt[j] for all j
+    /// // derivatives contains `dC/dt[j]` for all `j`
     /// // Solver uses this for time integration:
     /// // C_new[j] = C_old[j] + dC/dt[j] * dt
     /// ```
@@ -829,17 +829,17 @@ impl PhysicalModel for LangmuirSingleSimple {
     ///
     /// # Returns
     ///
-    /// A `PhysicalState` containing the initial concentration profile C(z, t=0).
+    /// A `PhysicalState` containing the initial concentration profile `C(z, t=0)`.
     ///
-    /// The concentration is stored as a Vector[nz] where all elements are
+    /// The concentration is stored as a Vector\[`nz`\] where all elements are
     /// initialized to `initial_concentration` (typically 1e-12 ≈ 0).
     ///
     /// # Implementation Note
     ///
     /// For single-species models with spatial discretization, we use
     /// `PhysicalData::Vector` to represent the concentration profile along
-    /// the column. Each element C[j] represents the concentration at spatial
-    /// point j.
+    /// the column. Each element `C[j]` represents the concentration at spatial
+    /// point `j`.
     ///
     /// # Example (Internal Use)
     ///

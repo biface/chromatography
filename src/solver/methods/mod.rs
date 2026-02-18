@@ -42,19 +42,43 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
-//! use chrom_rs::solver::methods::{EulerSolver, RK4Solver};
-//! use chrom_rs::solver::{Solver, SolverConfiguration};
+//! ```rust
+//! use chrom_rs::solver::{EulerSolver, RK4Solver};
+//! use chrom_rs::solver::{Scenario, DomainBoundaries, Solver, SolverConfiguration};
+//! use chrom_rs::physics::{ PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData };
+//! use nalgebra::DVector;
 //!
-//! // Use Euler for quick prototyping
-//! let euler = EulerSolver::new();
-//! let config = SolverConfiguration::time_evolution(600.0, 10000);
-//! let result = euler.solve(&scenario, &config)?;
+//! struct MyModel;
 //!
-//! // Use RK4 for production
-//! let rk4 = RK4Solver::new();
-//! let config = SolverConfiguration::time_evolution(600.0, 1000);  // Fewer steps needed!
-//! let result = rk4.solve(&scenario, &config)?;
+//! impl PhysicalModel for MyModel {
+//!      fn points(&self) -> usize { 1 }
+//!      fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+//!      fn setup_initial_state(&self) -> PhysicalState {
+//!          PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])))
+//!      }
+//!      fn name(&self) -> &str { "MyModel" }
+//!  }
+//!
+//! fn main() -> Result<(), String> {
+//!
+//!     let model = Box::new(MyModel);
+//!     let boundaries = DomainBoundaries::temporal(model.setup_initial_state());
+//!     let scenario = Scenario::new(model, boundaries);
+//!
+//!
+//!     // Using Euler for production
+//!     let euler = EulerSolver::new();
+//!     let configuration = SolverConfiguration::time_evolution(600.0, 10000);
+//!     let result = euler.solve(&scenario, &configuration)?;
+//!
+//!     // Using Runge-Kutta for production
+//!     let rk4 = RK4Solver::new();
+//!     let configuration = SolverConfiguration::time_evolution(600.0, 10000);
+//!     let result = euler.solve(&scenario, &configuration)?;
+//!
+//!     Ok(())
+//! }
+//!
 //! ```
 //!
 //! # Design Philosophy

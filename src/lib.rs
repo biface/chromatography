@@ -60,7 +60,7 @@
 //!
 //! - [`physics`]: Physical models (equations)
 //! - [`solver`]: Numerical solvers (methods)
-//! - [`cli`]: Command-line interface (optional)
+//! - `cli`: Command-line interface (optional)
 //! - [`output`]: Result visualization and export (optional)
 
 // Core modules
@@ -68,6 +68,8 @@ pub mod physics;
 
 pub mod models;
 pub mod solver;
+
+pub mod output;
 
 pub mod prelude {
     //! Convenient imports for common usage
@@ -80,6 +82,7 @@ pub mod prelude {
                              PhysicalQuantity,
                              PhysicalState,
                              PhysicalModel};
+    pub use crate::models::TemporalInjection;
     pub use crate::solver::{Solver,
                             SolverConfiguration,
                             SolverType,

@@ -227,6 +227,10 @@ impl Solver for EulerSolver {
 
             // ====== Euler step ======
 
+            // 0. Add metadata time to be used by injection condition
+
+            state.set_metadata("time".to_string(), t);
+
             // 1. Compute physics: f(y_n, t_n)
             //    This returns the right-hand side of dy/dt = f(y, t)
             //    For chromatography: transport + dispersion + adsorption terms
