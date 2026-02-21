@@ -256,7 +256,10 @@ impl TemporalInjection {
                 // Width chosen to give reasonable discrete representation
                 let width = 0.1; // 0.1 second width for Dirac approximation
                 let distance = (t - time) / width;
-                amount * (-distance * distance / 2.0).exp() / (width * (2.0 * std::f64::consts::PI).sqrt())
+                let peak = amount / (width * (2.0 * std::f64::consts::PI).sqrt());
+                let exposant = - (distance * distance) / (2.0 * width * width);
+
+                peak * exposant.exp()
             },
 
             Self::Gaussian { center, width, peak_concentration } => {

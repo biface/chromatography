@@ -61,7 +61,7 @@
 //! - [`physics`]: Physical models (equations)
 //! - [`solver`]: Numerical solvers (methods)
 //! - `cli`: Command-line interface (optional)
-//! - [`output`]: Result visualization and export (optional)
+//! - [`output`]: Result visualization and export (publishing)
 
 // Core modules
 pub mod physics;
