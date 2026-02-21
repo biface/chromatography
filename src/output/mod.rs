@@ -11,7 +11,7 @@
 //! ├── mod.rs              ← This file
 //! ├── visualization/      ← Plots and graphics
 //! │   ├── mod.rs
-//! │   └── static_plots.rs
+//! │   └── steady.rs
 //! └── export/             ← Data export
 //!     ├── mod.rs
 //!     └── csv.rs
@@ -43,7 +43,7 @@
 //! - **Visualization**: For human interpretation (plots, graphs)
 //! - **Export**: For programmatic analysis (CSV, JSON, HDF5)
 //!
-//! Both sub-modules accept simple `&[f64]` slices for maximum flexibility.
+//! Both submodules accept simple `&[f64]` slices for maximum flexibility.
 //!
 //! # Version History
 //!
@@ -61,10 +61,10 @@ pub mod export;
 
 // Re-export commonly used items for convenience
 pub use visualization::{
+    plot_steady_state,
+    plot_steady_state_comparison,
+    plot_profile_evolution,
     plot_chromatogram,
-    plot_chromatogram_multi,
-    plot_result,
-    plot_result_multi,
     PlotConfig,
 };
 
