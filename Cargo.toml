@@ -11,6 +11,7 @@ exclude = [
 [features]
 default = ["parallel"]
 parallel = ["rayon"]
+beyond_physical_limits = []
 
 
 [package.metadata.coverage]
@@ -50,5 +51,14 @@ name = "solver_performance"
 harness = false
 
 [[example]]
-name = "tfa_chromatogram"
+name = "tfa_single"
 path = "examples/tfa.rs"
+
+[[example]]
+name = "acids_multi"
+path = "examples/acids_multi.rs"
+
+[[example]]
+name = "high_load"
+path = "examples/high_load.rs"
+required-features = ["beyond_physical_limits"]
