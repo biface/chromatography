@@ -65,11 +65,13 @@ pub use visualization::{
     plot_steady_state_comparison,
     plot_profile_evolution,
     plot_chromatogram,
+    plot_chromatogram_multi,
+    plot_chromatograms_comparison,
     PlotConfig,
 };
 
 pub use export::{
-    export_chromatogram_csv,
-    export_chromatogram_multi_csv,
     CsvConfig,
+    CsvError,
+    CsvExporter
 };

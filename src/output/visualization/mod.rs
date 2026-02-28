@@ -53,4 +53,4 @@ pub use config::PlotConfig;
 
 pub use steady::{plot_steady_state, plot_steady_state_comparison, plot_profile_evolution};
 
-pub use chromatogram::plot_chromatogram;
+pub use chromatogram::{plot_chromatogram, plot_chromatograms_comparison, plot_chromatogram_multi};
