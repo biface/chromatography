@@ -1,41 +1,97 @@
 //! Langmuir single-species model with temporal injection
 //!
-//! This model extends the standard Langmuir model by adding temporal
-//! boundary conditions at the column inlet (z=0).
+//! # Physical background
 //!
-//! # Key Features
+//! In liquid chromatography, a solute injected at the column inlet ($z = 0$)
+//! is transported by the mobile phase while partitioning between the mobile
+//! and stationary phases. The **Langmuir isotherm** describes this equilibrium:
+//! adsorption sites on the stationary phase are finite, so retention decreases
+//! as concentration increases — producing the characteristic asymmetric
+//! (Langmuir-type) chromatographic peaks.
 //!
-//! - **Internal time tracking**: Uses AtomicU64 for thread-safe time management
-//! - **No solver modifications**: Works with ANY solver (Euler, RK4, custom)
-//! - **Temporal injection**: C(z=0, t) varies according to injection profile
-//! - **Proper chromatographic peaks**: Eliminates plateau artifacts
+//! # Model equations
+//!
+//! ## Langmuir isotherm
+//!
+//! The stationary phase concentration $\bar{C}$ in equilibrium with the mobile
+//! phase concentration $C$:
+//!
+//! $$\bar{C} = \lambda \cdot C + \frac{\bar{N} \cdot \tilde{K} \cdot C}{1 + \tilde{K} \cdot C}$$
+//!
+//! where $\bar{N} = (1 - \varepsilon) \cdot N$ is the effective adsorption capacity.
+//!
+//! ## Isotherm derivative
+//!
+//! The derivative $\partial \bar{C} / \partial C$ governs how adsorption slows
+//! down the propagation of the concentration front:
+//!
+//! $$\frac{\partial \bar{C}}{\partial C} = \lambda + \frac{\bar{N} \cdot \tilde{K}}{(1 + \tilde{K} \cdot C)^2}$$
+//!
+//! ## Propagation factor
+//!
+//! The effective velocity of a concentration front relative to the interstitial
+//! velocity $u_e$ is reduced by the propagation factor:
+//!
+//! $$\sigma(C) = \frac{1}{1 + F_e \cdot \partial \bar{C} / \partial C}$$
+//!
+//! with $F_e = (1 - \varepsilon) / \varepsilon$.
+//!
+//! ## Transport equation
+//!
+//! $$\frac{\partial C}{\partial t} = -\sigma(C) \cdot u_e \cdot \frac{\partial C}{\partial z}$$
+//!
+//! with $u_e = u / \varepsilon$ the interstitial velocity.
+//!
+//! # Spatial discretisation
+//!
+//! Concentrations are stored in a vector of length $N_z$:
+//! - **Elements**: spatial points $z_0, z_1, \ldots, z_{N_z - 1}$
+//!
+//! The spatial gradient uses an **upwind scheme** (backward difference),
+//! unconditionally stable for left-to-right convection ($u_e > 0$):
+//!
+//! $$\left.\frac{\partial C}{\partial z}\right\vert_{z_i} \approx \frac{C_i - C_{i-1}}{\Delta z}$$
+//!
+//! **Finite volume convention**: $\Delta z = L / N_z$ (cell width, not node spacing).
+//! Each cell $i$ spans $[i \cdot \Delta z,\ (i+1) \cdot \Delta z]$.
+//!
+//! # Injection strategy
+//!
+//! Injection is modelled as a **temporal boundary condition** at the column inlet ($z = 0$).
+//! The column starts empty at $t = 0$ and concentration enters at each time step via
+//! `injection.evaluate(t)`, where `t` is read from the `PhysicalState` metadata.
+//!
+//! The [`TemporalInjection`] profile is evaluated at the fictitious upstream cell
+//! just left of $z_0$, providing the upstream concentration for the upwind gradient.
+//! This works with any solver that writes `"time"` into the state metadata before
+//! each call to `compute_physics`.
 //!
 //! # Example
 //!
-//! ```rust
+//! ```rust,ignore
 //! use chrom_rs::models::{LangmuirSingle, TemporalInjection};
 //! use chrom_rs::physics::PhysicalModel;
 //! use chrom_rs::solver::{Scenario, SolverConfiguration, EulerSolver, Solver, DomainBoundaries};
 //!
-//! // Create Gaussian injection
+//! // Gaussian injection: peak at t=10s, width 3s, max concentration 0.1 mol/L
 //! let injection = TemporalInjection::gaussian(10.0, 3.0, 0.1);
 //!
-//! // Create model (dt must match solver's time step)
-//! let dt = 600.0 / 10000.0;  // total_time / time_steps
 //! let model = LangmuirSingle::new(
-//!     1.2, 0.4, 2.0, 0.4, 0.001, 0.25, 100,
+//!     1.2,   // λ  [dimensionless]
+//!     0.4,   // K̃  [L/mol]
+//!     2.0,   // N  [dimensionless]
+//!     0.4,   // ε  (porosity)
+//!     0.001, // u  [m/s]
+//!     0.25,  // L  [m]
+//!     100,   // N_z spatial points
 //!     injection,
 //! );
 //!
-//! // Setup scenario
 //! let initial_state = model.setup_initial_state();
 //! let boundaries = DomainBoundaries::temporal(initial_state);
 //! let scenario = Scenario::new(Box::new(model), boundaries);
-//!
-//! // Configure the solver
 //! let config = SolverConfiguration::time_evolution(600.0, 10000);
 //!
-//! // Use with any solver (no modifications needed)
 //! let solver = EulerSolver::new();
 //! let result = solver.solve(&scenario, &config).unwrap();
 //! ```
@@ -44,58 +100,134 @@ use crate::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalDat
 use crate::models::TemporalInjection;
 use nalgebra::DVector;
 
+// =================================================================================================
+// LangmuirSingle
+// =================================================================================================
+
 /// Langmuir single-species model with temporal injection
 ///
-/// Maintains internal time state to apply temporal boundary conditions
-/// without requiring solver modifications.
+/// Models the chromatographic transport of a single solute through a column
+/// using the Langmuir isotherm and an upwind finite-volume scheme.
+///
+/// # Parameters
+///
+/// | Field        | Symbol      | Unit              | Role                                      |
+/// |--------------|-------------|-------------------|-------------------------------------------|
+/// | `lambda`     | $\lambda$   | dimensionless     | Residual linear retention                 |
+/// | `langmuir_k` | $\tilde{K}$ | $\text{L/mol}$    | Affinity for the stationary phase         |
+/// | `port_number`| $N$         | dimensionless     | Maximum adsorption capacity               |
+/// | `fe`         | $F_e$       | dimensionless     | Phase ratio $(1-\varepsilon)/\varepsilon$ |
+/// | `ue`         | $u_e$       | $\text{m/s}$      | Interstitial velocity $u/\varepsilon$     |
+/// | `dz`         | $\Delta z$  | $\text{m}$        | Cell width $L / N_z$                      |
+///
+/// # State layout
+///
+/// The physical state is a vector of length $N_z$:
+///
+/// ```text
+/// z_0    z_1    z_2   ...   z_{Nz-1}
+/// [C_0,  C_1,   C_2,  ...,  C_{Nz-1}]
+/// ```
+///
+/// The **column outlet** (chromatogram signal) is the last element: `C[nz-1]`.
+///
+/// # Example
+///
+/// ```rust
+/// use chrom_rs::models::{LangmuirSingle, TemporalInjection};
+/// use chrom_rs::physics::PhysicalModel;
+///
+/// let model = LangmuirSingle::new(
+///     1.2, 0.4, 2.0, 0.4, 0.001, 0.25, 100,
+///     TemporalInjection::dirac(0.0, 1e-3),
+/// );
+/// assert_eq!(model.length(), 0.25);
+/// assert_eq!(model.spatial_points(), 100);
+/// ```
 #[derive(Clone, Debug)]
 pub struct LangmuirSingle {
-    // ==================== Physics Parameters ====================
-    /// Linear term λ (dimensionless)
+    // ── Isotherm parameters ───────────────────────────────────────────────────
+
+    /// Linear retention term $\lambda$ **\[dimensionless\]**, must be $\geq 0$
+    ///
+    /// Represents residual linear retention at low concentrations.
+    /// $\lambda = 0$ gives a pure Langmuir isotherm with no linear term.
     lambda: f64,
-    /// Equilibrium constant K̃ \[L/mol\]
+
+    /// Langmuir equilibrium constant $\tilde{K}$ **\[L/mol\]**, must be $> 0$
+    ///
+    /// Controls affinity for the stationary phase. Higher $\tilde{K}$ →
+    /// stronger retention → later elution
     langmuir_k: f64,
-    /// Adsorption capacity N \[mol/L\]
+
+    /// Adsorption capacity $N$ **\[dimensionless\]**, must be $> 0$
+    ///
+    /// Maximum number of sites available on the stationary phase.
+    /// The effective capacity $\bar{N} = (1 - \varepsilon) \cdot N$ is
+    /// computed inside [`derivative_isotherm`](Self::derivative_isotherm).
     port_number: f64,
-    /// Column length L \[m\]
+
+    // ── Column geometry ───────────────────────────────────────────────────────
+
+    /// Column length $L$ **\[m\]**
     length: f64,
-    /// Number of spatial points
+
+    /// Number of spatial discretization points $N_z$
     nz: usize,
-    /// Spatial step dz = L/nz \[m\]
+
+    /// Cell width $\Delta z = L / N_z$ **\[m\]** — precomputed
+    ///
+    /// Finite volume convention: $N_z$ cells of equal width,
+    /// boundaries at $0, \Delta z, 2\Delta z, \ldots, L$.
     dz: f64,
-    /// Phase ratio Fₑ = (1-ε)/ε
+
+    // ── Derived transport quantities ──────────────────────────────────────────
+
+    /// Phase ratio $F_e = (1 - \varepsilon) / \varepsilon$ **\[dimensionless\]** — precomputed
     fe: f64,
-    /// Interstitial velocity uₑ = u/ε \[m/s\]
+
+    /// Interstitial velocity $u_e = u / \varepsilon$ **\[m/s\]** — precomputed
     ue: f64,
 
-    // ==================== Temporal Injection ====================
-    /// Temporal injection profile C(z=0, t)
+    // ── Injection ─────────────────────────────────────────────────────────────
+
+    /// Temporal injection profile $C(z=0,\ t)$ at the column inlet
     injection: TemporalInjection,
 }
 
 impl LangmuirSingle {
-    /// Create new model with temporal injection
+    /// Creates a new single-species Langmuir model
+    ///
+    /// Precomputes $F_e$, $u_e$, and $\Delta z$ at construction to avoid
+    /// repeated divisions in the time integration loop.
     ///
     /// # Arguments
     ///
-    /// * `lambda` - Linear term λ
-    /// * `langmuir_k` - Equilibrium constant K̃ \[L/mol\]
-    /// * `port_number` - Adsorption capacity N \[mol/L\]
-    /// * `porosity` - Porosity ε (0 < ε < 1)
-    /// * `velocity` - Superficial velocity u \[m/s\]
-    /// * `column_length` - Length L \[m\]
-    /// * `spatial_points` - Number of points
-    /// * `injection` - Temporal injection profile
+    /// * `lambda`         — $\lambda \geq 0$ **\[dimensionless\]**
+    /// * `langmuir_k`     — $\tilde{K} > 0$ **\[L/mol\]**
+    /// * `port_number`    — $N > 0$ **\[dimensionless\]**
+    /// * `porosity`       — $\varepsilon \in (0, 1)$ **\[dimensionless\]**
+    /// * `velocity`       — superficial velocity $u > 0$ **\[m/s\]**
+    /// * `column_length`  — $L > 0$ **\[m\]**
+    /// * `spatial_points` — $N_z \geq 2$
+    /// * `injection`      — temporal profile at $z = 0$
+    ///
+    /// # Panics
+    ///
+    /// - If `porosity` is not in $(0, 1)$
+    /// - If `column_length` is not positive
+    /// - If `spatial_points < 2`
     ///
     /// # Example
     ///
     /// ```rust
     /// use chrom_rs::models::{LangmuirSingle, TemporalInjection};
-    /// let injection = TemporalInjection::gaussian(10.0, 3.0, 0.1);
+    ///
     /// let model = LangmuirSingle::new(
     ///     1.2, 0.4, 2.0, 0.4, 0.001, 0.25, 100,
-    ///     injection,
+    ///     TemporalInjection::gaussian(10.0, 3.0, 0.1),
     /// );
+    /// assert_eq!(model.spatial_points(), 100);
     /// ```
     pub fn new(
         lambda: f64,
@@ -140,27 +272,50 @@ impl LangmuirSingle {
         }
     }
 
-    /// Get injection profile
+    /// Returns the temporal injection profile at the column inlet
     pub fn injection(&self) -> &TemporalInjection {
         &self.injection
     }
 
-    /// Get number of spatial points
+    /// Returns the number of spatial discretisation points $N_z$
     pub fn spatial_points(&self) -> usize {
         self.nz
     }
 
-    /// Get column length \[m\]
+    /// Returns the column length $L$ **\[m\]**
     pub fn length(&self) -> f64 {
         self.length
     }
 
+    /// Computes the isotherm derivative $\partial \bar{C} / \partial C$
+    ///
+    /// $$\frac{\partial \bar{C}}{\partial C} = \lambda + \frac{\bar{N} \cdot \tilde{K}}{(1 + \tilde{K} \cdot C)^2}$$
+    ///
+    /// where $\bar{N} = (1 - \varepsilon) \cdot N = F_e \cdot \varepsilon \cdot N$
+    /// is approximated here as $N$ directly — the phase ratio $F_e$ is applied
+    /// in [`propagation_factor`](Self::propagation_factor).
+    ///
+    /// # Note on concentration dependence
+    ///
+    /// At $C = 0$ (dilute limit), the derivative equals $\lambda + N \tilde{K}$ —
+    /// the Henry constant. As $C \to \infty$, it tends to $\lambda$ (linear regime).
+    /// This concentration dependence is what produces asymmetric chromatographic peaks.
     #[inline]
     fn derivative_isotherm(&self, concentration: f64) -> f64 {
         let denom = 1.0 + self.langmuir_k * concentration;
         self.lambda + (self.port_number * self.langmuir_k) / (denom * denom)
     }
 
+    /// Computes the propagation factor $\sigma(C)$
+    ///
+    /// $$\sigma(C) = \frac{1}{1 + F_e \cdot \partial \bar{C} / \partial C}$$
+    ///
+    /// $\sigma$ lies in $(0, 1)$ and represents the effective velocity of a
+    /// concentration front relative to $u_e$. A high adsorption derivative
+    /// (strong retention) gives a small $\sigma$ — the front moves slowly.
+    ///
+    /// This is the scalar equivalent of the matrix $(I + F_e \cdot M)^{-1}$
+    /// used in [`LangmuirMulti`](crate::models::LangmuirMulti).
     #[inline]
     fn propagation_factor(&self, concentration: f64) -> f64 {
         let deriv = self.derivative_isotherm(concentration);
@@ -168,25 +323,59 @@ impl LangmuirSingle {
     }
 }
 
+
+// =================================================================================================
+// PhysicalModel implementation
+// =================================================================================================
+
 impl PhysicalModel for LangmuirSingle {
 
+    /// Returns the number of spatial discretisation points $N_z$
     fn points(&self) -> usize {
         self.nz
     }
 
+    /// Computes $\partial C / \partial t$ at all spatial points
+    ///
+    /// Implements the transport equation:
+    ///
+    /// $$\frac{\partial C_i}{\partial t} = -\sigma(C_i) \cdot u_e \cdot \frac{\partial C}{\partial z}\bigg|_i$$
+    ///
+    /// For each spatial point $i$:
+    ///
+    /// 1. Read current time $t$ from state metadata (default $0.0$)
+    /// 2. Evaluate inlet concentration $C_\text{upstream} = \texttt{injection.evaluate}(t)$
+    /// 3. Compute upwind gradient $\partial C / \partial z$
+    /// 4. Compute propagation factor $\sigma(C_i)$
+    /// 5. Apply $\partial C_i / \partial t = -\sigma(C_i) \cdot u_e \cdot \nabla_z C_i$
+    ///
+    /// **Left boundary** ($i = 0$): the upstream concentration is
+    /// `injection.evaluate(t)` — the sole entry point of material into the column.
+    ///
+    /// **Interior and right boundary** ($i > 0$): standard backward difference
+    /// using the real upstream neighbor $C_{i-1}$.
     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
 
-        // ====== Read Time from Metadata ======
-
-        // Try to read time from metadata, default to 0.0 if not present
+        // ── Time ──────────────────────────────────────────────────────────────
+        //
+        // The solver writes the current simulation time into the state metadata
+        // before each call. If absent (e.g. solver does not support metadata),
+        // defaults to t=0.0 — injection profiles return their value at t=0.
 
         let t = state.get_metadata("time").unwrap_or(0.0);
 
-        // ====== Evaluate temporal injection ======
+        // ── Inlet concentration ───────────────────────────────────────────────
+        //
+        // Evaluates the injection profile at the current time. This is the
+        // fictitious upstream concentration just left of z_0, used as the
+        // boundary condition for the upwind gradient at i=0.
 
         let c_inlet = self.injection.evaluate(t);
 
-        // ====== Extract concentrations ======
+        // ── State extraction ──────────────────────────────────────────────────
+        //
+        // The concentration profile is a vector of length N_z.
+        // Elements are indexed by spatial point: c_profile[i] = C(z_i, t).
 
         let c_data = state
             .get(PhysicalQuantity::Concentration)
@@ -202,22 +391,32 @@ impl PhysicalModel for LangmuirSingle {
             self.nz
         );
 
-        // ====== Compute physics ======
+        // ── Transport loop ────────────────────────────────────────────────────
+        //
+        // For each spatial point i, compute dC/dt using the upwind scheme.
+        // The propagation factor σ(C_i) depends on the local concentration,
+        // making this a nonlinear PDE — hence the point-by-point evaluation.
 
         let mut dc_dt = DVector::zeros(self.nz);
 
         for n in 0..self.nz {
             let c_n = c_profile[n];
-            let factor = self.propagation_factor(c_n);
 
-            // Spatial gradient with temporal injection at inlet
+            // Propagation factor: σ(C) = 1 / (1 + Fe · ∂C̄/∂C)
+            // Scalar equivalent of (I + Fe·M)^{-1} in LangmuirMulti.
+            let sigma = self.propagation_factor(c_n);
+
+            // Upwind gradient ∂C/∂z — finite volume convention (Δz = L/Nz):
+            //   i=0 : fictitious upstream cell = injection.evaluate(t)
+            //   i>0 : real upstream neighbor C_{i-1}
             let dc_dz = if n > 0 {
                 (c_n - c_profile[n - 1]) / self.dz
             } else {
                 (c_n - c_inlet) / self.dz
             };
 
-            dc_dt[n] = - factor * self.ue * dc_dz;
+            // dC/dt = -σ(C) · u_e · ∂C/∂z
+            dc_dt[n] = -sigma * self.ue * dc_dz;
         }
 
         // Return result as a physical state
@@ -228,6 +427,10 @@ impl PhysicalModel for LangmuirSingle {
         )
     }
 
+    /// Initialises the column state to zero (empty column)
+    ///
+    /// The column is empty at $t = 0$. Concentration enters from the left
+    /// boundary at each time step via `injection.evaluate(t)` in `compute_physics`.
     fn setup_initial_state(&self) -> PhysicalState {
         PhysicalState::new(
             PhysicalQuantity::Concentration,

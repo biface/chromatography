@@ -33,7 +33,7 @@ use super::config::{PlotConfig, NO_TITLE};
 /// # Arguments
 ///
 /// * `result` - Simulation result containing state trajectory
-/// * `column_length` - Physical length of the column [m]
+/// * `column_length` - Physical length of the column \[m\]
 /// * `output_path` - Path to save the plot (PNG or SVG)
 /// * `config` - Optional plot configuration
 ///
@@ -278,7 +278,7 @@ where
 /// # Arguments
 ///
 /// * `result` - Simulation result
-/// * `column_length` - Column length [m]
+/// * `column_length` - Column length \[m\]
 /// * `n_snapshots` - Number of time snapshots to show
 /// * `output_path` - Path to save the plot
 /// * `config` - Optional plot configuration

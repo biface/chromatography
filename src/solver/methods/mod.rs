@@ -99,7 +99,7 @@
 //! See individual solver documentation for specific performance characteristics.
 
 pub mod euler;
-mod rk4;
+pub mod rk4;
 
 // Re-exports for convenience
 pub use euler::EulerSolver;

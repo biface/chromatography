@@ -1,84 +1,43 @@
 //! Physical models for chromatography simulation
 //!
-//! This module contains implementations of various chromatographic models,
-//! particularly focusing on Langmuir isotherms for single and multi-component
-//! adsorption.
-//!
-//! # Model Architecture
-//!
-//! All models implement the [`PhysicalModel`](crate::physics::PhysicalModel) trait,
-//! which defines the interface for computing physical processes (transport,
-//! adsorption, dispersion) from a given state.
+//! All models implement the [`PhysicalModel`](crate::physics::PhysicalModel) trait.
+//! The solver calls `compute_physics` at each time step — models are responsible
+//! for the physics (transport, adsorption), the solver for the time integration.
 //!
 //! # Available Models
 //!
-//! ## Single-Component Langmuir Models
+//! ## [`LangmuirSingle`] — single species
 //!
-//! Three implementations with different design trade-offs:
+//! One chemical species transported through the column with a Langmuir isotherm.
+//! Use this model to study retention and peak shape for a pure compound.
 //!
-//! ### 1. LangmuirSingleSimple ⭐⭐⭐⭐⭐
+//! ## [`LangmuirMulti`] — multiple species with competitive adsorption
 //!
-//! **Best for**: Production use, default choice
+//! Two or more species competing for the same adsorption sites. The presence
+//! of one species reduces the capacity available to all others, producing the
+//! characteristic displacement and band-crossing effects of real mixtures.
 //!
-//! - Direct scalar field storage
-//! - Zero overhead parameter access
-//! - Simplest implementation
-//! - ~72 bytes memory
+//! # Injection
 //!
-//! ```rust
-//! use chrom_rs::models::{LangmuirSingle, TemporalInjection};
-//!
-//! let model = LangmuirSingle::new(
-//!     1.2,   // λ
-//!     0.4,   // K̃
-//!     2.0,   // N
-//!     0.4,   // ε
-//!     0.001, // u
-//!     0.25,  // L
-//!     100,   // nz
-//!     TemporalInjection::dirac(5.0, 0.1)
-//! );
-//! ```
-//!
+//! Both models use [`TemporalInjection`] to define how concentration enters
+//! the column at the inlet ($z = 0$) as a function of time. The solver writes
+//! the current time into the `PhysicalState` metadata before each call to
+//! `compute_physics`.
 
 // =================================================================================================
 // Module Declarations
 // =================================================================================================
 
-mod langmuir_single_simple;
-mod injection;
-mod langmuir_single;
+//mod langmuir_single_simple;
+pub mod injection;
+pub mod langmuir_single;
+pub mod langmuir_multi;
 // =================================================================================================
 // Public Re-exports
 // =================================================================================================
 
-/// Single-component Langmuir model (scalar fields, zero overhead)
-///
-/// This is the simplest implementation with direct field access.
-/// Best for extreme performance requirements.
-///
-/// # Example
-///
-/// ```rust
-/// use chrom_rs::models::{LangmuirSingle, TemporalInjection};
-/// use chrom_rs::physics::PhysicalModel;
-///
-/// let model = LangmuirSingle::new(
-///     1.2,   // λ
-///     0.4,   // K̃ \[L/mol\]
-///     2.0,   // N \[mol/L\]
-///     0.4,   // ε (porosity)
-///     0.001, // u \[m/s\]
-///     0.25,  // L \[m\]
-///     100,   // `nz`
-///     TemporalInjection::dirac(5.0, 0.1)
-/// );
-///
-/// // Direct field access
-/// assert_eq!(model.length(), 0.25);
-/// assert_eq!(model.name(), "Langmuir single specie with temporal injection");
-/// ```
 
-pub use langmuir_single_simple::LangmuirSingleSimple;
+//pub use langmuir_single_simple::LangmuirSingleSimple;
 pub use langmuir_single::LangmuirSingle;
+pub use langmuir_multi::{SpeciesParams, LangmuirMulti};
 pub use injection::TemporalInjection;
