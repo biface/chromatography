@@ -245,6 +245,8 @@ impl Solver for RK4Solver {
             let t = (step as f64) * dt;
 
             // ====== RK4 Stages ======
+            
+            state.set_metadata("time".to_string(), t);
 
             // Stage 1: Slope at beginning of interval
             // k₁ = f(yₙ, tₙ)
@@ -344,7 +346,6 @@ mod tests {
     use super::*;
     use crate::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
     use crate::solver::boundary::DomainBoundaries;
-    use nalgebra::DVector;
 
     // ====== Mock Models for Testing ======
 

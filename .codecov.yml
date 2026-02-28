@@ -1,91 +1,137 @@
 # Codecov Configuration for chrom-rs
 # Chromatography Simulation Library
-# https://docs.codecov.com/docs/codecov-yaml
+# Documentation: https://docs.codecov.com/docs/codecov-yaml
+#
+# Architecture: component_management (approche moderne)
+# Un seul upload de couverture suffit dans le workflow,
+# codecov découpe automatiquement les résultats par composant.
 
-# Coverage targets and thresholds
+# ============================================================================
+# PARAMÈTRES GLOBAUX
+# ============================================================================
+codecov:
+  require_ci_to_pass: yes
+  notify:
+    wait_for_ci: yes
+
+# ============================================================================
+# COUVERTURE GÉNÉRALE
+# ============================================================================
 coverage:
-  precision: 2
-  round: down
-  range: "70...100"
-  
+  precision: 2        # 2 décimales (ex: 85.42%)
+  round: down         # Arrondir vers le bas (conservateur)
+  range: 70...90      # vert >90%, jaune 70-90%, rouge <70%
+
   status:
-    # Overall project coverage
     project:
       default:
-        target: 85%           # Target: >85% coverage (current ~95%)
-        threshold: 2%         # Alert if drop >2%
-        informational: false
-        
-    # Per-patch coverage (new code in PRs)
+        target: 85%   # Objectif global du projet
+        threshold: 2% # Tolérance de régression entre commits
     patch:
       default:
-        target: 80%           # Minimum 80% for new code
-        threshold: 5%         # Allow 5% variation
-        informational: false
+        target: 80%   # Tout nouveau code doit être couvert à 80%
+        threshold: 5%
 
-# Comment behavior on pull requests
+# ============================================================================
+# COMMENTAIRES SUR LES PULL REQUESTS
+# ============================================================================
 comment:
-  layout: "reach, diff, flags, files"
+  layout: reach,diff,flags,files
   behavior: default
   require_changes: false
-  require_base: false
-  require_head: true
 
-# Ignore patterns
+# ============================================================================
+# COMPONENTS — Organisation logique des modules
+# Un seul upload dans le workflow, codecov fait le découpage.
+# Pour ajouter un composant : copier un bloc et adapter paths + target.
+# ============================================================================
+component_management:
+
+  # Règles par défaut appliquées à tous les composants
+  default_rules:
+    statuses:
+      - type: project
+        target: 85%
+      - type: patch
+        target: 80%
+
+  individual_components:
+
+    # --------------------------------------------------------------------------
+    # CORE : Traits et structures fondamentales (physics + solver interfaces)
+    # Cible élevée car c'est le contrat de toute l'architecture
+    # --------------------------------------------------------------------------
+    - component_id: core
+      name: "Core Architecture"
+      paths:
+        - src/physics/traits.rs
+        - src/physics/data.rs
+        - src/solver/traits.rs
+        - src/solver/mod.rs
+      statuses:
+        - type: project
+          target: 90%
+
+    # --------------------------------------------------------------------------
+    # PHYSICS : Modèles physiques (isothermes Henry, Langmuir, etc.)
+    # --------------------------------------------------------------------------
+    - component_id: physics
+      name: "Physical Models"
+      paths:
+        - src/physics/**
+
+    # --------------------------------------------------------------------------
+    # SOLVER : Méthodes numériques (Euler, RK4, etc.)
+    # --------------------------------------------------------------------------
+    - component_id: solver
+      name: "Numerical Solvers"
+      paths:
+        - src/solver/**
+
+    # --------------------------------------------------------------------------
+    # MODELS : Modèles Langmuir mono et multi-espèces
+    # --------------------------------------------------------------------------
+    - component_id: models
+      name: "Langmuir Models"
+      paths:
+        - src/models/**
+
+    # --------------------------------------------------------------------------
+    # VISUALIZATION : Génération de chromatogrammes PNG/SVG
+    # Cible plus souple car le rendu graphique est difficile à tester unitairement
+    # --------------------------------------------------------------------------
+    - component_id: visualization
+      name: "Visualization"
+      paths:
+        - src/output/visualization/**
+      statuses:
+        - type: project
+          target: 75%
+
+    # --------------------------------------------------------------------------
+    # CSV : Export des résultats au format CSV
+    # Décommenter quand le module sera implémenté
+    # --------------------------------------------------------------------------
+    # - component_id: csv
+    #   name: "CSV Export"
+    #   paths:
+    #     - src/output/csv/**
+    #   statuses:
+    #     - type: project
+    #       target: 75% # Cible plus souple pour le csv
+
+# ============================================================================
+# FICHIERS IGNORÉS
+# Ne pas mesurer la couverture des tests, exemples et benchmarks
+# ============================================================================
 ignore:
-  - "tests/**/*"              # Integration tests
-  - "examples/**/*"           # Example programs
-  - "benches/**/*"            # Benchmarks
-  - "**/tests.rs"             # Test modules
-  - "**/test_*.rs"            # Test utilities
+  - tests/
+  - examples/
+  - benches/
+  - "**/*_test.rs"
 
-# Flag configuration for different parts of the codebase
-flags:
-  physics:
-    paths:
-      - src/physics/
-    carryforward: true
-    
-  solver:
-    paths:
-      - src/solver/
-    carryforward: true
-    
-  models:
-    paths:
-      - src/models/
-    carryforward: true
-    
-  visualization:
-    paths:
-      - src/visualization/
-    carryforward: true
-    
-  domain:
-    paths:
-      - src/domain/
-    carryforward: true
-    
-  cli:
-    paths:
-      - src/cli/
-    carryforward: true
-
-# GitHub checks configuration
+# ============================================================================
+# INTÉGRATION GITHUB
+# ============================================================================
 github_checks:
   annotations: true
-
-# Codecov AI (if available)
-codecov_bot:
-  enabled: true
-
-# Notification settings
-slack:
-  notify: false
-
-# Repository settings
-codecov:
-  require_ci_to_pass: true
-  notify:
-    after_n_builds: 1
-    wait_for_ci: true

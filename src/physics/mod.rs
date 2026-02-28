@@ -95,5 +95,5 @@ pub mod data;
 pub use data::PhysicalData;
 pub use traits::{
     PhysicalModel,
-    PhysicalState,
-    PhysicalQuantity,};
+    PhysicalQuantity,
+    PhysicalState, };

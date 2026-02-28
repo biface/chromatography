@@ -347,7 +347,7 @@
 mod traits;
 mod boundary;
 mod scenario;
-mod methods;
+pub mod methods;
 
 // =================================================================================================
 // Parallel Execution Threshold

@@ -19,9 +19,9 @@
 //! | Type | Memory | Example Use Case |
 //! |------|--------|------------------|
 //! | Scalar | 8 bytes | Uniform temperature |
-//! | Vector[n] | 8n bytes | 1D concentration profile |
-//! | Matrix[n×m] | 8nm bytes | 100 points × 3 species |
-//! | Array[n₁×...×nₖ] | 8∏nᵢ bytes | 3D spatial + species |
+//! | Vector\[n\] | 8n bytes | 1D concentration profile |
+//! | Matrix\[n×m\] | 8nm bytes | 100 points × 3 species |
+//! | Array\[n₁×...×nₖ\] | 8∏nᵢ bytes | 3D spatial + species |
 
 use nalgebra::{DVector, DMatrix};
 use ndarray::{Array, ArrayD, IxDyn};
@@ -48,9 +48,9 @@ use rayon::prelude::*;
 /// # Memory Layout
 ///
 /// - **Scalar**: 8 bytes
-/// - **Vector[n]**: 8n bytes
-/// - **Matrix[n×m]**: 8nm bytes
-/// - **Array[n₁×n₂×...×nₖ]**: 8∏nᵢ bytes
+/// - **Vector\[n\]**: 8n bytes
+/// - **Matrix\[n×m\]**: 8nm bytes
+/// - **Array\[n₁×n₂×...×nₖ\]**: 8∏nᵢ bytes
 ///
 /// # Examples
 ///
@@ -112,7 +112,7 @@ impl PhysicalData {
         Self::Scalar(value)
     }
 
-    /// Create from Vec<f64>
+    /// Create from `Vec<f64>`
     ///
     /// # Example
     /// ```rust
@@ -274,8 +274,8 @@ impl PhysicalData {
     /// If index >= vector length or if called on non-Vector type
     ///
     /// # Behavior
-    /// - Vector[2] → Scalar (when removing from 2-element vector)
-    /// - Vector[n] → Vector[n-1] (otherwise)
+    /// - Vector\[2\] → Scalar (when removing from 2-element vector)
+    /// - Vector\[n\] → Vector\[n-1\] (otherwise)
     ///
     /// # Example
     /// ```rust
@@ -333,8 +333,8 @@ impl PhysicalData {
     /// `DVector` is treated as a **column vector** (vertical orientation).
     ///
     /// # Behavior
-    /// - Vector[n] + Column[n] → Matrix[n, 2]
-    /// - Matrix[n, m] + Column[n] → Matrix[n, m+1]
+    /// - Vector\[n\] + Column\[n\] → Matrix\[n, 2\]
+    /// - Matrix\[n, m\] + Column\[n\] → Matrix\[n, m+1\]
     ///
     /// # Arguments
     /// * `column` - DVector to add as a new column
@@ -417,8 +417,8 @@ impl PhysicalData {
     /// Remove a column from a Matrix
     ///
     /// # Behavior
-    /// - Matrix[n, 2] → Vector[n] (when removing from 2-column matrix)
-    /// - Matrix[n, m] → Matrix[n, m-1] (otherwise)
+    /// - Matrix\[n, 2\] → Vector\[n\] (when removing from 2-column matrix)
+    /// - Matrix\[n, m\] → Matrix\[n, m-1\] (otherwise)
     ///
     /// # Arguments
     /// * `col_index` - Index of column to remove (0-based)
@@ -483,8 +483,8 @@ impl PhysicalData {
     /// `DVector` is treated as a **row vector** (horizontal orientation).
     ///
     /// # Behavior
-    /// - Vector[n] + Row[n] → Matrix[2, n]
-    /// - Matrix[n, m] + Row[m] → Matrix[n+1, m]
+    /// - Vector\[n\] + Row\[n\] → Matrix\[2, n\]
+    /// - Matrix\[n, m\] + Row\[m\] → Matrix\[n+1, m\]
     ///
     /// # Arguments
     /// * `row` - DVector representing the new row
@@ -566,9 +566,9 @@ impl PhysicalData {
     /// Remove a row from a Matrix or Vector
     ///
     /// # Behavior
-    /// - Vector[n] → Vector[n-1]
-    /// - Matrix[2, n] → Vector[n] (when removing from 2-row matrix)
-    /// - Matrix[n, m] → Matrix[n-1, m] (otherwise)
+    /// - Vector\[n\] → Vector\[n-1\]
+    /// - Matrix\[2, n\] → Vector\[n\] (when removing from 2-row matrix)
+    /// - Matrix\[n, m\] → Matrix\[n-1, m\] (otherwise)
     ///
     /// # Arguments
     /// * `row_index` - Index of row to remove (0-based)
@@ -936,7 +936,7 @@ impl PhysicalData {
 
     /// Estimate memory usage in bytes
     ///
-    /// Each f64 element uses 8 bytes.
+    /// Each `f64` element uses 8 bytes.
     pub fn memory_bytes(&self) -> usize {
         8 * self.len()
     }

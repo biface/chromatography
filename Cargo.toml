@@ -11,6 +11,7 @@ exclude = [
 [features]
 default = ["parallel"]
 parallel = ["rayon"]
+beyond_physical_limits = []
 
 
 [package.metadata.coverage]
@@ -28,14 +29,36 @@ num = "0.4.3"
 serde = { version = "1.0.228", features = ["derive"] }
 log = "0.4.29"
 
+# Export and visualization
+chrono = "0.4"
+plotters = "0.3"
+
 # Parallelism (optional)
 rayon = { version = "1.11", optional = true }
 ndarray = "0.17.2"
 
 [dev-dependencies]
+approx = "0.5.1"
 cargo-llvm-cov = "0.7.1"
 criterion = { version = "0.8", features = ["html_reports"] }
+tempfile = "3.25.0"
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--html-in-header", "docs/katex-header.html"]
 
 [[bench]]
 name = "solver_performance"
 harness = false
+
+[[example]]
+name = "tfa_single"
+path = "examples/tfa.rs"
+
+[[example]]
+name = "acids_multi"
+path = "examples/acids_multi.rs"
+
+[[example]]
+name = "high_load"
+path = "examples/high_load.rs"
+required-features = ["beyond_physical_limits"]

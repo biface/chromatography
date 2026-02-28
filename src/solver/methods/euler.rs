@@ -5,15 +5,11 @@
 //! The Forward Euler method is the simplest explicit time-stepping scheme
 //! for solving ordinary differential equations (ODEs):
 //!
-//! ```text
-//! dy/dt = f(y, t)
-//! ```
+//! $$\frac{dy}{dt} = f(y, t)$$
 //!
-//! The scheme approximates the solution at time t_{n+1} = t_n + dt using:
+//! The scheme approximates the solution at time $t_{n+1} = t_n + \Delta t$ using:
 //!
-//! ```text
-//! y_{n+1} = y_n + dt * f(y_n, t_n)
-//! ```
+//! $$y_{n+1} = y_n + \Delta t \cdot f(y_n, t_n)$$
 //!
 //! # Characteristics
 //!
@@ -24,16 +20,16 @@
 //!
 //! # Advantages
 //!
-//! ✅ Simplest possible time integrator
-//! ✅ Easy to understand and implement
-//! ✅ Low computational cost per step
-//! ✅ Good for educational purposes
+//! - ✅ Simplest possible time integrator
+//! - ✅ Easy to understand and implement
+//! - ✅ Low computational cost per step
+//! - ✅ Good for educational purposes
 //!
 //! # Limitations
 //!
-//! ⚠️ First-order accuracy only (needs small dt for precision)
-//! ⚠️ Stability restrictions (especially for stiff problems)
-//! ⚠️ Not suitable for production chromatography simulations
+//! - ⚠️ First-order accuracy only (needs small dt for precision)
+//! - ⚠️ Stability restrictions (especially for stiff problems)
+//! - ⚠️ Not suitable for production chromatography simulations
 //!
 //! # When to Use
 //!
@@ -87,27 +83,25 @@ use crate::solver::{Scenario, SimulationResult, Solver, SolverConfiguration, Sol
 /// Forward Euler time-stepping solver
 ///
 /// Implements the simplest explicit time integration scheme:
-/// y_{n+1} = y_n + dt * f(y_n)
+/// $$y_{n+1} = y_n + \Delta t \cdot f(y_n)$$
 ///
 /// # Algorithm
 ///
-/// For ODE system dy/dt = f(y):
+/// For ODE system $\frac{dy}{dt} = f(y)$:
 ///
-/// 1. Start with initial state y_0
-/// 2. For each time step n = 0, 1, 2, ..., N-1:
-///    - Compute physics: k = f(y_n)
-///    - Update state: y_{n+1} = y_n + dt * k
+/// 1. Start with initial state $y_{0}$
+/// 2. For each time step $n \in [0, N-1]$:
+///    - Compute physics: $k = f(y_{n})$
+///    - Update state: $y_{n+1} = y_{n} + \Delta t \cdot k$
 ///    - Store trajectory point
 /// 3. Return complete trajectory
 ///
 /// # Stability
 ///
-/// The method is **conditionally stable**. For linear problems dy/dt = λy,
+/// The method is **conditionally stable**. For linear problems $\frac{dy}{dt} = \lambda \cdot y$,
 /// the stability condition is:
 ///
-/// ```text
-/// |1 + λ * dt| ≤ 1
-/// ```
+/// $$|1 + \lambda \cdot \Delta t| \leq 1$$
 ///
 /// For chromatography models, this typically requires dt to be small enough
 /// that the Courant-Friedrichs-Lewy (CFL) condition is satisfied.
@@ -226,6 +220,10 @@ impl Solver for EulerSolver {
             let t = dt * step as f64;
 
             // ====== Euler step ======
+
+            // 0. Add metadata time to be used by injection condition
+
+            state.set_metadata("time".to_string(), t);
 
             // 1. Compute physics: f(y_n, t_n)
             //    This returns the right-hand side of dy/dt = f(y, t)
