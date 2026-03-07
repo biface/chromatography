@@ -384,4 +384,134 @@ mod tests {
     fn test_rectangle_invalid() {
         TemporalInjection::rectangle(10.0, 10.0, 0.05);
     }
+
+    #[test]
+    fn test_debug_temporal_injection_dirac() {
+        let injection = TemporalInjection::dirac(0.0, 10.0);
+        let debug = format!("{:?}", injection);
+
+        assert_eq!(debug, "Dirac { time: 0.0, amount: 10.0 }");
+    }
+
+    #[test]
+    fn test_debug_temporal_injection_gaussian() {
+        let injection = TemporalInjection::gaussian(10.0, 2.0, 0.1);
+        let debug = format!("{:?}", injection);
+
+        assert_eq!(debug, "Gaussian { center: 10.0, width: 2.0, peak_concentration: 0.1 }");
+    }
+
+    #[test]
+    fn test_debug_temporal_injection_rectangle() {
+        let injection = TemporalInjection::rectangle(5.0, 9.0, 0.25);
+        let debug = format!("{:?}", injection);
+
+        assert_eq!(debug, "Rectangle { start: 5.0, end: 9.0, concentration: 0.25 }");
+    }
+
+    #[test]
+    fn test_debug_temporal_injection_custom() {
+        let injection = TemporalInjection::custom(|t| {t.exp()});
+        let debug = format!("{:?}", injection);
+
+        assert_eq!(debug, "Custom { function: \"<user-defined>\" }");
+    }
+
+    #[test]
+    fn test_debug_temporal_injection_none() {
+        let injection = TemporalInjection::none();
+        let debug = format!("{:?}", injection);
+
+        assert_eq!(debug, "None");
+    }
+
+    #[test]
+    fn test_clone_temporal_injection_dirac() {
+        let injection = TemporalInjection::dirac(10.0, 1.0);
+        let clone = injection.clone();
+
+        // Before injection
+        assert!(injection.evaluate(0.0) < 0.01);
+        assert!(clone.evaluate(0.0) < 0.01);
+
+        // At injection time (should have high concentration)
+        assert!(injection.evaluate(10.0) > 1.0);
+        assert!(clone.evaluate(10.0) > 1.0);
+
+        // After injection
+        assert!(injection.evaluate(20.0) < 0.01);
+        assert!(clone.evaluate(20.0) < 0.01);
+    }
+
+    #[test]
+    fn test_clone_temporal_injection_gaussian() {
+        let injection = TemporalInjection::gaussian(10.0, 2.0, 0.1);
+        let clone = injection.clone();
+
+        // At center
+        assert!((injection.evaluate(10.0) - 0.1).abs() < 1e-10);
+        assert!((clone.evaluate(10.0) - 0.1).abs() < 1e-10);
+
+        // At ±σ should be exp(-0.5) ≈ 0.606 of peak
+        let expected = 0.1 * 0.606;
+        assert!((injection.evaluate(8.0) - expected).abs() < 0.01);
+        assert!((injection.evaluate(12.0) - expected).abs() < 0.01);
+
+        assert!((clone.evaluate(8.0) - expected).abs() < 0.01);
+        assert!((clone.evaluate(12.0) - expected).abs() < 0.01);
+
+        // Far from center
+        assert!(injection.evaluate(0.0) < 0.001);
+        assert!(injection.evaluate(20.0) < 0.001);
+
+        assert!(clone.evaluate(0.0) < 0.001);
+        assert!(clone.evaluate(20.0) < 0.001);
+    }
+
+    #[test]
+    fn test_clone_temporal_injection_rectangle() {
+        let injection = TemporalInjection::rectangle(5.0, 15.0, 0.05);
+        let clone = injection.clone();
+
+        // Before
+        assert_eq!(injection.evaluate(4.0), 0.0);
+        assert_eq!(clone.evaluate(4.0), 0.0);
+
+        // During
+        assert_eq!(injection.evaluate(5.0), 0.05);
+        assert_eq!(injection.evaluate(10.0), 0.05);
+        assert_eq!(injection.evaluate(14.9), 0.05);
+
+        assert_eq!(clone.evaluate(5.0), 0.05);
+        assert_eq!(clone.evaluate(10.0), 0.05);
+        assert_eq!(clone.evaluate(14.9), 0.05);
+
+        // After
+        assert_eq!(injection.evaluate(15.0), 0.0);
+        assert_eq!(clone.evaluate(15.0), 0.0);
+    }
+
+    #[test]
+    fn test_clone_temporal_injection_custom() {
+        let injection = TemporalInjection::custom(|t| {
+            if t < 10.0 { 0.01 * t } else { 0.0 }
+        });
+        let clone = injection.clone();
+
+        assert_eq!(injection.evaluate(0.0), 0.0);
+        assert_eq!(clone.evaluate(0.0), 0.0);
+        assert_eq!(injection.evaluate(5.0), 0.05);
+        assert_eq!(clone.evaluate(5.0), 0.05);
+        assert_eq!(injection.evaluate(10.0), 0.0);
+        assert_eq!(clone.evaluate(10.0), 0.0);
+    }
+
+    #[test]
+    fn test_clone_temporal_injection_none() {
+        let injection = TemporalInjection::none();
+        let clone = injection.clone();
+
+        assert_eq!(clone.evaluate(0.0), 0.0);
+        assert_eq!(clone.evaluate(100.0), 0.0);
+    }
 }

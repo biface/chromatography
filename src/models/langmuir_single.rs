@@ -553,6 +553,27 @@ mod tests {
     }
 
     #[test]
+    fn test_name() {
+        let model = create_langmuir_single();
+        let name = model.name();
+
+        assert_eq!(name, String::from("Langmuir single specie with temporal injection"));
+
+    }
+
+    #[test]
+    fn test_description() {
+        let model = create_langmuir_single();
+        let description = model.description().unwrap();
+
+        assert_eq!(description,
+                   String::from(
+                       "Using Langmuir isotherm with time varying inlet BC. \
+                       Read from Physical State metadata."
+                   ));
+    }
+
+    #[test]
     #[should_panic(expected = "Porosity must be in ]0,1[")]
     fn test_invalid_porosity() {
         let injection = TemporalInjection::none();
