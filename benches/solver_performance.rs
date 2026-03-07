@@ -419,8 +419,8 @@ fn benchmark_solver_comparison(c: &mut Criterion) {
 
 /// Optional: Exhaustive comparison across ALL combinations
 ///
-/// This benchmarks **every combination** of points and time_steps.
-/// ⚠️ WARNING: This generates MANY benchmarks and takes a long time!
+/// Cette fonction est **activée** dans `criterion_group!`.
+/// *This function is **active** in `criterion_group!`.*
 ///
 /// # When to Use
 ///
@@ -454,14 +454,18 @@ fn benchmark_solver_comparison(c: &mut Criterion) {
 /// # Create matrix: rows=points, cols=time_steps
 /// # Plot heatmap to see performance landscape
 /// ```
-#[allow(dead_code)]
 fn benchmark_exhaustive_comparison(c: &mut Criterion) {
     let mut group = c.benchmark_group("Exhaustive Solver Comparison");
 
     // Configuration large treatments
     group.measurement_time(Duration::from_secs(15));
-    group.sample_size(50);
-    group.warm_up_time(Duration::from_secs(5));
+    group.sample_size(20);
+    // SamplingMode::Flat obligatoire ici : en mode Auto, Criterion peut lancer
+    // des centaines de samples sur les grosses configs → durée de plusieurs heures.
+    // SamplingMode::Flat is mandatory here: in Auto mode, Criterion may run
+    // hundreds of samples on large configs → multi-hour runtimes.
+    group.sampling_mode(SamplingMode::Flat);
+    group.warm_up_time(Duration::from_secs(3));
 
     // Progression
 
@@ -469,14 +473,22 @@ fn benchmark_exhaustive_comparison(c: &mut Criterion) {
     
     // Fine-grained test points
     let points_values = vec![50, 100, 200];
-    let time_steps_values = vec![100, 500, 1000, 5000, 10000];
+    // ⚠️ time_steps réduit : 10 000 pas × 200 points × 50 samples = plusieurs heures.
+    //    On plafonne à 5 000 ; augmenter avec précaution.
+    // ⚠️ time_steps capped: 10,000 steps × 200 points × 50 samples = multi-hour run.
+    //    Capped at 5,000; increase with caution.
+    let time_steps_values = vec![100, 500, 1000, 5000];
     
-    println!("\n🔬 Running exhaustive comparison:");
-    println!("   {} points configs × {} time_steps configs × 2 solvers", 
+    // ⚠️  println! interdit ici : Criterion utilise stdout pour ses tableaux de résultats.
+    //     Tout affichage diagnostic doit passer par eprintln! (stderr).
+    // ⚠️  println! is forbidden here: Criterion uses stdout for its result tables.
+    //     All diagnostic output must go through eprintln! (stderr).
+    eprintln!("\n🔬 Running exhaustive comparison:");
+    eprintln!("   {} points configs × {} time_steps configs × 2 solvers",
              points_values.len(), time_steps_values.len());
-    println!("   = {} benchmarks total", 
+    eprintln!("   = {} benchmarks total",
              points_values.len() * time_steps_values.len() * 2);
-    println!("   This will take several minutes...\n");
+    eprintln!("   This will take several minutes...\n");
     
     // Test all combinations
     for &points in &points_values {
@@ -548,12 +560,22 @@ fn benchmark_exhaustive_comparison(c: &mut Criterion) {
     group.finish();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Enregistrement Criterion / Criterion registration
+//
+// ATTENTION : benchmark_exhaustive_comparison est activée.
+// Pour l'exécuter seule : cargo bench --bench solver_performance exhaustive
+// Pour l'exclure        : commenter la ligne dans criterion_group!
+//
+// NOTE: benchmark_exhaustive_comparison IS active.
+// To run it alone : cargo bench --bench solver_performance exhaustive
+// To exclude it   : comment out the line in criterion_group!
+// ─────────────────────────────────────────────────────────────────────────────
 criterion_group!(
     benches,
     benchmark_euler_solver,
     benchmark_rk4_solver,
     benchmark_solver_comparison,
-    // Uncomment below for exhaustive testing (takes much longer!)
     benchmark_exhaustive_comparison,
 );
 criterion_main!(benches);
