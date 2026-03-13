@@ -10,25 +10,44 @@
 //!
 //! # Available functions
 //!
-//! - [`plot_chromatogram`]            — Single-species: outlet concentration vs time
-//! - [`plot_chromatogram_multi`]      — Multi-species: one curve per species (LangmuirMulti)
-//! - [`plot_chromatograms_comparison`]— Overlay several single-species runs on the same axes
+//! - [`plot_chromatogram`]             — Single-species: outlet concentration vs time
+//! - [`plot_chromatogram_multi`]       — Multi-species: **cumulative** detector signal
+//!                                       $C_{total}(t) = \sum_k C_{outlet,k}(t)$,
+//!                                       with individual species contributions in thin lines.
+//!                                       This is the signal a real chromatograph detector sees.
+//! - [`plot_chromatogram_envelope`]   — Multi-species: one curve per species + grey envelope
+//!                                       $C_{env}(t) = \max_k C_{outlet,k}(t)$.
+//!                                       Useful for analytical / diagnostic visualisations.
+//! - [`plot_chromatograms_comparison`] — Overlay several single-species runs on the same axes
 //!
 //! # Usage
 //!
 //! ```rust,ignore
-//! use chrom_rs::output::visualization::{plot_chromatogram, plot_chromatogram_multi};
+//! use chrom_rs::output::visualization::{
+//!     plot_chromatogram,
+//!     plot_chromatogram_multi,
+//!     plot_chromatogram_enveloppe,
+//! };
 //!
 //! // Single-species (LangmuirSingle — Vector state)
 //! let result = solver.solve(&scenario, &config)?;
 //! plot_chromatogram(&result, 100, "tfa.png", None)?;
 //!
-//! // Multi-species (LangmuirMulti — Matrix state [n_points × n_species])
+//! // Multi-species — cumulative detector signal (realistic chromatograph view)
 //! plot_chromatogram_multi(
 //!     &result,
 //!     100,
 //!     &["Ascorbic", "Erythorbic", "Citric"],
-//!     "acids.png",
+//!     "acids_total.png",
+//!     None,
+//! )?;
+//!
+//! // Multi-species — envelope view (analytical / diagnostic use)
+//! plot_chromatogram_enveloppe(
+//!     &result,
+//!     100,
+//!     &["Ascorbic", "Erythorbic", "Citric"],
+//!     "acids_enveloppe.png",
 //!     None,
 //! )?;
 //! ```
@@ -196,11 +215,23 @@ pub fn plot_chromatogram(
     }
 }
 
-/// Plot a multi-species chromatogram (one outlet curve per species vs time)
+/// Plot a multi-species chromatogram: **cumulative detector signal** (realistic view)
 ///
-/// Reads `C_{outlet,k}(t)` from the last row of the `[n_points × n_species]`
-/// concentration matrix at each time step. Designed for `LangmuirMulti` results
-/// where competitive adsorption produces distinct elution peaks per species.
+/// On a real chromatograph equipped with a UV or RI detector, the instrument measures the
+/// **total** concentration at the column outlet — the sum of all species' contributions.
+/// The individual peaks appear sequentially if species are well-separated (different
+/// retention times), or overlap if they co-elute.
+///
+/// This function renders exactly that signal:
+///
+/// $$C_{total}(t_i) = \sum_{k=0}^{N-1} C_{outlet,k}(t_i)$$
+///
+/// In addition to the cumulative curve (bold, coloured via `config.line_color`), each
+/// species' individual contribution is drawn as a thin faded line so the reader can
+/// identify which species drives each peak while still seeing the instrument signal.
+///
+/// > **Note** — For a purely analytical view where all species curves and an envelope
+/// > $\max_k C_k(t)$ are overlaid, use [`plot_chromatogram_envelope`] instead.
 ///
 /// # Arguments
 ///
@@ -225,11 +256,112 @@ pub fn plot_chromatogram(
 ///     &result,
 ///     100,
 ///     &["Ascorbic Acid", "Erythorbic Acid", "Citric Acid"],
-///     "acids.png",
+///     "acids_total.png",
 ///     None,
 /// )?;
 /// ```
 pub fn plot_chromatogram_multi(
+    result: &SimulationResult,
+    n_points: usize,
+    species_names: &[&str],
+    output_path: &str,
+    config: Option<&PlotConfig>,
+) -> Result<(), Box<dyn Error>> {
+    let outlets = extract_multi_species_outlet(result, n_points, species_names.len());
+
+    if outlets.is_empty() || outlets[0].is_empty() {
+        return Err("No multi-species concentration data found in trajectory".into());
+    }
+
+    let time_points = &result.time_points;
+    let n_steps = outlets[0].len();
+
+    // ── Cumulative signal ────────────────────────────────────────────────────
+    // C_total(t_i) = Σ_k C_{outlet,k}(t_i)
+    // This is what a detector (UV, RI, …) actually measures: the superposition
+    // of all species' contributions at the column exit.
+    let cumulative: Vec<f64> = (0..n_steps)
+        .map(|i| outlets.iter().map(|o| o[i]).sum::<f64>())
+        .collect();
+
+    let default_config = PlotConfig::chromatogram(NO_TITLE);
+    let config = config.unwrap_or(&default_config);
+
+    let max_time = time_points.last().copied().unwrap_or(1.0);
+    // Scale the Y-axis on the cumulative signal — it is always >= any individual species.
+    let max_conc = cumulative
+        .iter()
+        .cloned()
+        .fold(f64::NEG_INFINITY, f64::max)
+        .max(1e-10);
+
+    let ext = std::path::Path::new(output_path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("png");
+
+    match ext {
+        "svg" => {
+            let backend = SVGBackend::new(output_path, (config.width, config.height));
+            plot_cumulative_chromatogram_impl(
+                backend, time_points, &outlets, &cumulative, species_names,
+                config, max_time, max_conc,
+            )
+        }
+        _ => {
+            let backend = BitMapBackend::new(output_path, (config.width, config.height));
+            plot_cumulative_chromatogram_impl(
+                backend, time_points, &outlets, &cumulative, species_names,
+                config, max_time, max_conc,
+            )
+        }
+    }
+}
+
+/// Plot a multi-species chromatogram: **individual curves + max envelope** (analytical view)
+///
+/// Draws two visual layers:
+///
+/// 1. **Species curves** — one `LineSeries` per species $k$, coloured via
+///    `config.get_species_color(k)`, built from $(t_i,\; C_{outlet,k}(t_i))$.
+///
+/// 2. **Concentration envelope** — a dashed grey curve showing the instantaneous
+///    maximum across all species:
+///    $$C_{env}(t_i) = \max_k \, C_{outlet,k}(t_i)$$
+///    Useful to identify when *any* species is eluting and to spot
+///    co-elution zones where the envelope exceeds individual peaks.
+///
+/// > **Note** — This representation does **not** match what a real chromatograph
+/// > detector measures. For the realistic cumulative signal use [`plot_chromatogram_multi`].
+///
+/// # Arguments
+///
+/// * `result`        — Simulation result with matrix-valued trajectory
+/// * `n_points`      — Number of spatial points (outlet index = `n_points - 1`)
+/// * `species_names` — Legend labels, one per species
+/// * `output_path`   — Output file path (`.png` or `.svg`)
+/// * `config`        — Optional plot configuration;
+///                     use `config.species_colors` to override the default palette
+///
+/// # Errors
+///
+/// Returns `Err` if no multi-species data is found or the backend fails.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use chrom_rs::output::visualization::plot_chromatogram_envelope;
+///
+/// // Analytical view of a three-acid separation
+/// plot_chromatogram_envelope(
+///     &result,
+///     100,
+///     &["Ascorbic Acid", "Erythorbic Acid", "Citric Acid"],
+///     "acids_enveloppe.png",
+///     None,
+/// )?;
+/// ```
+pub fn plot_chromatogram_envelope(
     result: &SimulationResult,
     n_points: usize,
     species_names: &[&str],
@@ -263,13 +395,13 @@ pub fn plot_chromatogram_multi(
     match ext {
         "svg" => {
             let backend = SVGBackend::new(output_path, (config.width, config.height));
-            plot_multi_chromatogram_impl(
+            plot_envelope_impl(
                 backend, time_points, &outlets, species_names, config, max_time, max_conc,
             )
         }
         _ => {
             let backend = BitMapBackend::new(output_path, (config.width, config.height));
-            plot_multi_chromatogram_impl(
+            plot_envelope_impl(
                 backend, time_points, &outlets, species_names, config, max_time, max_conc,
             )
         }
@@ -408,6 +540,102 @@ where
     Ok(())
 }
 
+/// Render the **cumulative** multi-species chromatogram (realistic detector signal)
+///
+/// Draws two visual layers:
+///
+/// 1. **Individual species contributions** — thin coloured lines (30 % opacity via
+///    alpha blending) showing $C_{outlet,k}(t)$ for each species $k$.
+///    These are *not* what the detector measures, but they help identify which species
+///    drives each peak.
+///
+/// 2. **Cumulative (total) signal** — bold dark line representing
+///    $C_{total}(t_i) = \sum_k C_{outlet,k}(t_i)$,
+///    which is the quantity actually recorded by the detector.
+///
+/// The Y-axis is scaled on the cumulative signal, which is always
+/// $\geq \max_k C_{outlet,k}(t_i)$.
+fn plot_cumulative_chromatogram_impl<DB: DrawingBackend>(
+    backend: DB,
+    time_points: &[f64],
+    outlets: &[Vec<f64>],    // [n_species][n_time_steps] — individual contributions
+    cumulative: &[f64],       // [n_time_steps] — Σ_k outlets[k][i]
+    species_names: &[&str],
+    config: &PlotConfig,
+    max_time: f64,
+    max_conc: f64,
+) -> Result<(), Box<dyn Error>>
+where
+    DB::ErrorType: 'static,
+{
+    let root = backend.into_drawing_area();
+    root.fill(&config.background)?;
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption(&config.title, ("sans-serif", 40).into_font())
+        .margin(15)
+        .x_label_area_size(45)
+        .y_label_area_size(60)
+        .build_cartesian_2d(0.0..max_time, 0.0..(max_conc * 1.1))?;
+
+    if config.show_grid {
+        chart
+            .configure_mesh()
+            .x_desc(&config.xlabel)
+            .y_desc(&config.ylabel)
+            .x_label_formatter(&|x| format!("{:.0}", x))
+            .y_label_formatter(&|y| format!("{:.3}", y))
+            .draw()?;
+    }
+
+    // ── 1. Individual species contributions (thin, faded) ────────────────────
+    // Alpha = 0.35 keeps these curves readable without competing with the total.
+    // They serve as a decomposition guide, not the primary information.
+    for (k, outlet) in outlets.iter().enumerate() {
+        let base_color = config.get_species_color(k);
+        // Blend towards background (white) to create a faded appearance.
+        let faded_style = ShapeStyle {
+            color: base_color.mix(0.35),
+            filled: false,
+            stroke_width: 1,  // deliberately thin
+        };
+        let label = species_names.get(k).copied().unwrap_or("?");
+
+        chart
+            .draw_series(LineSeries::new(
+                time_points.iter().zip(outlet.iter()).map(|(t, c)| (*t, *c)),
+                faded_style,
+            ))?
+            .label(label)
+            .legend(move |(x, y)| {
+                PathElement::new(vec![(x, y), (x + 20, y)], base_color.mix(0.5))
+            });
+    }
+
+    // ── 2. Cumulative / total signal (bold) ──────────────────────────────────
+    // C_total(t_i) = Σ_k C_{outlet,k}(t_i)
+    // This is the only curve the detector hardware actually records.
+
+    let cumulative_color = RGBColor(150, 150, 150);
+    chart
+        .draw_series(LineSeries::new(
+            time_points.iter().zip(cumulative.iter()).enumerate()
+                .filter_map(|(i, (t, c))| if i % 5 < 2 {Some((*t, *c))} else {None}),
+            ShapeStyle { color: cumulative_color.to_rgba(), filled: false, stroke_width: config.line_width },
+        ))?
+        .label("Σ Total")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK));
+
+    chart
+        .configure_series_labels()
+        .background_style(&config.background.mix(0.8))
+        .border_style(&BLACK)
+        .draw()?;
+
+    root.present()?;
+    Ok(())
+}
+
 /// Render a multi-species chromatogram — one coloured curve per species + grey envelope
 ///
 /// Draws two layers:
@@ -417,13 +645,13 @@ where
 ///
 /// 2. **Concentration envelope** — a dashed grey curve showing the instantaneous
 ///    maximum across all species:
-///    $$C_{envelope}(t_i) = \max_k \, C_{outlet,k}(t_i)$$
+///    $$C_{env}(t_i) = \max_k \, C_{outlet,k}(t_i)$$
 ///    Useful to identify when *any* species is eluting and to spot
 ///    co-elution zones where the envelope exceeds individual peaks.
 ///
 /// The envelope is computed directly from the already-extracted `outlets` data —
 /// no additional access to the trajectory is needed.
-fn plot_multi_chromatogram_impl<DB: DrawingBackend>(
+fn plot_envelope_impl<DB: DrawingBackend>(
     backend: DB,
     time_points: &[f64],
     outlets: &[Vec<f64>],  // shape: [n_species][n_time_steps]
@@ -772,6 +1000,7 @@ mod tests {
 
     #[test]
     fn test_plot_chromatogram_multi_png() {
+        // Cumulative signal: file must be created successfully
         let result = run_multi(10, 2);
         let tmp = tempfile::NamedTempFile::new().unwrap();
         let path = tmp.path().with_extension("png");
@@ -815,6 +1044,55 @@ mod tests {
         assert!(path.exists());
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Integration tests — plot_chromatogram_enveloppe
+    // ─────────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_plot_chromatogram_envelope_png() {
+        let result = run_multi(10, 2);
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let path = tmp.path().with_extension("png");
+        plot_chromatogram_envelope(
+            &result, 10, &["A", "B"], path.to_str().unwrap(), None,
+        ).unwrap();
+        assert!(path.exists());
+    }
+
+    #[test]
+    fn test_plot_chromatogram_envelope_svg() {
+        let result = run_multi(10, 2);
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let path = tmp.path().with_extension("svg");
+        plot_chromatogram_envelope(
+            &result, 10, &["A", "B"], path.to_str().unwrap(), None,
+        ).unwrap();
+        assert!(path.exists());
+    }
+
+    #[test]
+    fn test_plot_chromatogram_envelope_three_species() {
+        let result = run_multi(10, 3);
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let path = tmp.path().with_extension("png");
+        plot_chromatogram_envelope(
+            &result, 10, &["Ascorbic", "Erythorbic", "Citric"], path.to_str().unwrap(), None,
+        ).unwrap();
+        assert!(path.exists());
+    }
+
+    #[test]
+    fn test_plot_chromatogram_envelope_custom_colors() {
+        let result = run_multi(10, 2);
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let path = tmp.path().with_extension("png");
+        let config = PlotConfig::multi_species_colors(vec![RED, BLUE]);
+        plot_chromatogram_envelope(
+            &result, 10, &["X", "Y"], path.to_str().unwrap(), Some(&config),
+        ).unwrap();
+        assert!(path.exists());
+    }
+
     #[test]
     fn test_plot_chromatograms_comparison() {
         let result1 = run_single(10);
@@ -831,7 +1109,7 @@ mod tests {
 
     #[test]
     fn test_envelope_is_max_of_species() {
-        // Verify the envelope formula independently of the plotting backend.
+        // Verify the max-envelope formula independently of the plotting backend.
         // outlets[0] = [1.0, 0.5], outlets[1] = [0.8, 0.9]
         // → envelope should be [1.0, 0.9]
         let outlets: Vec<Vec<f64>> = vec![vec![1.0, 0.5], vec![0.8, 0.9]];
@@ -845,7 +1123,7 @@ mod tests {
 
     #[test]
     fn test_envelope_equals_single_species_when_one_species() {
-        // With a single species, the envelope must be identical to that species
+        // With a single species the envelope must be identical to that species.
         let outlets: Vec<Vec<f64>> = vec![vec![0.3, 0.7, 0.5]];
         let n_steps = outlets[0].len();
         let envelope: Vec<f64> = (0..n_steps)
@@ -855,8 +1133,99 @@ mod tests {
     }
 
     #[test]
-    fn test_plot_chromatogram_multi_envelope_rendered() {
-        // The plot must be created successfully when the envelope code path is active
+    fn test_plot_chromatogram_enveloppe_rendered() {
+        // The plot must be created successfully when the envelope code path is active.
+        let result = run_multi(10, 3);
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let path = tmp.path().with_extension("png");
+        plot_chromatogram_envelope(
+            &result, 10,
+            &["Ascorbic", "Erythorbic", "Citric"],
+            path.to_str().unwrap(),
+            None,
+        ).unwrap();
+        assert!(path.exists());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Unit tests — cumulative signal logic (plot_chromatogram_multi)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_cumulative_is_sum_of_species() {
+        // C_total(t_i) = Σ_k C_{outlet,k}(t_i)
+        // outlets[0] = [1.0, 0.5], outlets[1] = [0.8, 0.9]
+        // → cumulative should be [1.8, 1.4]
+        let outlets: Vec<Vec<f64>> = vec![vec![1.0, 0.5], vec![0.8, 0.9]];
+        let n_steps = outlets[0].len();
+        let cumulative: Vec<f64> = (0..n_steps)
+            .map(|i| outlets.iter().map(|o| o[i]).sum::<f64>())
+            .collect();
+        assert!((cumulative[0] - 1.8).abs() < 1e-12, "step 0: {}", cumulative[0]);
+        assert!((cumulative[1] - 1.4).abs() < 1e-12, "step 1: {}", cumulative[1]);
+    }
+
+    #[test]
+    fn test_cumulative_geq_envelope() {
+        // For non-negative concentrations the cumulative sum must always be
+        // greater than or equal to the pointwise maximum (the envelope).
+        let outlets: Vec<Vec<f64>> = vec![vec![1.0, 0.5], vec![0.8, 0.9]];
+        let n_steps = outlets[0].len();
+
+        let cumulative: Vec<f64> = (0..n_steps)
+            .map(|i| outlets.iter().map(|o| o[i]).sum::<f64>())
+            .collect();
+        let envelope: Vec<f64> = (0..n_steps)
+            .map(|i| outlets.iter().map(|o| o[i]).fold(f64::NEG_INFINITY, f64::max))
+            .collect();
+
+        for i in 0..n_steps {
+            assert!(
+                cumulative[i] >= envelope[i] - 1e-12,
+                "step {i}: cumulative={} < envelope={}",
+                cumulative[i], envelope[i]
+            );
+        }
+    }
+
+    #[test]
+    fn test_cumulative_equals_single_species_when_one_species() {
+        // With a single species the cumulative signal is identical to that species.
+        let outlets: Vec<Vec<f64>> = vec![vec![0.3, 0.7, 0.5]];
+        let n_steps = outlets[0].len();
+        let cumulative: Vec<f64> = (0..n_steps)
+            .map(|i| outlets.iter().map(|o| o[i]).sum::<f64>())
+            .collect();
+        assert_eq!(cumulative, outlets[0]);
+    }
+
+    #[test]
+    fn test_cumulative_max_geq_individual_max() {
+        // The Y-axis of plot_chromatogram_multi is scaled on max(cumulative),
+        // which must be >= max of any individual species.
+        let result = run_multi(10, 3);
+        let outlets = extract_multi_species_outlet(&result, 10, 3);
+        let n_steps = outlets[0].len();
+
+        let cumulative: Vec<f64> = (0..n_steps)
+            .map(|i| outlets.iter().map(|o| o[i]).sum::<f64>())
+            .collect();
+        let max_cumulative = cumulative.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let max_individual = outlets
+            .iter()
+            .flat_map(|o| o.iter())
+            .cloned()
+            .fold(f64::NEG_INFINITY, f64::max);
+
+        assert!(
+            max_cumulative >= max_individual - 1e-12,
+            "max cumulative ({max_cumulative}) < max individual ({max_individual})"
+        );
+    }
+
+    #[test]
+    fn test_plot_chromatogram_multi_cumulative_rendered() {
+        // Integration smoke test: the cumulative plot must be created without error.
         let result = run_multi(10, 3);
         let tmp = tempfile::NamedTempFile::new().unwrap();
         let path = tmp.path().with_extension("png");
