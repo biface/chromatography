@@ -1,0 +1,16 @@
+blank_issues_enabled: true
+
+contact_links:
+  - name: "💬 General question or idea"
+    url: https://github.com/biface/chromatography/discussions
+    about: >
+      For usage questions, informal proposals, or experience reports —
+      please use Discussions rather than opening an issue.
+
+  - name: "📖 API Documentation"
+    url: https://docs.rs/chrom-rs
+    about: "Check the full documentation on docs.rs before opening an issue."
+
+  - name: "📦 crates.io"
+    url: https://crates.io/crates/chrom-rs
+    about: "Published versions and release history."

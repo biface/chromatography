@@ -1,0 +1,163 @@
+name: "🐛 Bug"
+description: >
+  Report an incorrect behaviour, a panic, or an unexpected result.
+title: "[BUG] "
+labels:
+  - "type: bug"
+  - "status: triage"
+  - "priority: high"
+
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: "Summary"
+      description: "One sentence: what happens vs what should happen."
+      placeholder: >
+        When calling `MyStruct::build()` with an empty config,
+        the function panics instead of returning a typed `Err`.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected behaviour"
+      placeholder: >
+        Return `Err(ConfigError::MissingKey(...))` with an explicit message.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: "Observed behaviour"
+      placeholder: |
+        ```
+        thread 'main' panicked at 'called `Option::unwrap()` on a `None` value',
+        src/core.rs:42:25
+        note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+        ```
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: "Reproduction steps"
+      description: >
+        Minimal Rust code reproducing the issue (MCVE).
+        A failing `#[test]` is ideal.
+      placeholder: |
+        ```rust
+        #[test]
+        fn test_repro_empty_config() {
+            let result = MyStruct::build(Config::default());
+            assert!(matches!(result, Err(ConfigError::MissingKey(_))));
+            // currently panics instead
+        }
+        ```
+      render: markdown
+    validations:
+      required: true
+
+  - type: input
+    id: rustc-version
+    attributes:
+      label: "Rust toolchain version"
+      description: "Output of `rustc --version`."
+      placeholder: "rustc 1.78.0 (9b00956e5 2024-04-29)"
+    validations:
+      required: true
+
+  - type: input
+    id: crate-version
+    attributes:
+      label: "Crate version"
+      description: "Version listed in `Cargo.toml` or output of `cargo pkgid`."
+      placeholder: "0.1.1"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: "Environment"
+      description: "OS, relevant dependencies and their versions."
+      placeholder: |
+        - OS: Ubuntu 24.04 / macOS 15 / Windows 11
+        - cargo: 1.78.0
+        - Relevant deps: serde==1.0.197, thiserror==1.0.61
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: "Operating system"
+      options:
+        - "Linux"
+        - "macOS"
+        - "Windows"
+        - "Other"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: "Affected module(s)"
+      description: "Apply the matching `scope:` labels manually after creation."
+      options:
+        - label: "`api` — public traits or types"
+        - label: "`docs` — rustdoc, examples"
+        - label: "`tests` — unit tests, integration tests, doctests"
+        - label: "`ci` — GitHub Actions, pipeline"
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Severity"
+      description: "`priority: high` is applied by default. Adjust if needed."
+      options:
+        - "high — panic, unsoundness, data corruption, public regression"
+        - "medium — incorrect behaviour, workaround available"
+        - "low — cosmetic, imprecise error message"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: "Estimated fix effort"
+      description: "Apply the matching `effort:` label after creation."
+      options:
+        - "XS — typo, missing guard"
+        - "S  — localised fix (1 module)"
+        - "M  — multi-module fix"
+        - "L  — refactoring required"
+        - "XL — architectural impact"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: breaking-fix
+    attributes:
+      label: "Is the fix a breaking change?"
+      description: "If yes, also add `type: breaking`."
+      options:
+        - "No — transparent fix"
+        - "Yes — API change required"
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: "Additional context"
+      description: >
+        Full backtrace (`RUST_BACKTRACE=1`), logs, config files used,
+        `cargo tree` output, etc.
+    validations:
+      required: false
