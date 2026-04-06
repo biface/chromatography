@@ -1,0 +1,98 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Numerical methods for solving differential equations"><title>chrom_rs::solver::methods - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="chrom_rs" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module methods</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../chrom_rs/index.html">chrom_<wbr>rs</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module methods</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#architecture" title="Architecture">Architecture</a></li><li><a href="#available-methods" title="Available Methods">Available Methods</a><ul><li><a href="#explicit-time-stepping-methods" title="Explicit Time-Stepping Methods">Explicit Time-Stepping Methods</a></li></ul></li><li><a href="#future-methods-planned" title="Future Methods (Planned)">Future Methods (Planned)</a><ul><li><a href="#adaptive-methods-v020" title="Adaptive Methods (v0.2.0+)">Adaptive Methods (v0.2.0+)</a></li><li><a href="#implicit-methods-v030" title="Implicit Methods (v0.3.0+)">Implicit Methods (v0.3.0+)</a></li><li><a href="#iterative-methods-v040" title="Iterative Methods (v0.4.0+)">Iterative Methods (v0.4.0+)</a></li></ul></li><li><a href="#example" title="Example">Example</a></li><li><a href="#design-philosophy" title="Design Philosophy">Design Philosophy</a></li><li><a href="#performance-considerations" title="Performance Considerations">Performance Considerations</a></li></ul><h3><a href="#reexports">Module Items</a></h3><ul class="block"><li><a href="#reexports" title="Re-exports">Re-exports</a></li><li><a href="#modules" title="Modules">Modules</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In chrom_<wbr>rs::<wbr>solver</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">chrom_rs</a>::<wbr><a href="../index.html">solver</a></div><h1>Module <span>methods</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/chrom_rs/solver/methods/mod.rs.html#1-106">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Numerical methods for solving differential equations</p>
+<p>This module contains concrete implementations of the <a href="../trait.Solver.html" title="trait chrom_rs::solver::Solver"><code>Solver</code></a> trait.</p>
+<h2 id="architecture"><a class="doc-anchor" href="#architecture">§</a>Architecture</h2>
+<p>The separation between abstract solver interface (<code>solver::traits</code>) and concrete
+implementations (<code>solver::methods</code>) follows the Open-Closed Principle:</p>
+<ul>
+<li><strong>Open</strong> for extension: Add new methods without modifying existing code</li>
+<li><strong>Closed</strong> for modification: The <code>Solver</code> trait is stable and never changes</li>
+</ul>
+<h2 id="available-methods"><a class="doc-anchor" href="#available-methods">§</a>Available Methods</h2><h3 id="explicit-time-stepping-methods"><a class="doc-anchor" href="#explicit-time-stepping-methods">§</a>Explicit Time-Stepping Methods</h3>
+<p>These methods are suitable for non-stiff ordinary differential equations (ODEs)
+where the right-hand side function can be evaluated explicitly.</p>
+<ul>
+<li>
+<p><strong><a href="euler/struct.EulerSolver.html" title="struct chrom_rs::solver::methods::euler::EulerSolver"><code>EulerSolver</code></a></strong>: Forward Euler method</p>
+<ul>
+<li>Order: First-order O(dt)</li>
+<li>Cost: 1 function evaluation per step</li>
+<li>Use: Prototyping, educational purposes, non-stiff problems with relaxed accuracy</li>
+</ul>
+</li>
+<li>
+<p><strong><a href="rk4/struct.RK4Solver.html" title="struct chrom_rs::solver::methods::rk4::RK4Solver"><code>RK4Solver</code></a></strong>: Classical fourth-order Runge-Kutta</p>
+<ul>
+<li>Order: Fourth-order O(dt⁴)</li>
+<li>Cost: 4 function evaluations per step</li>
+<li>Use: <strong>Production simulations</strong>, non-stiff to moderately stiff problems</li>
+</ul>
+</li>
+</ul>
+<h2 id="future-methods-planned"><a class="doc-anchor" href="#future-methods-planned">§</a>Future Methods (Planned)</h2><h3 id="adaptive-methods-v020"><a class="doc-anchor" href="#adaptive-methods-v020">§</a>Adaptive Methods (v0.2.0+)</h3>
+<ul>
+<li><strong>RK45</strong>: Runge-Kutta-Fehlberg with adaptive step size control</li>
+<li><strong>Dormand-Prince</strong>: Higher-order adaptive method</li>
+</ul>
+<h3 id="implicit-methods-v030"><a class="doc-anchor" href="#implicit-methods-v030">§</a>Implicit Methods (v0.3.0+)</h3>
+<ul>
+<li><strong>BDF</strong>: Backward Differentiation Formulas for stiff problems</li>
+<li><strong>Rosenbrock</strong>: Semi-implicit methods</li>
+</ul>
+<h3 id="iterative-methods-v040"><a class="doc-anchor" href="#iterative-methods-v040">§</a>Iterative Methods (v0.4.0+)</h3>
+<ul>
+<li><strong>Newton-Raphson</strong>: For steady-state problems</li>
+<li><strong>GMRES</strong>: For large linear systems</li>
+</ul>
+<h2 id="example"><a class="doc-anchor" href="#example">§</a>Example</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>chrom_rs::solver::{EulerSolver, RK4Solver};
+<span class="kw">use </span>chrom_rs::solver::{Scenario, DomainBoundaries, Solver, SolverConfiguration};
+<span class="kw">use </span>chrom_rs::physics::{ PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData };
+<span class="kw">use </span>nalgebra::DVector;
+
+<span class="kw">struct </span>MyModel;
+
+<span class="kw">impl </span>PhysicalModel <span class="kw">for </span>MyModel {
+     <span class="kw">fn </span>points(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize { <span class="number">1 </span>}
+     <span class="kw">fn </span>compute_physics(<span class="kw-2">&amp;</span><span class="self">self</span>, state: <span class="kw-2">&amp;</span>PhysicalState) -&gt; PhysicalState { state.clone() }
+     <span class="kw">fn </span>setup_initial_state(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PhysicalState {
+         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(<span class="macro">vec!</span>[<span class="number">1.0</span>])))
+     }
+     <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str { <span class="string">"MyModel" </span>}
+ }
+
+<span class="kw">fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
+
+    <span class="kw">let </span>model = Box::new(MyModel);
+    <span class="kw">let </span>boundaries = DomainBoundaries::temporal(model.setup_initial_state());
+    <span class="kw">let </span>scenario = Scenario::new(model, boundaries);
+
+
+    <span class="comment">// Using Euler for production
+    </span><span class="kw">let </span>euler = EulerSolver::new();
+    <span class="kw">let </span>configuration = SolverConfiguration::time_evolution(<span class="number">600.0</span>, <span class="number">10000</span>);
+    <span class="kw">let </span>result = euler.solve(<span class="kw-2">&amp;</span>scenario, <span class="kw-2">&amp;</span>configuration)<span class="question-mark">?</span>;
+
+    <span class="comment">// Using Runge-Kutta for production
+    </span><span class="kw">let </span>rk4 = RK4Solver::new();
+    <span class="kw">let </span>configuration = SolverConfiguration::time_evolution(<span class="number">600.0</span>, <span class="number">10000</span>);
+    <span class="kw">let </span>result = euler.solve(<span class="kw-2">&amp;</span>scenario, <span class="kw-2">&amp;</span>configuration)<span class="question-mark">?</span>;
+
+    <span class="prelude-val">Ok</span>(())
+}
+</code></pre></div><h2 id="design-philosophy"><a class="doc-anchor" href="#design-philosophy">§</a>Design Philosophy</h2>
+<p>Each solver is:</p>
+<ul>
+<li><strong>Self-contained</strong>: No shared mutable state</li>
+<li><strong>Stateless</strong>: Can be reused for multiple simulations</li>
+<li><strong>Well-tested</strong>: 30+ tests per solver with ~95% coverage</li>
+<li><strong>Documented</strong>: Complete rustdoc with mathematical background</li>
+</ul>
+<h2 id="performance-considerations"><a class="doc-anchor" href="#performance-considerations">§</a>Performance Considerations</h2>
+<p>All solvers benefit from:</p>
+<ul>
+<li><strong>Rayon parallelization</strong> (feature <code>parallel</code>) for large spatial grids</li>
+<li><strong>Configurable threshold</strong> via <code>set_parallel_threshold()</code></li>
+<li><strong>Efficient nalgebra</strong> operations for matrix arithmetic</li>
+</ul>
+<p>See individual solver documentation for specific performance characteristics.</p>
+</div></details><h2 id="reexports" class="section-header">Re-exports<a href="#reexports" class="anchor">§</a></h2><dl class="item-table reexports"><dt id="reexport.EulerSolver"><code>pub use euler::<a class="struct" href="euler/struct.EulerSolver.html" title="struct chrom_rs::solver::methods::euler::EulerSolver">EulerSolver</a>;</code></dt><dt id="reexport.RK4Solver"><code>pub use rk4::<a class="struct" href="rk4/struct.RK4Solver.html" title="struct chrom_rs::solver::methods::rk4::RK4Solver">RK4Solver</a>;</code></dt></dl><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="euler/index.html" title="mod chrom_rs::solver::methods::euler">euler</a></dt><dd>Forward Euler numerical solver</dd><dt><a class="mod" href="rk4/index.html" title="mod chrom_rs::solver::methods::rk4">rk4</a></dt><dd>Runge-Kutta 4 (RK4) numerical solver</dd></dl></section></div></main></body></html>

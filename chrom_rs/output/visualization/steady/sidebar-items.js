@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["plot_comparison_impl","plot_multi_impl","plot_profile_evolution","plot_steady_impl","plot_steady_state","plot_steady_state_comparison","plot_steady_state_multi"]};

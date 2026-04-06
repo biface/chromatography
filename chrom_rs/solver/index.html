@@ -1,0 +1,289 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Numerical solvers"><title>chrom_rs::solver - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="chrom_rs" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module solver</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../chrom_rs/index.html">chrom_<wbr>rs</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module solver</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#core-concepts" title="Core Concepts">Core Concepts</a><ul><li><a href="#the-architecture-what-vs-how" title="The Architecture (WHAT vs HOW)">The Architecture (WHAT vs HOW)</a></li></ul></li><li><a href="#module-organization" title="Module Organization">Module Organization</a></li><li><a href="#quick-start-example" title="Quick Start Example">Quick Start Example</a></li><li><a href="#workflow-diagram" title="Workflow Diagram">Workflow Diagram</a></li><li><a href="#solver-types" title="Solver Types">Solver Types</a><ul><li><a href="#time-integrators" title="Time Integrators">Time Integrators</a></li><li><a href="#iterative-solvers" title="Iterative Solvers">Iterative Solvers</a></li><li><a href="#direct-solvers" title="Direct Solvers">Direct Solvers</a></li></ul></li><li><a href="#creating-a-scenario" title="Creating a Scenario">Creating a Scenario</a></li><li><a href="#configuring-a-solver" title="Configuring a Solver">Configuring a Solver</a></li><li><a href="#implementing-a-new-solver" title="Implementing a New Solver">Implementing a New Solver</a></li><li><a href="#available-solvers" title="Available Solvers">Available Solvers</a></li><li><a href="#performance-considerations" title="Performance Considerations">Performance Considerations</a><ul><li><a href="#choosing-a-solver" title="Choosing a Solver">Choosing a Solver</a></li><li><a href="#time-step-selection" title="Time Step Selection">Time Step Selection</a></li></ul></li><li><a href="#error-handling" title="Error Handling">Error Handling</a></li></ul><h3><a href="#reexports">Module Items</a></h3><ul class="block"><li><a href="#reexports" title="Re-exports">Re-exports</a></li><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#statics" title="Statics">Statics</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate chrom_<wbr>rs</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">chrom_rs</a></div><h1>Module <span>solver</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/chrom_rs/solver/mod.rs.html#1-594">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Numerical solvers</p>
+<p>This module provides traits and implementations for numerical solvers.
+A numerical solver applies a numerical method to solve the equations
+provided by a physical model within a specific scenario.</p>
+<h2 id="core-concepts"><a class="doc-anchor" href="#core-concepts">§</a>Core Concepts</h2><h3 id="the-architecture-what-vs-how"><a class="doc-anchor" href="#the-architecture-what-vs-how">§</a>The Architecture (WHAT vs HOW)</h3>
+<p>The solver architecture separates concerns into three layers:</p>
+<ol>
+<li>
+<p><strong>Scenario</strong> (<code>Scenario</code>) - WHAT to solve</p>
+<ul>
+<li>Physical model (equations)</li>
+<li>Domain boundaries (boundary conditions)</li>
+<li>Problem definition</li>
+</ul>
+</li>
+<li>
+<p><strong>Configuration</strong> (<code>SolverConfiguration</code>) - HOW to solve</p>
+<ul>
+<li>Solver type (time evolution, iterative, etc.)</li>
+<li>Numerical parameters (time steps, tolerance, etc.)</li>
+<li>Method selection</li>
+</ul>
+</li>
+<li>
+<p><strong>Solver</strong> (<code>Solver</code> trait) - The numerical method</p>
+<ul>
+<li>Applies the numerical scheme</li>
+<li>Returns the solution</li>
+<li>Independent of physics</li>
+</ul>
+</li>
+</ol>
+<p>This separation allows:</p>
+<ul>
+<li>Same solver for different physics</li>
+<li>Different solvers for same scenario</li>
+<li>Easy benchmarking and method comparison</li>
+<li>Flexible configuration without code changes</li>
+</ul>
+<h2 id="module-organization"><a class="doc-anchor" href="#module-organization">§</a>Module Organization</h2>
+<ul>
+<li>
+<p><strong><code>traits</code></strong>: Core trait definitions and types</p>
+<ul>
+<li><code>Solver</code> trait: Stable interface for all solvers</li>
+<li><code>SolverType</code>: Enumeration of solver types</li>
+<li><code>SolverConfiguration</code>: Configuration structure</li>
+<li><code>SimulationResult</code>: Result structure</li>
+</ul>
+</li>
+<li>
+<p><strong><code>boundary</code></strong>: Boundary conditions and domain definition</p>
+<ul>
+<li><code>DomainBoundaries</code>: Spatial and temporal boundaries</li>
+<li>Factory methods for common boundary types</li>
+</ul>
+</li>
+<li>
+<p><strong><code>scenario</code></strong>: Problem definition</p>
+<ul>
+<li><code>Scenario</code>: Combines model + boundaries</li>
+<li>Validation and introspection methods</li>
+</ul>
+</li>
+<li>
+<p><strong>Solver implementations</strong>:</p>
+<ul>
+<li><code>EulerSolver</code>: Forward Euler method</li>
+<li><code>RK4Solver</code>: 4 Steps Runge Kutta method</li>
+<li>etc.</li>
+</ul>
+</li>
+</ul>
+<h2 id="quick-start-example"><a class="doc-anchor" href="#quick-start-example">§</a>Quick Start Example</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="comment">// 1. Create scenario (WHAT to solve)
+</span><span class="kw">let </span>model = Box::new(MyModel);
+<span class="kw">let </span>initial_state = model.setup_initial_state();
+<span class="kw">let </span>boundaries = DomainBoundaries::temporal(initial_state);
+<span class="kw">let </span>scenario = Scenario::new(model, boundaries);
+
+<span class="comment">// 2. Create configuration (HOW to solve)
+</span><span class="kw">let </span>config = SolverConfiguration::time_evolution(
+    <span class="number">600.0</span>,    <span class="comment">// 10 minutes total time
+    </span><span class="number">10000</span>,    <span class="comment">// 10000 time steps
+</span>);
+
+<span class="comment">// 3. Create solver and solve
+</span><span class="kw">let </span>solver = EulerSolver::new();
+<span class="kw">let </span>result = solver.solve(<span class="kw-2">&amp;</span>scenario, <span class="kw-2">&amp;</span>config)<span class="question-mark">?</span>;
+
+<span class="comment">// 4. Access results
+</span><span class="macro">println!</span>(<span class="string">"Simulation completed!"</span>);
+<span class="macro">println!</span>(<span class="string">"Final state: {:?}"</span>, result.final_state);</code></pre></div><h2 id="workflow-diagram"><a class="doc-anchor" href="#workflow-diagram">§</a>Workflow Diagram</h2><div class="example-wrap"><pre class="language-text"><code>┌─────────────────┐
+│  Physical Model │  (equations)
+└────────┬────────┘
+         │
+         ├──────────────┐
+         │              │
+┌────────▼────────┐ ┌──▼──────────────┐
+│ Domain          │ │ Scenario        │ ← WHAT to solve
+│ Boundaries      │ │ (model + bounds)│
+└─────────────────┘ └────────┬────────┘
+                             │
+                    ┌────────▼─────────────┐
+                    │ Solver Configuration │ ← HOW to solve
+                    │ (type + parameters)  │
+                    └────────┬─────────────┘
+                             │
+                    ┌────────▼────────┐
+                    │ Numerical Solver│ ← The method
+                    │ (Euler, RK4...) │
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────────┐
+                    │ Simulation Result   │ ← The solution
+                    │ (trajectory + meta) │
+                    └─────────────────────┘</code></pre></div><h2 id="solver-types"><a class="doc-anchor" href="#solver-types">§</a>Solver Types</h2>
+<p>Different types of numerical solvers for different problem classes:</p>
+<h3 id="time-integrators"><a class="doc-anchor" href="#time-integrators">§</a>Time Integrators</h3>
+<p>Solve dy/dt = f(y) over time:</p>
+<ul>
+<li>
+<p><strong>Explicit methods</strong>: Forward Euler, Runge-Kutta</p>
+<ul>
+<li>Simple, fast per step</li>
+<li>Require small time steps for stability</li>
+<li>Good for non-stiff problems</li>
+</ul>
+</li>
+<li>
+<p><strong>Implicit methods</strong>: Backward Euler, Crank-Nicolson</p>
+<ul>
+<li>More stable, allow larger time steps</li>
+<li>Require solving linear systems</li>
+<li>Good for stiff problems</li>
+</ul>
+</li>
+</ul>
+<h3 id="iterative-solvers"><a class="doc-anchor" href="#iterative-solvers">§</a>Iterative Solvers</h3>
+<p>Solve F(x) = 0 for steady-state:</p>
+<ul>
+<li>Newton-Raphson</li>
+<li>Fixed-point iteration</li>
+<li>Gradient descent</li>
+</ul>
+<h3 id="direct-solvers"><a class="doc-anchor" href="#direct-solvers">§</a>Direct Solvers</h3>
+<p>Solve Ax = b (linear systems):</p>
+<ul>
+<li>LU decomposition</li>
+<li>Cholesky factorization</li>
+<li>QR decomposition</li>
+</ul>
+<h2 id="creating-a-scenario"><a class="doc-anchor" href="#creating-a-scenario">§</a>Creating a Scenario</h2>
+<p>A scenario combines a physical model with boundary conditions:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="comment">// Define initial state
+</span><span class="kw">let </span>initial_state = PhysicalState::new(
+    PhysicalQuantity::Concentration,
+    PhysicalData::Vector(DVector::from_vec(<span class="macro">vec!</span>[<span class="number">1.0</span>, <span class="number">0.5</span>, <span class="number">0.2</span>])),
+);
+
+<span class="comment">// Create boundaries (temporal only for time evolution)
+</span><span class="kw">let </span>boundaries = DomainBoundaries::temporal(initial_state);
+
+<span class="comment">// Create scenario with a model
+</span><span class="kw">let </span>model = Box::new(MyModel);
+<span class="kw">let </span>scenario = Scenario::new(model, boundaries);
+
+<span class="comment">// Validate scenario
+</span>scenario.validate()<span class="question-mark">?</span>;</code></pre></div><h2 id="configuring-a-solver"><a class="doc-anchor" href="#configuring-a-solver">§</a>Configuring a Solver</h2>
+<p>Different solver types require different configurations:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="comment">// Time evolution (ODE integration)
+</span><span class="kw">let </span>config = SolverConfiguration::time_evolution(
+    <span class="number">600.0</span>,    <span class="comment">// Total time (seconds)
+    </span><span class="number">10000</span>,    <span class="comment">// Number of time steps
+</span>);
+
+<span class="comment">// Iterative (convergence to steady-state)
+</span><span class="kw">let </span>config = SolverConfiguration::iterative(
+    <span class="number">1e-6</span>,     <span class="comment">// Convergence tolerance
+    </span><span class="number">100</span>,      <span class="comment">// Maximum iterations
+</span>);
+
+<span class="comment">// Analytical (exact solution at specific time)
+</span><span class="kw">let </span>config = SolverConfiguration::analytical(<span class="number">5.0</span>);
+
+<span class="comment">// Spatial discretization (PDE on grid)
+</span><span class="kw">let </span>config = SolverConfiguration::spatial_discretization(
+    <span class="number">100</span>,      <span class="comment">// Grid points
+    </span><span class="number">1000</span>,     <span class="comment">// Time steps
+</span>);
+
+<span class="comment">// Validate before use
+</span>config.validate()<span class="question-mark">?</span>;</code></pre></div><h2 id="implementing-a-new-solver"><a class="doc-anchor" href="#implementing-a-new-solver">§</a>Implementing a New Solver</h2>
+<p>To create a new numerical solver, implement the <code>Solver</code> trait:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">/// My custom numerical solver
+</span><span class="kw">pub struct </span>MyCustomSolver {
+    <span class="comment">// Solver-specific state (if needed)
+</span>}
+
+<span class="kw">impl </span>Solver <span class="kw">for </span>MyCustomSolver {
+    <span class="kw">fn </span>solve(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        scenario: <span class="kw-2">&amp;</span>Scenario,
+        config: <span class="kw-2">&amp;</span>SolverConfiguration,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;SimulationResult, String&gt; {
+        <span class="comment">// 1. Validate configuration
+        </span>config.validate()<span class="question-mark">?</span>;
+        scenario.validate()<span class="question-mark">?</span>;
+
+        <span class="comment">// 2. Get initial state from scenario
+        </span><span class="kw">let </span>initial_state = scenario.ndim(); <span class="comment">// Just an example usage
+
+        // 3. Apply your numerical method
+        </span><span class="kw">let </span>time_points = <span class="macro">vec!</span>[<span class="number">0.0</span>, <span class="number">1.0</span>];
+        <span class="kw">let </span>final_state = PhysicalState::new(
+            PhysicalQuantity::Concentration,
+            PhysicalData::Vector(DVector::from_vec(<span class="macro">vec!</span>[<span class="number">1.0</span>]))
+        );
+        <span class="kw">let </span>trajectory = <span class="macro">vec!</span>[final_state.clone(), final_state.clone()];
+
+        <span class="comment">// 4. Build and return result
+        </span><span class="prelude-val">Ok</span>(SimulationResult::new(time_points, trajectory, final_state))
+    }
+
+    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="string">"My Custom Solver"
+    </span>}
+}</code></pre></div><h2 id="available-solvers"><a class="doc-anchor" href="#available-solvers">§</a>Available Solvers</h2>
+<p>Currently available numerical solvers:</p>
+<ul>
+<li><strong>Forward Euler</strong> : First-order explicit time integrator</li>
+<li><strong>Runge-Kutta 4</strong> : Fourth-order explicit time integrator</li>
+</ul>
+<h2 id="performance-considerations"><a class="doc-anchor" href="#performance-considerations">§</a>Performance Considerations</h2><h3 id="choosing-a-solver"><a class="doc-anchor" href="#choosing-a-solver">§</a>Choosing a Solver</h3>
+<ul>
+<li>
+<p><strong>For non-stiff problems</strong>: Explicit methods (Euler, RK4)</p>
+<ul>
+<li>Fast per step</li>
+<li>Require small time steps</li>
+</ul>
+</li>
+<li>
+<p><strong>For stiff problems</strong>: Implicit methods</p>
+<ul>
+<li>More expensive per step</li>
+<li>Allow much larger time steps</li>
+</ul>
+</li>
+<li>
+<p><strong>For steady-state</strong>: Iterative methods</p>
+<ul>
+<li>No time stepping</li>
+<li>Converge directly to solution</li>
+</ul>
+</li>
+</ul>
+<h3 id="time-step-selection"><a class="doc-anchor" href="#time-step-selection">§</a>Time Step Selection</h3>
+<p>Rule of thumb for explicit methods:</p>
+<ul>
+<li><code>dt &lt; stability_limit</code> (problem-dependent)</li>
+<li>Start conservative, increase carefully</li>
+<li>Monitor solution for oscillations/divergence</li>
+</ul>
+<h2 id="error-handling"><a class="doc-anchor" href="#error-handling">§</a>Error Handling</h2>
+<p>All solver methods return <code>Result&lt;T, String&gt;</code>:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="comment">// Example error handling
+</span><span class="kw">match </span>solver.solve(<span class="kw-2">&amp;</span>scenario, <span class="kw-2">&amp;</span>config) {
+    <span class="prelude-val">Ok</span>(result) =&gt; {
+        <span class="macro">println!</span>(<span class="string">"Success! {} steps computed"</span>, result.len());
+    }
+    <span class="prelude-val">Err</span>(e) =&gt; {
+        <span class="macro">eprintln!</span>(<span class="string">"Solver failed: {}"</span>, e);
+        <span class="comment">// Handle error...
+    </span>}
+}</code></pre></div>
+<p>Common errors:</p>
+<ul>
+<li>Invalid configuration (negative time, zero steps)</li>
+<li>Invalid scenario (incompatible boundaries)</li>
+<li>Numerical instability (divergence, NaN values)</li>
+<li>Convergence failure (max iterations exceeded)</li>
+</ul>
+</div></details><h2 id="reexports" class="section-header">Re-exports<a href="#reexports" class="anchor">§</a></h2><dl class="item-table reexports"><dt id="reexport.EulerSolver"><code>pub use methods::<a class="struct" href="methods/euler/struct.EulerSolver.html" title="struct chrom_rs::solver::methods::euler::EulerSolver">EulerSolver</a>;</code></dt><dt id="reexport.RK4Solver"><code>pub use methods::<a class="struct" href="methods/rk4/struct.RK4Solver.html" title="struct chrom_rs::solver::methods::rk4::RK4Solver">RK4Solver</a>;</code></dt></dl><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="boundary/index.html" title="mod chrom_rs::solver::boundary">boundary</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>n-dimensional domain boundaries with time convention</dd><dt><a class="mod" href="methods/index.html" title="mod chrom_rs::solver::methods">methods</a></dt><dd>Numerical methods for solving differential equations</dd><dt><a class="mod" href="scenario/index.html" title="mod chrom_rs::solver::scenario">scenario</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Simulation scenario definition</dd><dt><a class="mod" href="traits/index.html" title="mod chrom_rs::solver::traits">traits</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Numerical solver traits and types</dd></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.DomainBoundaries.html" title="struct chrom_rs::solver::DomainBoundaries">Domain<wbr>Boundaries</a></dt><dd>n-dimensional domain boundaries</dd><dt><a class="struct" href="struct.Scenario.html" title="struct chrom_rs::solver::Scenario">Scenario</a></dt><dd>Simulation scenario</dd><dt><a class="struct" href="struct.SimulationResult.html" title="struct chrom_rs::solver::SimulationResult">Simulation<wbr>Result</a></dt><dd>Result of a numerical simulation</dd><dt><a class="struct" href="struct.SolverConfiguration.html" title="struct chrom_rs::solver::SolverConfiguration">Solver<wbr>Configuration</a></dt><dd>Configuration for numerical solver</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.SolverType.html" title="enum chrom_rs::solver::SolverType">Solver<wbr>Type</a></dt><dd>Type of numerical solution method</dd></dl><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.DEFAULT_PARALLEL_THRESHOLD.html" title="constant chrom_rs::solver::DEFAULT_PARALLEL_THRESHOLD">DEFAULT_<wbr>PARALLEL_<wbr>THRESHOLD</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Default number of elements above which [<code>PhysicalData::apply()</code>] switches
+to parallel iteration.</dd></dl><h2 id="statics" class="section-header">Statics<a href="#statics" class="anchor">§</a></h2><dl class="item-table"><dt><a class="static" href="static.PARALLEL_THRESHOLD.html" title="static chrom_rs::solver::PARALLEL_THRESHOLD">PARALLEL_<wbr>THRESHOLD</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Runtime-configurable parallel-execution threshold.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.Solver.html" title="trait chrom_rs::solver::Solver">Solver</a></dt><dd>Trait for numerical solvers</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.parallel_threshold.html" title="fn chrom_rs::solver::parallel_threshold">parallel_<wbr>threshold</a></dt><dd>Return the current parallel-execution threshold.</dd><dt><a class="fn" href="fn.set_parallel_threshold.html" title="fn chrom_rs::solver::set_parallel_threshold">set_<wbr>parallel_<wbr>threshold</a></dt><dd>Set the parallel-execution threshold to a new value.</dd><dt><a class="fn" href="fn.validate_state.html" title="fn chrom_rs::solver::validate_state">validate_<wbr>state</a></dt><dd>Validate physical state for numerical issues</dd></dl></section></div></main></body></html>

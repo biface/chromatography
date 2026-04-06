@@ -1,0 +1,56 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Multi-species Langmuir model with competitive adsorption"><title>chrom_rs::models::langmuir_multi - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="chrom_rs" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module langmuir_multi</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../chrom_rs/index.html">chrom_<wbr>rs</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module langmuir_<wbr>multi</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#physical-background" title="Physical background">Physical background</a></li><li><a href="#model-equations" title="Model equations">Model equations</a><ul><li><a href="#competitive-langmuir-isotherm" title="Competitive Langmuir isotherm">Competitive Langmuir isotherm</a></li><li><a href="#jacobian-matrix" title="Jacobian matrix">Jacobian matrix</a></li><li><a href="#transport-equation" title="Transport equation">Transport equation</a></li></ul></li><li><a href="#spatial-discretisation" title="Spatial discretisation">Spatial discretisation</a></li><li><a href="#injection-strategy" title="Injection strategy">Injection strategy</a></li><li><a href="#example" title="Example">Example</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In chrom_<wbr>rs::<wbr>models</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">chrom_rs</a>::<wbr><a href="../index.html">models</a></div><h1>Module <span>langmuir_<wbr>multi</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/chrom_rs/models/langmuir_multi.rs.html#1-1180">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Multi-species Langmuir model with competitive adsorption</p>
+<h2 id="physical-background"><a class="doc-anchor" href="#physical-background">§</a>Physical background</h2>
+<p>In liquid chromatography, several chemical species (solutes) coexist in the
+column and <strong>compete for the same adsorption sites</strong> on the stationary phase.
+This competition effect is the core of the multi-species Langmuir model:
+the presence of one species reduces the adsorption capacity available to all others.</p>
+<h2 id="model-equations"><a class="doc-anchor" href="#model-equations">§</a>Model equations</h2><h3 id="competitive-langmuir-isotherm"><a class="doc-anchor" href="#competitive-langmuir-isotherm">§</a>Competitive Langmuir isotherm</h3>
+<p>For species $i$ in a mixture of $n$ species:</p>
+<p>$$\bar{C}_i = \lambda_i \cdot C_i + \frac{\bar{N}_i \cdot \tilde{K}_i \cdot C_i}{1 + \sum_j \tilde{K}_j \cdot C_j}$$</p>
+<p>where $\bar{N}_i = (1 - \varepsilon) \cdot N_i$ is the effective site count.</p>
+<h3 id="jacobian-matrix"><a class="doc-anchor" href="#jacobian-matrix">§</a>Jacobian matrix</h3>
+<p>The partial derivatives $M_{ij} = \partial \bar{C}_i / \partial C_j$ form an $n \times n$ matrix:</p>
+<p><strong>Diagonal terms</strong> ($i = j$):
+$$M_{ii} = \lambda_i + \frac{\bar{N}_i \cdot \tilde{K}_i \cdot (1 + \sum_k{\tilde{K}_k \cdot C_k}  - \tilde{K}_i C_i)}{(1 + \sum_k{\tilde{K}_k \cdot C_k})^2}$$</p>
+<p><strong>Off-diagonal terms</strong> ($i \neq j$):
+$$M_{ij} = -\frac{\bar{N}_i \cdot \tilde{K}_i \cdot \tilde{K}_j \cdot C_i}{(1 + \sum_k{\tilde{K}_k \cdot C_k})^2}$$</p>
+<h3 id="transport-equation"><a class="doc-anchor" href="#transport-equation">§</a>Transport equation</h3>
+<p>$$\frac{\partial C}{\partial t} = -(I + F_e \cdot M)^{-1} \cdot u_e \cdot \frac{\partial C}{\partial z}$$</p>
+<p>with $F_e = (1-\varepsilon)/\varepsilon$ and $u_e = u/\varepsilon$.</p>
+<h2 id="spatial-discretisation"><a class="doc-anchor" href="#spatial-discretisation">§</a>Spatial discretisation</h2>
+<p>Concentrations are stored in a <code>[n_points × n_species]</code> matrix:</p>
+<ul>
+<li><strong>Rows</strong>: spatial points $z_0, z_1, \ldots, z_{N-1}$</li>
+<li><strong>Columns</strong>: species $0, 1, \ldots, n-1$</li>
+</ul>
+<p>The spatial gradient uses an <strong>upwind scheme</strong> (backward difference),
+unconditionally stable for left-to-right convection ($u_e &gt; 0$).</p>
+<h2 id="injection-strategy"><a class="doc-anchor" href="#injection-strategy">§</a>Injection strategy</h2>
+<p>Injection is modelled as a <strong>temporal boundary condition</strong> at the column inlet ($z = 0$).
+The column starts empty at $t = 0$ and concentration enters at each time step via
+<code>injection.evaluate(t)</code>, where <code>t</code> is read from the <code>PhysicalState</code> metadata.</p>
+<p>Each species carries its own <a href="../injection/enum.TemporalInjection.html" title="enum chrom_rs::models::injection::TemporalInjection"><code>TemporalInjection</code></a> profile, evaluated independently
+at every call to <code>compute_physics</code>. This mirrors the approach used in
+<a href="../langmuir_single/struct.LangmuirSingle.html" title="struct chrom_rs::models::langmuir_single::LangmuirSingle"><code>crate::models::LangmuirSingle</code></a> and works with any solver that writes <code>"time"</code> into
+the state metadata before each step.</p>
+<h2 id="example"><a class="doc-anchor" href="#example">§</a>Example</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>chrom_rs::models::{LangmuirMulti, SpeciesParams};
+<span class="kw">use </span>chrom_rs::models::injection::TemporalInjection;
+<span class="kw">use </span>chrom_rs::physics::PhysicalModel;
+<span class="kw">use </span>chrom_rs::solver::{Scenario, SolverConfiguration, DomainBoundaries};
+
+<span class="comment">// Malic acid (low affinity — elutes first)
+</span><span class="kw">let </span>malic = SpeciesParams::new(<span class="string">"Malic"</span>, <span class="number">1.0</span>, <span class="number">0.5</span>, <span class="number">1</span>,
+    TemporalInjection::dirac(<span class="number">0.0</span>, <span class="number">1e-3</span>));
+
+<span class="kw">let </span><span class="kw-2">mut </span>model = LangmuirMulti::new(<span class="macro">vec!</span>[malic], <span class="number">150</span>, <span class="number">0.4</span>, <span class="number">0.001</span>, <span class="number">0.25</span>).unwrap();
+
+<span class="comment">// Citric acid (higher affinity — elutes later)
+</span><span class="kw">let </span>citric = SpeciesParams::new(<span class="string">"Citric"</span>, <span class="number">1.0</span>, <span class="number">2.0</span>, <span class="number">1</span>,
+    TemporalInjection::dirac(<span class="number">0.0</span>, <span class="number">1e-3</span>));
+model.add_species(citric).unwrap();
+
+<span class="kw">let </span>initial = model.setup_initial_state();
+<span class="kw">let </span>boundaries = DomainBoundaries::temporal(initial);
+<span class="kw">let </span>scenario = Scenario::new(Box::new(model), boundaries);
+<span class="kw">let </span>config = SolverConfiguration::time_evolution(<span class="number">600.0</span>, <span class="number">6000</span>);</code></pre></div></div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.LangmuirMulti.html" title="struct chrom_rs::models::langmuir_multi::LangmuirMulti">Langmuir<wbr>Multi</a></dt><dd>Multi-species Langmuir model with competitive adsorption</dd><dt><a class="struct" href="struct.SpeciesParams.html" title="struct chrom_rs::models::langmuir_multi::SpeciesParams">Species<wbr>Params</a></dt><dd>Physical parameters of a chemical species for the Langmuir model</dd></dl></section></div></main></body></html>

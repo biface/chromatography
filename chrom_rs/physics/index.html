@@ -1,0 +1,65 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Physical models"><title>chrom_rs::physics - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="chrom_rs" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module physics</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../chrom_rs/index.html">chrom_<wbr>rs</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module physics</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#core-concepts" title="Core Concepts">Core Concepts</a></li><li><a href="#architecture" title="Architecture">Architecture</a></li><li><a href="#example" title="Example">Example</a></li><li><a href="#implementing-a-new-physical-model" title="Implementing a New Physical Model">Implementing a New Physical Model</a></li><li><a href="#available-models" title="Available Models">Available Models</a></li></ul><h3><a href="#reexports">Module Items</a></h3><ul class="block"><li><a href="#reexports" title="Re-exports">Re-exports</a></li><li><a href="#modules" title="Modules">Modules</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate chrom_<wbr>rs</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">chrom_rs</a></div><h1>Module <span>physics</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/chrom_rs/physics/mod.rs.html#1-96">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Physical models</p>
+<p>This module provides traits and implementations for physical models.
+A physical model encapsulates the physics equations of a system
+(e.g., chromatography, heat transfer, reaction-diffusion).</p>
+<h2 id="core-concepts"><a class="doc-anchor" href="#core-concepts">§</a>Core Concepts</h2>
+<ul>
+<li><strong>Physical Model</strong>: Computes the physics equations at a given state</li>
+<li><strong>Physical State</strong>: Container for all physical quantities (concentration, temperature, etc.)</li>
+<li><strong>Physical Quantity</strong>: Type-safe identifier for physical variables</li>
+</ul>
+<h2 id="architecture"><a class="doc-anchor" href="#architecture">§</a>Architecture</h2>
+<p>Physical models are <strong>separate from numerical solvers</strong>:</p>
+<ul>
+<li>The model provides the <strong>equations</strong> (physics)</li>
+<li>The solver provides the <strong>method</strong> to solve them (numerics)</li>
+</ul>
+<p>This separation allows:</p>
+<ul>
+<li>Same model with different solvers (Euler, Runge-Kutta, etc.)</li>
+<li>Same solver with different models (chromatography, thermal, etc.)</li>
+</ul>
+<h2 id="example"><a class="doc-anchor" href="#example">§</a>Example</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+
+<span class="comment">// Create a physical model
+</span><span class="kw">let </span>model = MyModel;
+
+<span class="comment">// Get initial state
+</span><span class="kw">let </span>initial_state = model.setup_initial_state();
+
+<span class="comment">// Compute physics at current state
+</span><span class="kw">let </span>physics_result = model.compute_physics(<span class="kw-2">&amp;</span>initial_state);</code></pre></div><h2 id="implementing-a-new-physical-model"><a class="doc-anchor" href="#implementing-a-new-physical-model">§</a>Implementing a New Physical Model</h2>
+<p>To create a new physical model, implement the <code>PhysicalModel</code> trait:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>chrom_rs::physics::{PhysicalModel, PhysicalState};
+
+<span class="kw">struct </span>MyCustomModel {
+    <span class="comment">// Model parameters
+</span>}
+
+<span class="kw">impl </span>PhysicalModel <span class="kw">for </span>MyCustomModel {
+    <span class="kw">fn </span>points(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="comment">// Return number of spatial points
+        </span><span class="number">1
+    </span>}
+
+    <span class="kw">fn </span>compute_physics(<span class="kw-2">&amp;</span><span class="self">self</span>, state: <span class="kw-2">&amp;</span>PhysicalState) -&gt; PhysicalState {
+        <span class="comment">// Compute and return the physics equations
+        </span>state.clone()
+    }
+
+    <span class="kw">fn </span>setup_initial_state(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PhysicalState {
+        <span class="comment">// Create initial state
+        /* ... */
+    </span>}
+
+    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="string">"My Custom Model"
+    </span>}
+}</code></pre></div><h2 id="available-models"><a class="doc-anchor" href="#available-models">§</a>Available Models</h2>
+<p>Currently implemented physical models:</p>
+<ul>
+<li><strong>Langmuir 1D</strong>: 1D chromatography with modified Langmuir isotherm</li>
+</ul>
+</div></details><h2 id="reexports" class="section-header">Re-exports<a href="#reexports" class="anchor">§</a></h2><dl class="item-table reexports"><dt id="reexport.PhysicalData"><code>pub use data::<a class="enum" href="data/enum.PhysicalData.html" title="enum chrom_rs::physics::data::PhysicalData">PhysicalData</a>;</code></dt><dt id="reexport.PhysicalModel"><code>pub use traits::<a class="trait" href="traits/trait.PhysicalModel.html" title="trait chrom_rs::physics::traits::PhysicalModel">PhysicalModel</a>;</code></dt><dt id="reexport.PhysicalQuantity"><code>pub use traits::<a class="enum" href="traits/enum.PhysicalQuantity.html" title="enum chrom_rs::physics::traits::PhysicalQuantity">PhysicalQuantity</a>;</code></dt><dt id="reexport.PhysicalState"><code>pub use traits::<a class="struct" href="traits/struct.PhysicalState.html" title="struct chrom_rs::physics::traits::PhysicalState">PhysicalState</a>;</code></dt></dl><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="data/index.html" title="mod chrom_rs::physics::data">data</a></dt><dd>Physical data types</dd><dt><a class="mod" href="traits/index.html" title="mod chrom_rs::physics::traits">traits</a></dt><dd>Physical models traits and types</dd></dl></section></div></main></body></html>

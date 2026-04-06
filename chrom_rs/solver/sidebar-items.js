@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_PARALLEL_THRESHOLD"],"enum":["SolverType"],"fn":["parallel_threshold","set_parallel_threshold","validate_state"],"mod":["boundary","methods","scenario","traits"],"static":["PARALLEL_THRESHOLD"],"struct":["DomainBoundaries","Scenario","SimulationResult","SolverConfiguration"],"trait":["Solver"]};

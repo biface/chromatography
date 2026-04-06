@@ -1,0 +1,136 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Trait for physical models"><title>PhysicalModel in chrom_rs::physics::traits - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="chrom_rs" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">PhysicalModel</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../chrom_rs/index.html">chrom_<wbr>rs</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Physical<wbr>Model</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#responsibility" title="Responsibility">Responsibility</a></li><li><a href="#api-stability" title="API Stability">API Stability</a></li><li><a href="#mandatory-implementation" title="Mandatory Implementation">Mandatory Implementation</a></li><li><a href="#example-implementation" title="Example Implementation">Example Implementation</a></li></ul><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.compute_physics" title="compute_physics">compute_physics</a></li><li><a href="#tymethod.name" title="name">name</a></li><li><a href="#tymethod.points" title="points">points</a></li><li><a href="#tymethod.setup_initial_state" title="setup_initial_state">setup_initial_state</a></li></ul><h3><a href="#provided-methods">Provided Methods</a></h3><ul class="block"><li><a href="#method.description" title="description">description</a></li></ul><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2><a href="index.html">In chrom_<wbr>rs::<wbr>physics::<wbr>traits</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">chrom_rs</a>::<wbr><a href="../index.html">physics</a>::<wbr><a href="index.html">traits</a></div><h1>Trait <span class="trait">Physical<wbr>Model</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/chrom_rs/physics/traits.rs.html#508-644">Source</a> </span></div><pre class="rust item-decl"><code>pub trait PhysicalModel: <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> {
+    // Required methods
+    fn <a href="#tymethod.points" class="fn">points</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.usize.html">usize</a>;
+<span class="item-spacer"></span>    fn <a href="#tymethod.compute_physics" class="fn">compute_physics</a>(&amp;self, state: &amp;<a class="struct" href="struct.PhysicalState.html" title="struct chrom_rs::physics::traits::PhysicalState">PhysicalState</a>) -&gt; <a class="struct" href="struct.PhysicalState.html" title="struct chrom_rs::physics::traits::PhysicalState">PhysicalState</a>;
+<span class="item-spacer"></span>    fn <a href="#tymethod.setup_initial_state" class="fn">setup_initial_state</a>(&amp;self) -&gt; <a class="struct" href="struct.PhysicalState.html" title="struct chrom_rs::physics::traits::PhysicalState">PhysicalState</a>;
+<span class="item-spacer"></span>    fn <a href="#tymethod.name" class="fn">name</a>(&amp;self) -&gt; &amp;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.str.html">str</a>;
+
+    // Provided method
+    fn <a href="#method.description" class="fn">description</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.str.html">str</a>&gt; { ... }
+}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Trait for physical models</p>
+<h2 id="responsibility"><a class="doc-anchor" href="#responsibility">§</a>Responsibility</h2>
+<p>Computes the physics equations of a system at a given state.
+Does NOT solve them (that’s the Solver’s job).</p>
+<p>The model provides the “physics” (equations), the Solver provides
+the “numerics” (method to solve them).</p>
+<h2 id="api-stability"><a class="doc-anchor" href="#api-stability">§</a>API Stability</h2>
+<p>This trait is <strong>STABLE</strong> since v0.1.0 and will <strong>NEVER</strong> be modified
+in backward-incompatible ways. Extensions will use separate optional traits.</p>
+<h2 id="mandatory-implementation"><a class="doc-anchor" href="#mandatory-implementation">§</a>Mandatory Implementation</h2>
+<p>All physical models MUST implement this trait.</p>
+<h2 id="example-implementation"><a class="doc-anchor" href="#example-implementation">§</a>Example Implementation</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+
+<span class="kw">struct </span>SimpleTransport {
+    points: usize,
+    velocity: f64,
+}
+
+<span class="kw">impl </span>PhysicalModel <span class="kw">for </span>SimpleTransport {
+    <span class="kw">fn </span>points(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="self">self</span>.points
+    }
+
+    <span class="kw">fn </span>compute_physics(<span class="kw-2">&amp;</span><span class="self">self</span>, state: <span class="kw-2">&amp;</span>PhysicalState) -&gt; PhysicalState {
+        <span class="comment">// Compute transport: dc/dt = -v * dc/dx
+        // (simplified - actual implementation would use finite differences)
+        </span><span class="kw">let </span><span class="kw-2">mut </span>result = PhysicalState::empty();
+        <span class="comment">// ... compute derivatives ...
+        </span>result
+    }
+
+    <span class="kw">fn </span>setup_initial_state(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PhysicalState {
+        PhysicalState::new(
+            PhysicalQuantity::Concentration,
+            PhysicalData::uniform_vector(<span class="self">self</span>.points, <span class="number">0.0</span>)
+        )
+    }
+
+    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="string">"Simple Transport"
+    </span>}
+}</code></pre></div></div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.points" class="method"><a class="src rightside" href="../../../src/chrom_rs/physics/traits.rs.html#526">Source</a><h4 class="code-header">fn <a href="#tymethod.points" class="fn">points</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.usize.html">usize</a></h4></section></summary><div class="docblock"><p>Number of spatial points</p>
+<p>Used by the solver to allocate vectors and check dimensions.</p>
+<h5 id="example"><a class="doc-anchor" href="#example">§</a>Example</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span>model = MyModel { points: <span class="number">100 </span>};
+<span class="macro">assert_eq!</span>(model.points(), <span class="number">100</span>);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.compute_physics" class="method"><a class="src rightside" href="../../../src/chrom_rs/physics/traits.rs.html#558">Source</a><h4 class="code-header">fn <a href="#tymethod.compute_physics" class="fn">compute_physics</a>(&amp;self, state: &amp;<a class="struct" href="struct.PhysicalState.html" title="struct chrom_rs::physics::traits::PhysicalState">PhysicalState</a>) -&gt; <a class="struct" href="struct.PhysicalState.html" title="struct chrom_rs::physics::traits::PhysicalState">PhysicalState</a></h4></section></summary><div class="docblock"><p>Compute the physics at a given state</p>
+<h5 id="arguments"><a class="doc-anchor" href="#arguments">§</a>Arguments</h5>
+<ul>
+<li><code>state</code> - Current physical state of the system</li>
+</ul>
+<h5 id="returns"><a class="doc-anchor" href="#returns">§</a>Returns</h5>
+<p>Result of evaluating the physics (interpretation depends on model type)</p>
+<h5 id="physical-interpretation"><a class="doc-anchor" href="#physical-interpretation">§</a>Physical Interpretation</h5>
+<p><strong>For time-dependent models (ODE)</strong>:</p>
+<ul>
+<li>Returns right-hand side f(y) of dy/dt = f(y)</li>
+<li>Solver integrates this over time using Euler, RK4, etc.</li>
+<li>Example: chromatography transport-dispersion-adsorption</li>
+</ul>
+<p><strong>For steady-state models (algebraic)</strong>:</p>
+<ul>
+<li>Returns residual F(x) to minimize</li>
+<li>Solver finds x such that F(x) = 0 using Newton-Raphson, etc.</li>
+<li>Example: equilibrium adsorption</li>
+</ul>
+<p><strong>For PDE models</strong>:</p>
+<ul>
+<li>Returns spatial discretization of differential operators</li>
+<li>Solver integrates or solves the resulting system</li>
+</ul>
+<h5 id="encapsulation"><a class="doc-anchor" href="#encapsulation">§</a>Encapsulation</h5>
+<p>This method encapsulates ALL the physics:</p>
+<ul>
+<li>Isotherms, kinetics, reactions</li>
+<li>Spatial derivatives (finite differences)</li>
+<li>Boundary conditions</li>
+</ul>
+</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.setup_initial_state" class="method"><a class="src rightside" href="../../../src/chrom_rs/physics/traits.rs.html#603">Source</a><h4 class="code-header">fn <a href="#tymethod.setup_initial_state" class="fn">setup_initial_state</a>(&amp;self) -&gt; <a class="struct" href="struct.PhysicalState.html" title="struct chrom_rs::physics::traits::PhysicalState">PhysicalState</a></h4></section></summary><div class="docblock"><p>Create the initial state for this physical model</p>
+<p>Defines what variables the model tracks (concentration, temperature, etc.)
+and their initial spatial distribution.</p>
+<h5 id="example-1"><a class="doc-anchor" href="#example-1">§</a>Example</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+
+<span class="kw">struct </span>MyModel;
+<span class="kw">impl </span>PhysicalModel <span class="kw">for </span>MyModel {
+    <span class="kw">fn </span>points(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize { <span class="number">100 </span>}
+
+    <span class="kw">fn </span>setup_initial_state(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PhysicalState {
+        <span class="kw">let </span><span class="kw-2">mut </span>state = PhysicalState::empty();
+
+        <span class="comment">// Concentration: Gaussian pulse
+        </span><span class="kw">let </span>conc = PhysicalData::from_vec(
+            (<span class="number">0</span>..<span class="number">100</span>)
+                .map(|i| {
+                    <span class="kw">let </span>x = (i <span class="kw">as </span>f64 - <span class="number">50.0</span>) / <span class="number">10.0</span>;
+                    (-x * x / <span class="number">2.0</span>).exp()
+                })
+                .collect()
+        );
+        state.set(PhysicalQuantity::Concentration, conc);
+
+        <span class="comment">// Temperature: uniform
+        </span>state.set(
+            PhysicalQuantity::Temperature,
+            PhysicalData::from_scalar(<span class="number">298.15</span>)
+        );
+
+        state
+    }
+
+    <span class="kw">fn </span>compute_physics(<span class="kw-2">&amp;</span><span class="self">self</span>, _state: <span class="kw-2">&amp;</span>PhysicalState) -&gt; PhysicalState {
+        PhysicalState::empty()
+    }
+
+    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str { <span class="string">"MyModel" </span>}
+}</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.name" class="method"><a class="src rightside" href="../../../src/chrom_rs/physics/traits.rs.html#620">Source</a><h4 class="code-header">fn <a href="#tymethod.name" class="fn">name</a>(&amp;self) -&gt; &amp;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.str.html">str</a></h4></section></summary><div class="docblock"><p>Name of the model (used for display and logging)</p>
+<h5 id="example-2"><a class="doc-anchor" href="#example-2">§</a>Example</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+    <span class="string">"Transport-Dispersion-Adsorption Model"
+</span>}</code></pre></div></div></details></div><h2 id="provided-methods" class="section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.description" class="method"><a class="src rightside" href="../../../src/chrom_rs/physics/traits.rs.html#641-643">Source</a><h4 class="code-header">fn <a href="#method.description" class="fn">description</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.str.html">str</a>&gt;</h4></section></summary><div class="docblock"><p>Description of the model (optional)</p>
+<p>Provides additional information about the model for documentation
+or user interfaces.</p>
+<h5 id="example-3"><a class="doc-anchor" href="#example-3">§</a>Example</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>description(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt; {
+    <span class="prelude-val">Some</span>(<span class="string">"Transport with linear isotherm (Henry's law)"</span>)
+}</code></pre></div></div></details></div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"><div class="negative-marker"></div><section id="impl-PhysicalModel-for-LangmuirMulti" class="impl"><a class="src rightside" href="../../../src/chrom_rs/models/langmuir_multi.rs.html#541-766">Source</a><a href="#impl-PhysicalModel-for-LangmuirMulti" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.PhysicalModel.html" title="trait chrom_rs::physics::traits::PhysicalModel">PhysicalModel</a> for <a class="struct" href="../../models/langmuir_multi/struct.LangmuirMulti.html" title="struct chrom_rs::models::langmuir_multi::LangmuirMulti">LangmuirMulti</a></h3></section><section id="impl-PhysicalModel-for-LangmuirSingle" class="impl"><a class="src rightside" href="../../../src/chrom_rs/models/langmuir_single.rs.html#327-442">Source</a><a href="#impl-PhysicalModel-for-LangmuirSingle" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.PhysicalModel.html" title="trait chrom_rs::physics::traits::PhysicalModel">PhysicalModel</a> for <a class="struct" href="../../models/langmuir_single/struct.LangmuirSingle.html" title="struct chrom_rs::models::langmuir_single::LangmuirSingle">LangmuirSingle</a></h3></section></div><script src="../../../trait.impl/chrom_rs/physics/traits/trait.PhysicalModel.js" async></script></section></div></main></body></html>

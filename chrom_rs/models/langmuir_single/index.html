@@ -1,0 +1,69 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Langmuir single-species model with temporal injection"><title>chrom_rs::models::langmuir_single - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="chrom_rs" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module langmuir_single</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../chrom_rs/index.html">chrom_<wbr>rs</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module langmuir_<wbr>single</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#physical-background" title="Physical background">Physical background</a></li><li><a href="#model-equations" title="Model equations">Model equations</a><ul><li><a href="#langmuir-isotherm" title="Langmuir isotherm">Langmuir isotherm</a></li><li><a href="#isotherm-derivative" title="Isotherm derivative">Isotherm derivative</a></li><li><a href="#propagation-factor" title="Propagation factor">Propagation factor</a></li><li><a href="#transport-equation" title="Transport equation">Transport equation</a></li></ul></li><li><a href="#spatial-discretisation" title="Spatial discretisation">Spatial discretisation</a></li><li><a href="#injection-strategy" title="Injection strategy">Injection strategy</a></li><li><a href="#example" title="Example">Example</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In chrom_<wbr>rs::<wbr>models</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">chrom_rs</a>::<wbr><a href="../index.html">models</a></div><h1>Module <span>langmuir_<wbr>single</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/chrom_rs/models/langmuir_single.rs.html#1-572">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Langmuir single-species model with temporal injection</p>
+<h2 id="physical-background"><a class="doc-anchor" href="#physical-background">§</a>Physical background</h2>
+<p>In liquid chromatography, a solute injected at the column inlet ($z = 0$)
+is transported by the mobile phase while partitioning between the mobile
+and stationary phases. The <strong>Langmuir isotherm</strong> describes this equilibrium:
+adsorption sites on the stationary phase are finite, so retention decreases
+as concentration increases — producing the characteristic asymmetric
+(Langmuir-type) chromatographic peaks.</p>
+<h2 id="model-equations"><a class="doc-anchor" href="#model-equations">§</a>Model equations</h2><h3 id="langmuir-isotherm"><a class="doc-anchor" href="#langmuir-isotherm">§</a>Langmuir isotherm</h3>
+<p>The stationary phase concentration $\bar{C}$ in equilibrium with the mobile
+phase concentration $C$:</p>
+<p>$$\bar{C} = \lambda \cdot C + \frac{\bar{N} \cdot \tilde{K} \cdot C}{1 + \tilde{K} \cdot C}$$</p>
+<p>where $\bar{N} = (1 - \varepsilon) \cdot N$ is the effective adsorption capacity.</p>
+<h3 id="isotherm-derivative"><a class="doc-anchor" href="#isotherm-derivative">§</a>Isotherm derivative</h3>
+<p>The derivative $\partial \bar{C} / \partial C$ governs how adsorption slows
+down the propagation of the concentration front:</p>
+<p>$$\frac{\partial \bar{C}}{\partial C} = \lambda + \frac{\bar{N} \cdot \tilde{K}}{(1 + \tilde{K} \cdot C)^2}$$</p>
+<h3 id="propagation-factor"><a class="doc-anchor" href="#propagation-factor">§</a>Propagation factor</h3>
+<p>The effective velocity of a concentration front relative to the interstitial
+velocity $u_e$ is reduced by the propagation factor:</p>
+<p>$$\sigma(C) = \frac{1}{1 + F_e \cdot \partial \bar{C} / \partial C}$$</p>
+<p>with $F_e = (1 - \varepsilon) / \varepsilon$.</p>
+<h3 id="transport-equation"><a class="doc-anchor" href="#transport-equation">§</a>Transport equation</h3>
+<p>$$\frac{\partial C}{\partial t} = -\sigma(C) \cdot u_e \cdot \frac{\partial C}{\partial z}$$</p>
+<p>with $u_e = u / \varepsilon$ the interstitial velocity.</p>
+<h2 id="spatial-discretisation"><a class="doc-anchor" href="#spatial-discretisation">§</a>Spatial discretisation</h2>
+<p>Concentrations are stored in a vector of length $N_z$:</p>
+<ul>
+<li><strong>Elements</strong>: spatial points $z_0, z_1, \ldots, z_{N_z - 1}$</li>
+</ul>
+<p>The spatial gradient uses an <strong>upwind scheme</strong> (backward difference),
+unconditionally stable for left-to-right convection ($u_e &gt; 0$):</p>
+<p>$$\left.\frac{\partial C}{\partial z}\right\vert_{z_i} \approx \frac{C_i - C_{i-1}}{\Delta z}$$</p>
+<p><strong>Finite volume convention</strong>: $\Delta z = L / N_z$ (cell width, not node spacing).
+Each cell $i$ spans $[i \cdot \Delta z,\ (i+1) \cdot \Delta z]$.</p>
+<h2 id="injection-strategy"><a class="doc-anchor" href="#injection-strategy">§</a>Injection strategy</h2>
+<p>Injection is modelled as a <strong>temporal boundary condition</strong> at the column inlet ($z = 0$).
+The column starts empty at $t = 0$ and concentration enters at each time step via
+<code>injection.evaluate(t)</code>, where <code>t</code> is read from the <code>PhysicalState</code> metadata.</p>
+<p>The <a href="../injection/enum.TemporalInjection.html" title="enum chrom_rs::models::injection::TemporalInjection"><code>TemporalInjection</code></a> profile is evaluated at the fictitious upstream cell
+just left of $z_0$, providing the upstream concentration for the upwind gradient.
+This works with any solver that writes <code>"time"</code> into the state metadata before
+each call to <code>compute_physics</code>.</p>
+<h2 id="example"><a class="doc-anchor" href="#example">§</a>Example</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>chrom_rs::models::{LangmuirSingle, TemporalInjection};
+<span class="kw">use </span>chrom_rs::physics::PhysicalModel;
+<span class="kw">use </span>chrom_rs::solver::{Scenario, SolverConfiguration, EulerSolver, Solver, DomainBoundaries};
+
+<span class="comment">// Gaussian injection: peak at t=10s, width 3s, max concentration 0.1 mol/L
+</span><span class="kw">let </span>injection = TemporalInjection::gaussian(<span class="number">10.0</span>, <span class="number">3.0</span>, <span class="number">0.1</span>);
+
+<span class="kw">let </span>model = LangmuirSingle::new(
+    <span class="number">1.2</span>,   <span class="comment">// λ  [dimensionless]
+    </span><span class="number">0.4</span>,   <span class="comment">// K̃  [L/mol]
+    </span><span class="number">2.0</span>,   <span class="comment">// N  [dimensionless]
+    </span><span class="number">0.4</span>,   <span class="comment">// ε  (porosity)
+    </span><span class="number">0.001</span>, <span class="comment">// u  [m/s]
+    </span><span class="number">0.25</span>,  <span class="comment">// L  [m]
+    </span><span class="number">100</span>,   <span class="comment">// N_z spatial points
+    </span>injection,
+);
+
+<span class="kw">let </span>initial_state = model.setup_initial_state();
+<span class="kw">let </span>boundaries = DomainBoundaries::temporal(initial_state);
+<span class="kw">let </span>scenario = Scenario::new(Box::new(model), boundaries);
+<span class="kw">let </span>config = SolverConfiguration::time_evolution(<span class="number">600.0</span>, <span class="number">10000</span>);
+
+<span class="kw">let </span>solver = EulerSolver::new();
+<span class="kw">let </span>result = solver.solve(<span class="kw-2">&amp;</span>scenario, <span class="kw-2">&amp;</span>config).unwrap();</code></pre></div></div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.LangmuirSingle.html" title="struct chrom_rs::models::langmuir_single::LangmuirSingle">Langmuir<wbr>Single</a></dt><dd>Langmuir single-species model with temporal injection</dd></dl></section></div></main></body></html>

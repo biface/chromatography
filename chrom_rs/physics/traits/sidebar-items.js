@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PhysicalQuantity"],"struct":["PhysicalState"],"trait":["PhysicalModel"]};

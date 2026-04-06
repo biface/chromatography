@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SolverType"],"struct":["SimulationResult","SolverConfiguration"],"trait":["Solver"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NO_TITLE"],"struct":["PlotConfig"],"trait":["IntoOptionalTitle"]};

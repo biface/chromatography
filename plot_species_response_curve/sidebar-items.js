@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["N_POINTS","N_REF","PARALLEL_THRESHOLD_OPS","THRESHOLD_N_SPECIES"],"enum":["Solver"],"fn":["collect_all_points","collect_solver_points","generate_plot","main","parse_n_species","read_estimates"],"struct":["ConfidenceInterval","DataPoint","Estimate","Estimates","LogLogRegression"]};
