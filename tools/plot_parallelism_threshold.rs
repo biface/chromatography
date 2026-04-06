@@ -154,7 +154,10 @@ fn collect_data_points(criterion_dir: &Path) -> anyhow::Result<Vec<DataPoint>> {
 
         let estimates_path = entry.path().join("new").join("estimates.json");
         if !estimates_path.exists() {
-            eprintln!("[WARN] Fichier manquant / Missing file: {}", estimates_path.display());
+            eprintln!(
+                "[WARN] Fichier manquant / Missing file: {}",
+                estimates_path.display()
+            );
             continue;
         }
 
@@ -163,15 +166,22 @@ fn collect_data_points(criterion_dir: &Path) -> anyhow::Result<Vec<DataPoint>> {
 
         points.push(DataPoint {
             n_points,
-            time_ms:      est.mean.point_estimate / 1e6,
-            time_low_ms:  est.mean.confidence_interval.lower_bound / 1e6,
+            time_ms: est.mean.point_estimate / 1e6,
+            time_low_ms: est.mean.confidence_interval.lower_bound / 1e6,
             time_high_ms: est.mean.confidence_interval.upper_bound / 1e6,
-            regime: if ops >= PARALLEL_THRESHOLD_OPS { Regime::Parallel } else { Regime::Serial },
+            regime: if ops >= PARALLEL_THRESHOLD_OPS {
+                Regime::Parallel
+            } else {
+                Regime::Serial
+            },
         });
     }
 
     if points.is_empty() {
-        anyhow::bail!("Aucune donnée trouvée / No data found in {}", euler_dir.display());
+        anyhow::bail!(
+            "Aucune donnée trouvée / No data found in {}",
+            euler_dir.display()
+        );
     }
 
     points.sort_by_key(|p| p.n_points);
@@ -216,8 +226,8 @@ impl LogLogRegression {
         }
 
         let n = valid.len() as f64;
-        let sum_x:  f64 = valid.iter().map(|(x, _)| x).sum();
-        let sum_y:  f64 = valid.iter().map(|(_, y)| y).sum();
+        let sum_x: f64 = valid.iter().map(|(x, _)| x).sum();
+        let sum_y: f64 = valid.iter().map(|(_, y)| y).sum();
         let sum_xx: f64 = valid.iter().map(|(x, _)| x * x).sum();
         let sum_xy: f64 = valid.iter().map(|(x, y)| x * y).sum();
 
@@ -253,20 +263,28 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
     }
 
     // ── Séparation série / parallèle ──────────────────────────────────────
-    let serial:   Vec<&DataPoint> = points.iter().filter(|p| p.regime == Regime::Serial).collect();
-    let parallel: Vec<&DataPoint> = points.iter().filter(|p| p.regime == Regime::Parallel).collect();
+    let serial: Vec<&DataPoint> = points
+        .iter()
+        .filter(|p| p.regime == Regime::Serial)
+        .collect();
+    let parallel: Vec<&DataPoint> = points
+        .iter()
+        .filter(|p| p.regime == Regime::Parallel)
+        .collect();
 
     // ── Régression log-log ────────────────────────────────────────────────
     // Régression sur les points série (la loi O(n²) théorique est ici)
     // Regression on serial points (theoretical O(n²) law is here)
-    let serial_xy: Vec<(f64, f64)> = serial.iter()
+    let serial_xy: Vec<(f64, f64)> = serial
+        .iter()
         .map(|p| (p.n_points as f64, p.time_ms))
         .collect();
-    let parallel_xy: Vec<(f64, f64)> = parallel.iter()
+    let parallel_xy: Vec<(f64, f64)> = parallel
+        .iter()
         .map(|p| (p.n_points as f64, p.time_ms))
         .collect();
 
-    let reg_serial   = LogLogRegression::fit(&serial_xy);
+    let reg_serial = LogLogRegression::fit(&serial_xy);
     let reg_parallel = LogLogRegression::fit(&parallel_xy);
 
     // ── Courbe O(n²) théorique calée sur le premier point série ───────────
@@ -275,7 +293,8 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
     // t_théo(n) = t_mesuré(n₀) × (n/n₀)²
     // On ne fait aucune hypothèse sur le coefficient absolu — on teste la forme.
     // No assumption on the absolute coefficient — we test only the shape.
-    let (n0, t0) = serial.first()
+    let (n0, t0) = serial
+        .first()
         .map(|p| (p.n_points as f64, p.time_ms))
         .unwrap_or((50.0, 1.0));
 
@@ -289,7 +308,11 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
     // Global y_max over all points: theoretical and regression curves are
     // extrapolated up to x_max; their natural intersection with y_max
     // reveals what the serial regime would cost without Rayon.
-    let y_max = points.iter().map(|p| p.time_high_ms).fold(0.0_f64, f64::max) * 1.15;
+    let y_max = points
+        .iter()
+        .map(|p| p.time_high_ms)
+        .fold(0.0_f64, f64::max)
+        * 1.15;
 
     // ── Backend SVG ───────────────────────────────────────────────────────
     let root = SVGBackend::new(output_path, (1200, 700)).into_drawing_area();
@@ -319,17 +342,23 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
 
     // ── Zones de fond série / parallèle ───────────────────────────────────
     let tx = THRESHOLD_N_POINTS as f64;
-    chart.draw_series(std::iter::once(
-        Rectangle::new([(0.0, 0.0), (tx, y_max)], BLUE.mix(0.04).filled())
-    ))?;
-    chart.draw_series(std::iter::once(
-        Rectangle::new([(tx, 0.0), (x_max * 1.05, y_max)], RED.mix(0.04).filled())
-    ))?;
+    chart.draw_series(std::iter::once(Rectangle::new(
+        [(0.0, 0.0), (tx, y_max)],
+        BLUE.mix(0.04).filled(),
+    )))?;
+    chart.draw_series(std::iter::once(Rectangle::new(
+        [(tx, 0.0), (x_max * 1.05, y_max)],
+        RED.mix(0.04).filled(),
+    )))?;
 
     // ── Ligne verticale du seuil ──────────────────────────────────────────
     chart.draw_series(std::iter::once(PathElement::new(
         vec![(tx, 0.0), (tx, y_max)],
-        ShapeStyle { color: GREEN.mix(0.7).to_rgba(), filled: false, stroke_width: 2 },
+        ShapeStyle {
+            color: GREEN.mix(0.7).to_rgba(),
+            filled: false,
+            stroke_width: 2,
+        },
     )))?;
     chart.draw_series(std::iter::once(Text::new(
         format!("Seuil / Threshold\nn_points={THRESHOLD_N_POINTS}"),
@@ -363,8 +392,8 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
         .filter(|&(_, y)| y <= y_max)
         .collect();
 
-    chart.draw_series(
-        theory_points.windows(2).map(|w| {
+    chart
+        .draw_series(theory_points.windows(2).map(|w| {
             PathElement::new(
                 vec![w[0], w[1]],
                 ShapeStyle {
@@ -373,12 +402,18 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
                     stroke_width: 2,
                 },
             )
-        })
-    )?.label("O(n²) théorique / theoretical")
-      .legend(|(x, y)| PathElement::new(
-          vec![(x, y), (x + 20, y)],
-          ShapeStyle { color: RGBColor(150, 150, 150).to_rgba(), filled: false, stroke_width: 2 }
-      ));
+        }))?
+        .label("O(n²) théorique / theoretical")
+        .legend(|(x, y)| {
+            PathElement::new(
+                vec![(x, y), (x + 20, y)],
+                ShapeStyle {
+                    color: RGBColor(150, 150, 150).to_rgba(),
+                    filled: false,
+                    stroke_width: 2,
+                },
+            )
+        });
 
     // ── Droite de régression série (pointillés bleus foncés) ──────────────
     // ── Serial regression line (dark blue dashes) ─────────────────────────
@@ -393,8 +428,8 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
             .filter(|&(_, y)| y > 0.0 && y <= y_max)
             .collect();
 
-        chart.draw_series(
-            reg_pts.windows(2).map(|w| {
+        chart
+            .draw_series(reg_pts.windows(2).map(|w| {
                 PathElement::new(
                     vec![w[0], w[1]],
                     ShapeStyle {
@@ -403,19 +438,28 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
                         stroke_width: 2,
                     },
                 )
-            })
-        )?.label(format!("Régression série / Serial regression: O(n^{:.2})", reg.alpha))
-          .legend(|(x, y)| PathElement::new(
-              vec![(x, y), (x + 20, y)],
-              ShapeStyle { color: RGBColor(0, 0, 180).mix(0.6).to_rgba(), filled: false, stroke_width: 2 }
-          ));
+            }))?
+            .label(format!(
+                "Régression série / Serial regression: O(n^{:.2})",
+                reg.alpha
+            ))
+            .legend(|(x, y)| {
+                PathElement::new(
+                    vec![(x, y), (x + 20, y)],
+                    ShapeStyle {
+                        color: RGBColor(0, 0, 180).mix(0.6).to_rgba(),
+                        filled: false,
+                        stroke_width: 2,
+                    },
+                )
+            });
     }
 
     // ── Droite de régression parallèle (pointillés rouges foncés) ─────────
     // ── Parallel regression line (dark red dashes) ────────────────────────
     if let Some(ref reg) = reg_parallel {
-        let x_par_min  = parallel.first().map(|p| p.n_points as f64).unwrap_or(tx);
-        let x_par_max  = parallel.last().map(|p| p.n_points as f64).unwrap_or(x_max);
+        let x_par_min = parallel.first().map(|p| p.n_points as f64).unwrap_or(tx);
+        let x_par_max = parallel.last().map(|p| p.n_points as f64).unwrap_or(x_max);
 
         let reg_pts: Vec<(f64, f64)> = (0..=100)
             .map(|i| {
@@ -425,8 +469,8 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
             .filter(|&(_, y)| y > 0.0 && y <= y_max)
             .collect();
 
-        chart.draw_series(
-            reg_pts.windows(2).map(|w| {
+        chart
+            .draw_series(reg_pts.windows(2).map(|w| {
                 PathElement::new(
                     vec![w[0], w[1]],
                     ShapeStyle {
@@ -435,50 +479,83 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
                         stroke_width: 2,
                     },
                 )
-            })
-        )?.label(format!("Régression parallèle / Parallel regression: O(n^{:.2})", reg.alpha))
-          .legend(|(x, y)| PathElement::new(
-              vec![(x, y), (x + 20, y)],
-              ShapeStyle { color: RGBColor(180, 0, 0).mix(0.6).to_rgba(), filled: false, stroke_width: 2 }
-          ));
+            }))?
+            .label(format!(
+                "Régression parallèle / Parallel regression: O(n^{:.2})",
+                reg.alpha
+            ))
+            .legend(|(x, y)| {
+                PathElement::new(
+                    vec![(x, y), (x + 20, y)],
+                    ShapeStyle {
+                        color: RGBColor(180, 0, 0).mix(0.6).to_rgba(),
+                        filled: false,
+                        stroke_width: 2,
+                    },
+                )
+            });
     }
 
     // ── Barres d'erreur IC 95% ─────────────────────────────────────────────
     // ── 95% CI error bars ─────────────────────────────────────────────────
     for p in points {
-        let x   = p.n_points as f64;
-        let col = if p.regime == Regime::Serial { BLUE.mix(0.4) } else { RED.mix(0.4) };
+        let x = p.n_points as f64;
+        let col = if p.regime == Regime::Serial {
+            BLUE.mix(0.4)
+        } else {
+            RED.mix(0.4)
+        };
         let cap = x_max * 0.004;
 
         chart.draw_series(std::iter::once(PathElement::new(
             vec![(x, p.time_low_ms), (x, p.time_high_ms)],
-            ShapeStyle { color: col.to_rgba(), filled: false, stroke_width: 1 },
+            ShapeStyle {
+                color: col.to_rgba(),
+                filled: false,
+                stroke_width: 1,
+            },
         )))?;
         for &y_cap in &[p.time_low_ms, p.time_high_ms] {
             chart.draw_series(std::iter::once(PathElement::new(
                 vec![(x - cap, y_cap), (x + cap, y_cap)],
-                ShapeStyle { color: col.to_rgba(), filled: false, stroke_width: 1 },
+                ShapeStyle {
+                    color: col.to_rgba(),
+                    filled: false,
+                    stroke_width: 1,
+                },
             )))?;
         }
     }
 
     // ── Courbe série mesurée (bleue) ──────────────────────────────────────
-    let serial_curve: Vec<(f64, f64)> = serial.iter()
+    let serial_curve: Vec<(f64, f64)> = serial
+        .iter()
         .map(|p| (p.n_points as f64, p.time_ms))
         .collect();
-    chart.draw_series(LineSeries::new(serial_curve.clone(), BLUE.stroke_width(3)))?
+    chart
+        .draw_series(LineSeries::new(serial_curve.clone(), BLUE.stroke_width(3)))?
         .label("Série mesurée / Measured serial")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLUE.stroke_width(3)));
-    chart.draw_series(serial_curve.iter().map(|&(x, y)| Circle::new((x, y), 5, BLUE.filled())))?;
+    chart.draw_series(
+        serial_curve
+            .iter()
+            .map(|&(x, y)| Circle::new((x, y), 5, BLUE.filled())),
+    )?;
 
     // ── Courbe parallèle mesurée (rouge) ──────────────────────────────────
-    let parallel_curve: Vec<(f64, f64)> = parallel.iter()
+    let parallel_curve: Vec<(f64, f64)> = parallel
+        .iter()
         .map(|p| (p.n_points as f64, p.time_ms))
         .collect();
-    chart.draw_series(LineSeries::new(parallel_curve.clone(), RED.stroke_width(3)))?
+    chart
+        .draw_series(LineSeries::new(parallel_curve.clone(), RED.stroke_width(3)))?
         .label("Parallèle mesuré / Measured parallel")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED.stroke_width(3)));
-    chart.draw_series(parallel_curve.iter().map(|&(x, y)| Circle::new((x, y), 5, RED.filled())))?;
+    chart.draw_series(
+        parallel_curve
+            .iter()
+            .map(|&(x, y)| Circle::new((x, y), 5, RED.filled())),
+    )?;
 
     // ── Annotation du gain à la cassure ───────────────────────────────────
     // ── Breakpoint gain annotation ────────────────────────────────────────
@@ -486,7 +563,7 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
     // Cherche les deux points de part et d'autre du seuil (499 et 500).
     // Seeks the two points on either side of the threshold (499 and 500).
     let before = points.iter().find(|p| p.n_points == THRESHOLD_N_POINTS - 1);
-    let after  = points.iter().find(|p| p.n_points == THRESHOLD_N_POINTS);
+    let after = points.iter().find(|p| p.n_points == THRESHOLD_N_POINTS);
 
     if let (Some(b), Some(a)) = (before, after) {
         let speedup = b.time_ms / a.time_ms;
@@ -494,8 +571,15 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
         // Flèche entre les deux points
         // Arrow between the two points
         chart.draw_series(std::iter::once(PathElement::new(
-            vec![(b.n_points as f64, b.time_ms), (a.n_points as f64, a.time_ms)],
-            ShapeStyle { color: RGBColor(0, 150, 0).to_rgba(), filled: false, stroke_width: 3 },
+            vec![
+                (b.n_points as f64, b.time_ms),
+                (a.n_points as f64, a.time_ms),
+            ],
+            ShapeStyle {
+                color: RGBColor(0, 150, 0).to_rgba(),
+                filled: false,
+                stroke_width: 3,
+            },
         )))?;
 
         // Label du gain
@@ -507,16 +591,19 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
         )))?;
     }
 
-
     // ── Légende ───────────────────────────────────────────────────────────
-    chart.configure_series_labels()
+    chart
+        .configure_series_labels()
         .background_style(WHITE.mix(0.92))
         .border_style(RGBColor(180, 180, 180))
         .position(SeriesLabelPosition::UpperLeft)
         .draw()?;
 
     root.present()?;
-    println!("✅ Graphique généré / Plot generated: {}", output_path.display());
+    println!(
+        "✅ Graphique généré / Plot generated: {}",
+        output_path.display()
+    );
     Ok(())
 }
 
@@ -526,35 +613,52 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
 
 fn main() -> anyhow::Result<()> {
     let criterion_dir = PathBuf::from("target/criterion");
-    let output_path   = PathBuf::from("target/plots/parallelism_threshold.svg");
+    let output_path = PathBuf::from("target/plots/parallelism_threshold.svg");
 
     println!("📂 Lecture des données Criterion / Reading Criterion data...");
 
     let points = collect_data_points(&criterion_dir)?;
 
     // ── Tableau récapitulatif ─────────────────────────────────────────────
-    println!("\n{:<12} {:<10} {:<20} {:<12} {:<12}", "n_points", "ops", "régime", "ms", "±IC_ms");
+    println!(
+        "\n{:<12} {:<10} {:<20} {:<12} {:<12}",
+        "n_points", "ops", "régime", "ms", "±IC_ms"
+    );
     println!("{:-<68}", "");
     for p in &points {
-        let regime = if p.regime == Regime::Serial { "série" } else { "PARALLÈLE" };
+        let regime = if p.regime == Regime::Serial {
+            "série"
+        } else {
+            "PARALLÈLE"
+        };
         println!(
             "{:<12} {:<10} {:<20} {:<12.3} ±{:.3}",
-            p.n_points, p.n_points * N_SPECIES, regime,
-            p.time_ms, (p.time_high_ms - p.time_low_ms) / 2.0
+            p.n_points,
+            p.n_points * N_SPECIES,
+            regime,
+            p.time_ms,
+            (p.time_high_ms - p.time_low_ms) / 2.0
         );
     }
 
     // ── Régressions ───────────────────────────────────────────────────────
-    let serial_xy:   Vec<(f64, f64)> = points.iter().filter(|p| p.regime == Regime::Serial)
-        .map(|p| (p.n_points as f64, p.time_ms)).collect();
-    let parallel_xy: Vec<(f64, f64)> = points.iter().filter(|p| p.regime == Regime::Parallel)
-        .map(|p| (p.n_points as f64, p.time_ms)).collect();
+    let serial_xy: Vec<(f64, f64)> = points
+        .iter()
+        .filter(|p| p.regime == Regime::Serial)
+        .map(|p| (p.n_points as f64, p.time_ms))
+        .collect();
+    let parallel_xy: Vec<(f64, f64)> = points
+        .iter()
+        .filter(|p| p.regime == Regime::Parallel)
+        .map(|p| (p.n_points as f64, p.time_ms))
+        .collect();
 
     println!("\n📐 Régressions log-log / Log-log regressions:");
     if let Some(r) = LogLogRegression::fit(&serial_xy) {
         println!(
             "   Série    : t ∝ n^{:.3}  (théorique O(n²) = n^2.000)  écart={:+.3}",
-            r.alpha, r.alpha - 2.0
+            r.alpha,
+            r.alpha - 2.0
         );
     }
     if let Some(r) = LogLogRegression::fit(&parallel_xy) {
@@ -563,11 +667,13 @@ fn main() -> anyhow::Result<()> {
 
     // ── Gain à la cassure ─────────────────────────────────────────────────
     let before = points.iter().find(|p| p.n_points == THRESHOLD_N_POINTS - 1);
-    let after  = points.iter().find(|p| p.n_points == THRESHOLD_N_POINTS);
+    let after = points.iter().find(|p| p.n_points == THRESHOLD_N_POINTS);
     if let (Some(b), Some(a)) = (before, after) {
         println!(
             "\n🚀 Gain au seuil / Speedup at threshold (n={} → n={}): {:.2}×",
-            b.n_points, a.n_points, b.time_ms / a.time_ms
+            b.n_points,
+            a.n_points,
+            b.time_ms / a.time_ms
         );
     }
 
@@ -589,14 +695,14 @@ mod tests {
     #[test]
     fn test_parse_n_points_valid() {
         assert_eq!(parse_n_points("npts_500"), Some(500));
-        assert_eq!(parse_n_points("npts_50"),  Some(50));
+        assert_eq!(parse_n_points("npts_50"), Some(50));
     }
 
     #[test]
     fn test_parse_n_points_invalid() {
-        assert_eq!(parse_n_points("euler"),    None);
+        assert_eq!(parse_n_points("euler"), None);
         assert_eq!(parse_n_points("npts_abc"), None);
-        assert_eq!(parse_n_points(""),         None);
+        assert_eq!(parse_n_points(""), None);
     }
 
     // ── LogLogRegression ─────────────────────────────────────────────────
@@ -605,26 +711,36 @@ mod tests {
     /// *Regression on y = x² must recover α = 2.0 exactly*
     #[test]
     fn test_regression_perfect_quadratic() {
-        let pts: Vec<(f64, f64)> = (1..=10).map(|i| {
-            let x = i as f64 * 50.0;
-            (x, x * x)
-        }).collect();
+        let pts: Vec<(f64, f64)> = (1..=10)
+            .map(|i| {
+                let x = i as f64 * 50.0;
+                (x, x * x)
+            })
+            .collect();
         let reg = LogLogRegression::fit(&pts).unwrap();
-        assert!((reg.alpha - 2.0).abs() < 1e-6,
-            "Exposant attendu 2.0, obtenu {}", reg.alpha);
+        assert!(
+            (reg.alpha - 2.0).abs() < 1e-6,
+            "Exposant attendu 2.0, obtenu {}",
+            reg.alpha
+        );
     }
 
     /// Régression sur y = x³ doit retrouver α = 3.0
     /// *Regression on y = x³ must recover α = 3.0*
     #[test]
     fn test_regression_perfect_cubic() {
-        let pts: Vec<(f64, f64)> = (1..=8).map(|i| {
-            let x = i as f64 * 10.0;
-            (x, x.powi(3))
-        }).collect();
+        let pts: Vec<(f64, f64)> = (1..=8)
+            .map(|i| {
+                let x = i as f64 * 10.0;
+                (x, x.powi(3))
+            })
+            .collect();
         let reg = LogLogRegression::fit(&pts).unwrap();
-        assert!((reg.alpha - 3.0).abs() < 1e-6,
-            "Exposant attendu 3.0, obtenu {}", reg.alpha);
+        assert!(
+            (reg.alpha - 3.0).abs() < 1e-6,
+            "Exposant attendu 3.0, obtenu {}",
+            reg.alpha
+        );
     }
 
     /// Moins de 2 points → None (pas de régression possible)
@@ -644,8 +760,11 @@ mod tests {
         let pred_200 = reg.predict(200.0);
         // La prédiction sur un point d'entraînement doit être proche
         // Prediction on a training point must be close
-        assert!((pred_200 - 40.0).abs() / 40.0 < 0.05,
-            "Prédiction trop éloignée : {} ≠ 40.0", pred_200);
+        assert!(
+            (pred_200 - 40.0).abs() / 40.0 < 0.05,
+            "Prédiction trop éloignée : {} ≠ 40.0",
+            pred_200
+        );
     }
 
     // ── Régimes ───────────────────────────────────────────────────────────
@@ -655,9 +774,9 @@ mod tests {
     #[test]
     fn test_threshold_boundary() {
         let ops_before = (THRESHOLD_N_POINTS - 1) * N_SPECIES;
-        let ops_at     = THRESHOLD_N_POINTS       * N_SPECIES;
+        let ops_at = THRESHOLD_N_POINTS * N_SPECIES;
         assert!(ops_before < PARALLEL_THRESHOLD_OPS);
-        assert!(ops_at    >= PARALLEL_THRESHOLD_OPS);
+        assert!(ops_at >= PARALLEL_THRESHOLD_OPS);
     }
 
     // ── Conversion ────────────────────────────────────────────────────────
@@ -672,9 +791,11 @@ mod tests {
     #[test]
     fn test_speedup_regression_from_actual_data() {
         let time_499 = 117.98_f64;
-        let time_500 =  38.13_f64;
-        let speedup  = time_499 / time_500;
-        assert!(speedup > 2.0 && speedup < 6.0,
-            "Gain improbable / Implausible speedup: {speedup:.2}");
+        let time_500 = 38.13_f64;
+        let speedup = time_499 / time_500;
+        assert!(
+            speedup > 2.0 && speedup < 6.0,
+            "Gain improbable / Implausible speedup: {speedup:.2}"
+        );
     }
 }

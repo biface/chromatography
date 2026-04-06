@@ -77,20 +77,18 @@
 //! probe iteration and prints a warning — without interrupting the timing
 //! (so that Criterion records even unstable cases).*
 
-use std::time::Duration;
 use std::hint::black_box;
+use std::time::Duration;
 
-use criterion::{
-    criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode,
-};
+use criterion::{BenchmarkId, Criterion, SamplingMode, criterion_group, criterion_main};
 use rand::rngs::SmallRng;
 use rand::{Rng, RngExt, SeedableRng};
 
 use chrom_rs::models::{LangmuirMulti, LangmuirSingle, SpeciesParams, TemporalInjection};
 use chrom_rs::physics::{PhysicalData, PhysicalModel, PhysicalQuantity};
 use chrom_rs::solver::{
-    DomainBoundaries, EulerSolver, RK4Solver, Scenario, SimulationResult,
-    SolverConfiguration, Solver,
+    DomainBoundaries, EulerSolver, RK4Solver, Scenario, SimulationResult, Solver,
+    SolverConfiguration,
 };
 
 // =================================================================================================
@@ -258,8 +256,8 @@ fn generate_multi_params(n_species: usize, seed: u64) -> MultiParams {
     let mut rng = SmallRng::seed_from_u64(seed);
 
     let lambdas = (0..n_species).map(|_| rng.random_range(0.8..1.5)).collect();
-    let ks      = (0..n_species).map(|_| rng.random_range(0.1..0.8)).collect();
-    let ns      = (0..n_species).map(|_| rng.random_range(1.0..3.0)).collect();
+    let ks = (0..n_species).map(|_| rng.random_range(0.1..0.8)).collect();
+    let ns = (0..n_species).map(|_| rng.random_range(1.0..3.0)).collect();
 
     MultiParams { lambdas, ks, ns }
 }
@@ -290,7 +288,8 @@ fn safe_nsteps_for_multi(params: &MultiParams, n_points: usize, total_time: f64)
     // Dérivée isotherm minimale = espèce la plus mobile
     // Minimum isotherm derivative = most mobile species
     let deriv_min = params
-        .lambdas.iter()
+        .lambdas
+        .iter()
         .zip(&params.ns)
         .zip(&params.ks)
         .map(|((l, n), k)| l + n * k)
@@ -339,7 +338,7 @@ fn is_numerically_stable(result: &SimulationResult) -> bool {
         PhysicalData::Scalar(x) => x.is_finite(),
         PhysicalData::Vector(v) => v.iter().all(|x| x.is_finite()),
         PhysicalData::Matrix(m) => m.iter().all(|x| x.is_finite()),
-        PhysicalData::Array(a)  => a.iter().all(|x| x.is_finite()),
+        PhysicalData::Array(a) => a.iter().all(|x| x.is_finite()),
     }
 }
 
@@ -396,16 +395,21 @@ fn tfa_multi_1species(n_points: usize) -> LangmuirMulti {
 /// *Used in [`bench_parallelism_threshold`] to probe the parallelism threshold.
 /// Both species share the TFA parameters, guaranteeing reproducible behaviour.*
 fn tfa_multi_2species(n_points: usize) -> LangmuirMulti {
-    let make_sp = |name: &str| SpeciesParams::new(
-        name,
-        LAMBDA,
-        LANGMUIR_K,
-        PORT_NUMBER as u32,
-        TemporalInjection::dirac(0.0, 1e-3),
-    );
+    let make_sp = |name: &str| {
+        SpeciesParams::new(
+            name,
+            LAMBDA,
+            LANGMUIR_K,
+            PORT_NUMBER as u32,
+            TemporalInjection::dirac(0.0, 1e-3),
+        )
+    };
     LangmuirMulti::new(
         vec![make_sp("TFA_A"), make_sp("TFA_B")],
-        n_points, POROSITY, VELOCITY, COLUMN_LENGTH,
+        n_points,
+        POROSITY,
+        VELOCITY,
+        COLUMN_LENGTH,
     )
     .expect("Paramètres TFA toujours valides / TFA parameters always valid")
 }
@@ -424,9 +428,9 @@ where
     M: PhysicalModel + 'static,
 {
     let initial_state = model.setup_initial_state();
-    let boundaries    = DomainBoundaries::temporal(initial_state);
-    let scenario      = Scenario::new(Box::new(model), boundaries);
-    let config        = SolverConfiguration::time_evolution(TOTAL_TIME, n_steps);
+    let boundaries = DomainBoundaries::temporal(initial_state);
+    let scenario = Scenario::new(Box::new(model), boundaries);
+    let config = SolverConfiguration::time_evolution(TOTAL_TIME, n_steps);
     (scenario, config)
 }
 
@@ -471,9 +475,10 @@ fn build_multi_from_params(params: &MultiParams, n_points: usize) -> LangmuirMul
         })
         .collect();
 
-    LangmuirMulti::new(species, n_points, POROSITY, VELOCITY, COLUMN_LENGTH)
-        .expect("Paramètres générés dans les plages valides / \
-                 Parameters generated within valid ranges")
+    LangmuirMulti::new(species, n_points, POROSITY, VELOCITY, COLUMN_LENGTH).expect(
+        "Paramètres générés dans les plages valides / \
+                 Parameters generated within valid ranges",
+    )
 }
 
 /// Calcule le ratio théorique O(n³) par rapport à une valeur de référence
@@ -560,10 +565,12 @@ fn bench_cfl_stability(c: &mut Criterion) {
         let (probe_scenario, probe_config) = build_scenario(probe_model, n_steps);
         let probe_result = EulerSolver::new()
             .solve(&probe_scenario, &probe_config)
-            .unwrap_or_else(|_| panic!(
-                "Échec inattendu de la simulation sonde (cfl={cfl}) / \
+            .unwrap_or_else(|_| {
+                panic!(
+                    "Échec inattendu de la simulation sonde (cfl={cfl}) / \
                  Unexpected probe simulation failure (cfl={cfl})"
-            ));
+                )
+            });
         eprintln!(
             "[cfl_stability] Euler CFL={cfl:.1} → n_steps={n_steps} → stable={}",
             is_numerically_stable(&probe_result)
@@ -580,9 +587,7 @@ fn bench_cfl_stability(c: &mut Criterion) {
                 // black_box prevents the compiler from eliminating the result
                 // as dead code (aggressive optimisation).
                 black_box(
-                    EulerSolver::new()
-                        .solve(&scenario, &config)
-                        .ok(), // Err toléré sur cas instables / Err tolerated for unstable cases
+                    EulerSolver::new().solve(&scenario, &config).ok(), // Err toléré sur cas instables / Err tolerated for unstable cases
                 )
             })
         });
@@ -742,7 +747,7 @@ fn bench_multi_species_scaling(c: &mut Criterion) {
     let n_species_list: &[usize] = &[1, 2, 5, 10, 20, 50];
 
     for &n_species in n_species_list {
-        let params  = generate_multi_params(n_species, 42);
+        let params = generate_multi_params(n_species, 42);
         let n_steps = safe_nsteps_for_multi(&params, N_POINTS_REF, TOTAL_TIME);
 
         eprintln!("[multi_scaling] n_species={n_species} → n_steps={n_steps}");
@@ -760,20 +765,23 @@ fn bench_multi_species_scaling(c: &mut Criterion) {
                 // Construction des SpeciesParams depuis les vecteurs générés
                 // Build SpeciesParams from the generated vectors
                 let species: Vec<SpeciesParams> = (0..n_sp)
-                    .map(|i| SpeciesParams::new(
-                        format!("SP{i}"),
-                        p.lambdas[i],
-                        p.ks[i],
-                        p.ns[i].round() as u32, // u32 requis ; arrondi / required; rounded
-                        TemporalInjection::dirac(0.0, 1e-3),
-                    ))
+                    .map(|i| {
+                        SpeciesParams::new(
+                            format!("SP{i}"),
+                            p.lambdas[i],
+                            p.ks[i],
+                            p.ns[i].round() as u32, // u32 requis ; arrondi / required; rounded
+                            TemporalInjection::dirac(0.0, 1e-3),
+                        )
+                    })
                     .collect();
 
-                let model = LangmuirMulti::new(
-                    species, N_POINTS_REF, POROSITY, VELOCITY, COLUMN_LENGTH,
-                )
-                .expect("Paramètres aléatoires dans les plages valides / \
-                         Random parameters within valid ranges");
+                let model =
+                    LangmuirMulti::new(species, N_POINTS_REF, POROSITY, VELOCITY, COLUMN_LENGTH)
+                        .expect(
+                            "Paramètres aléatoires dans les plages valides / \
+                         Random parameters within valid ranges",
+                        );
 
                 let (scenario, config) = build_scenario(model, n_steps);
                 black_box(EulerSolver::new().solve(&scenario, &config).ok())
@@ -853,10 +861,8 @@ fn bench_parallelism_threshold(c: &mut Criterion) {
         // Zone A : série quasi-logarithmique / Serial quasi-log
         50, 75, 100, 150, 200, 300, 350, 400,
         // Zone B : grain fin autour du seuil / Fine grain around threshold
-        480, 490, 495, 498, 499,
-        500,  // ← seuil exact ops=1000 / exact threshold
-        501, 502, 505, 510, 520,
-        // Zone C : parallèle régulier / Regular parallel
+        480, 490, 495, 498, 499, 500, // ← seuil exact ops=1000 / exact threshold
+        501, 502, 505, 510, 520, // Zone C : parallèle régulier / Regular parallel
         600, 700, 800, 1000, 1500, 2000, 3000, 5000,
     ];
 
@@ -882,7 +888,11 @@ fn bench_parallelism_threshold(c: &mut Criterion) {
 
         eprintln!(
             "[parallelism] n_points={n_points} → ops={ops} → n_steps={n_steps} → régime={}",
-            if ops >= 1000 { "parallèle/parallel" } else { "série/serial" }
+            if ops >= 1000 {
+                "parallèle/parallel"
+            } else {
+                "série/serial"
+            }
         );
 
         let id = BenchmarkId::new("euler", format!("npts_{n_points}"));
@@ -1047,17 +1057,19 @@ fn bench_species_response_curve_small(c: &mut Criterion) {
     //
     // Zone C — Parallèle (12→30) : intermédiaires logarithmiques n=18, n=25
     //   Zone C — Parallel (12→30): logarithmic intermediates n=18, n=25
-    run_species_curve_group(c, "bench_species_response_curve_small",
+    run_species_curve_group(
+        c,
+        "bench_species_response_curve_small",
         &[
             // Zone A : série, chaque entier / Serial, every integer
             2, 3, 4, 5, 6, 7, 8, 9,
             // Zone B : grain fin seuil (10, 11, 12) / Fine grain threshold
-            10, 11, 12,
-            // Zone C : parallèle log-espacé / Log-spaced parallel
+            10, 11, 12, // Zone C : parallèle log-espacé / Log-spaced parallel
             15, 18, 20, 25, 30,
         ],
-        20, 5,
-        true,  // inclure RK4 / include RK4
+        20,
+        5,
+        true, // inclure RK4 / include RK4
     );
 }
 
@@ -1067,10 +1079,13 @@ fn bench_species_response_curve_small(c: &mut Criterion) {
 /// Budgets : Euler≈15 min, RK4≈40 min par espèce.
 /// *Budgets: Euler≈15 min, RK4≈40 min per species.*
 fn bench_species_response_curve_medium(c: &mut Criterion) {
-    run_species_curve_group(c, "bench_species_response_curve_medium",
+    run_species_curve_group(
+        c,
+        "bench_species_response_curve_medium",
         &[50, 75],
-        10, 1,
-        true,  // inclure RK4 / include RK4
+        10,
+        1,
+        true, // inclure RK4 / include RK4
     );
 }
 
@@ -1088,9 +1103,12 @@ fn bench_species_response_curve_medium(c: &mut Criterion) {
 /// cargo bench --bench langmuir_performance -- "bench_species_response_curve_xl/rk4"
 /// ```
 fn bench_species_response_curve_xl(c: &mut Criterion) {
-    run_species_curve_group(c, "bench_species_response_curve_xl",
+    run_species_curve_group(
+        c,
+        "bench_species_response_curve_xl",
         &[100],
-        10, 1,
+        10,
+        1,
         false, // RK4 exclu par défaut / RK4 excluded by default
     );
 }
@@ -1117,11 +1135,11 @@ fn run_species_curve_group(
     // SamplingMode::Flat: exactly `sample_size` iterations, no auto-scaling.
     // Without Flat, Auto mode may run thousands of samples on small points.
     group.sampling_mode(SamplingMode::Flat);
-    group.sample_size(sample_size);   // ≥ 10 obligatoire depuis Criterion 0.8
+    group.sample_size(sample_size); // ≥ 10 obligatoire depuis Criterion 0.8
     group.warm_up_time(Duration::from_secs(warm_up_secs));
 
     const N_POINTS: usize = 100;
-    const N_REF:    usize = 2;
+    const N_REF: usize = 2;
 
     // ── Pré-analyse stderr ─────────────────────────────────────────────────
     eprintln!(
@@ -1129,29 +1147,42 @@ fn run_species_curve_group(
 [{group_name}] Pré-analyse / Pre-analysis          — n_points={N_POINTS}, sample_size={sample_size}, rk4={include_rk4}
 {:-<80}", ""
     );
-    eprintln!("{:<12} {:<8} {:<20} {:<12} {:<14}", "n_species", "ops", "régime/regime", "n_steps", "ratio_O3(×)");
+    eprintln!(
+        "{:<12} {:<8} {:<20} {:<12} {:<14}",
+        "n_species", "ops", "régime/regime", "n_steps", "ratio_O3(×)"
+    );
     eprintln!("{:-<80}", "");
     for &n_sp in n_species_list {
-        let ops     = N_POINTS * n_sp;
-        let regime  = if ops >= 1000 { "PARALLÈLE/PARALLEL" } else { "série/serial" };
-        let params  = generate_multi_params(n_sp, 42);
+        let ops = N_POINTS * n_sp;
+        let regime = if ops >= 1000 {
+            "PARALLÈLE/PARALLEL"
+        } else {
+            "série/serial"
+        };
+        let params = generate_multi_params(n_sp, 42);
         let n_steps = safe_nsteps_for_multi(&params, N_POINTS, TOTAL_TIME);
-        let ratio   = cubic_ratio(n_sp, N_REF);
-        eprintln!("{:<12} {:<8} {:<20} {:<12} {:<14.1}", n_sp, ops, regime, n_steps, ratio);
+        let ratio = cubic_ratio(n_sp, N_REF);
+        eprintln!(
+            "{:<12} {:<8} {:<20} {:<12} {:<14.1}",
+            n_sp, ops, regime, n_steps, ratio
+        );
     }
-    eprintln!("{:-<80}
-", "");
+    eprintln!(
+        "{:-<80}
+",
+        ""
+    );
 
     // ── Boucle de benchmarks ───────────────────────────────────────────────
     for &n_sp in n_species_list {
-        let params  = generate_multi_params(n_sp, 42);
+        let params = generate_multi_params(n_sp, 42);
         let n_steps = safe_nsteps_for_multi(&params, N_POINTS, TOTAL_TIME);
 
         // ── Euler ──────────────────────────────────────────────────────────
         let euler_id = BenchmarkId::new("euler", format!("n_sp_{n_sp}"));
         group.bench_with_input(euler_id, &n_sp, |b, &n| {
             b.iter(|| {
-                let p     = generate_multi_params(n, 42);
+                let p = generate_multi_params(n, 42);
                 let model = build_multi_from_params(&p, N_POINTS);
                 let (scenario, config) = build_scenario(model, n_steps);
                 black_box(EulerSolver::new().solve(&scenario, &config).ok())
@@ -1165,7 +1196,7 @@ fn run_species_curve_group(
             let rk4_id = BenchmarkId::new("rk4", format!("n_sp_{n_sp}"));
             group.bench_with_input(rk4_id, &n_sp, |b, &n| {
                 b.iter(|| {
-                    let p     = generate_multi_params(n, 42);
+                    let p = generate_multi_params(n, 42);
                     let model = build_multi_from_params(&p, N_POINTS);
                     let (scenario, config) = build_scenario(model, n_steps);
                     black_box(RK4Solver::new().solve(&scenario, &config).ok())
@@ -1188,7 +1219,6 @@ fn _note_rk4_n100() {
     //   cargo bench --bench langmuir_performance -- "bench_species_response_curve_xl/rk4/n_sp_100"
     // Budget estimé / Estimated budget : ~6 h 24 (10 samples × ~2 300 s)
 }
-
 
 // =================================================================================================
 // Enregistrement Criterion
@@ -1235,9 +1265,11 @@ mod tests {
         // dt_max = 0.15 × 0.0025 / 0.000625 = 0.6 s
         // n_steps = ceil(600/0.6) = 1000
         let n = cfl_to_nsteps(0.15, 100, 600.0);
-        assert_eq!(n, 1000,
+        assert_eq!(
+            n, 1000,
             "Cas de référence CFL=0.15 doit donner N_t=1000 / \
-             Reference case CFL=0.15 must give N_t=1000");
+             Reference case CFL=0.15 must give N_t=1000"
+        );
     }
 
     /// Un CFL plus grand → pas de temps plus grand → *moins* de pas
@@ -1246,9 +1278,11 @@ mod tests {
     fn test_cfl_larger_means_fewer_steps() {
         let n_small_cfl = cfl_to_nsteps(0.3, 100, 600.0);
         let n_large_cfl = cfl_to_nsteps(0.8, 100, 600.0);
-        assert!(n_small_cfl > n_large_cfl,
+        assert!(
+            n_small_cfl > n_large_cfl,
             "CFL plus petit doit donner plus de pas / \
-             Smaller CFL must give more time steps");
+             Smaller CFL must give more time steps"
+        );
     }
 
     /// Le nombre de pas est strictement positif pour tout CFL positif
@@ -1256,9 +1290,11 @@ mod tests {
     #[test]
     fn test_cfl_positive_nsteps() {
         let n = cfl_to_nsteps(0.3, 100, 600.0);
-        assert!(n > 0,
+        assert!(
+            n > 0,
             "Le nombre de pas doit être strictement positif / \
-             Step count must be strictly positive");
+             Step count must be strictly positive"
+        );
     }
 
     /// Plus de points spatiaux → Δz plus petit → plus de pas pour le même CFL
@@ -1266,10 +1302,12 @@ mod tests {
     #[test]
     fn test_more_points_means_more_steps() {
         let n_coarse = cfl_to_nsteps(0.5, 50, 600.0);
-        let n_fine   = cfl_to_nsteps(0.5, 200, 600.0);
-        assert!(n_fine > n_coarse,
+        let n_fine = cfl_to_nsteps(0.5, 200, 600.0);
+        assert!(
+            n_fine > n_coarse,
             "Grille plus fine doit requérir plus de pas pour le même CFL / \
-             Finer grid must require more steps for the same CFL");
+             Finer grid must require more steps for the same CFL"
+        );
     }
 
     // ── generate_multi_params ─────────────────────────────────────────────────
@@ -1290,12 +1328,18 @@ mod tests {
     fn test_generate_multi_params_reproducible() {
         let p1 = generate_multi_params(10, 42);
         let p2 = generate_multi_params(10, 42);
-        assert_eq!(p1.lambdas, p2.lambdas,
-            "Lambdas doivent être identiques / Lambdas must be identical");
-        assert_eq!(p1.ks, p2.ks,
-            "Ks doivent être identiques / Ks must be identical");
-        assert_eq!(p1.ns, p2.ns,
-            "Ns doivent être identiques / Ns must be identical");
+        assert_eq!(
+            p1.lambdas, p2.lambdas,
+            "Lambdas doivent être identiques / Lambdas must be identical"
+        );
+        assert_eq!(
+            p1.ks, p2.ks,
+            "Ks doivent être identiques / Ks must be identical"
+        );
+        assert_eq!(
+            p1.ns, p2.ns,
+            "Ns doivent être identiques / Ns must be identical"
+        );
     }
 
     /// Seeds différentes → résultats différents
@@ -1306,8 +1350,10 @@ mod tests {
         let p2 = generate_multi_params(5, 99);
         // Il est astronomiquement improbable que les 5 lambdas soient identiques
         // It is astronomically unlikely that all 5 lambdas are identical
-        assert_ne!(p1.lambdas, p2.lambdas,
-            "Seeds différentes → valeurs différentes / Different seeds → different values");
+        assert_ne!(
+            p1.lambdas, p2.lambdas,
+            "Seeds différentes → valeurs différentes / Different seeds → different values"
+        );
     }
 
     /// Les valeurs générées sont dans les plages physiques attendues
@@ -1315,9 +1361,15 @@ mod tests {
     #[test]
     fn test_generate_multi_params_ranges() {
         let p = generate_multi_params(20, 42);
-        for &l in &p.lambdas { assert!(l >= 0.8 && l < 1.5, "λ hors plage/out of range: {l}"); }
-        for &k in &p.ks      { assert!(k >= 0.1 && k < 0.8, "K̃ hors plage/out of range: {k}"); }
-        for &n in &p.ns      { assert!(n >= 1.0 && n < 3.0, "N hors plage/out of range: {n}"); }
+        for &l in &p.lambdas {
+            assert!(l >= 0.8 && l < 1.5, "λ hors plage/out of range: {l}");
+        }
+        for &k in &p.ks {
+            assert!(k >= 0.1 && k < 0.8, "K̃ hors plage/out of range: {k}");
+        }
+        for &n in &p.ns {
+            assert!(n >= 1.0 && n < 3.0, "N hors plage/out of range: {n}");
+        }
     }
 
     // ── safe_nsteps_for_multi ─────────────────────────────────────────────────
@@ -1335,12 +1387,14 @@ mod tests {
     /// *Finer grid → more restrictive CFL → more time steps*
     #[test]
     fn test_safe_nsteps_finer_grid_more_steps() {
-        let p        = generate_multi_params(3, 42);
+        let p = generate_multi_params(3, 42);
         let n_coarse = safe_nsteps_for_multi(&p, 50, 600.0);
-        let n_fine   = safe_nsteps_for_multi(&p, 200, 600.0);
-        assert!(n_fine > n_coarse,
+        let n_fine = safe_nsteps_for_multi(&p, 200, 600.0);
+        assert!(
+            n_fine > n_coarse,
             "Grille plus fine doit requérir plus de pas / \
-             Finer grid must require more time steps");
+             Finer grid must require more time steps"
+        );
     }
 
     // ── Constantes dérivées / Derived constants ───────────────────────────────
@@ -1350,16 +1404,22 @@ mod tests {
     #[test]
     fn test_derived_constants() {
         // F_E = (1-0.4)/0.4 = 1.5
-        assert!((F_E - 1.5).abs() < 1e-12,
-            "F_E doit être 1.5 / F_E must be 1.5");
+        assert!(
+            (F_E - 1.5).abs() < 1e-12,
+            "F_E doit être 1.5 / F_E must be 1.5"
+        );
 
         // U_E = 0.001/0.4 = 0.0025
-        assert!((U_E - 0.0025).abs() < 1e-12,
-            "U_E doit être 0.0025 m/s / U_E must be 0.0025 m/s");
+        assert!(
+            (U_E - 0.0025).abs() < 1e-12,
+            "U_E doit être 0.0025 m/s / U_E must be 0.0025 m/s"
+        );
 
         // U_EFF_C0 = 0.0025 / (1 + 1.5 × 2.0) = 0.000625
-        assert!((U_EFF_C0 - 0.000625).abs() < 1e-12,
-            "U_EFF_C0 doit être 0.000625 m/s / U_EFF_C0 must be 0.000625 m/s");
+        assert!(
+            (U_EFF_C0 - 0.000625).abs() < 1e-12,
+            "U_EFF_C0 doit être 0.000625 m/s / U_EFF_C0 must be 0.000625 m/s"
+        );
     }
 
     // ── Constructeurs TFA / TFA constructors ──────────────────────────────────
@@ -1391,7 +1451,7 @@ mod tests {
     /// *The function must produce a model with the correct number of species*
     #[test]
     fn test_build_multi_from_params_species_count() {
-        let p     = generate_multi_params(7, 42);
+        let p = generate_multi_params(7, 42);
         let model = build_multi_from_params(&p, 50);
         assert_eq!(model.n_species(), 7);
     }
@@ -1400,7 +1460,7 @@ mod tests {
     /// *The number of spatial points must be passed through faithfully*
     #[test]
     fn test_build_multi_from_params_n_points() {
-        let p     = generate_multi_params(3, 42);
+        let p = generate_multi_params(3, 42);
         let model = build_multi_from_params(&p, 150);
         assert_eq!(model.points(), 150);
     }
@@ -1430,8 +1490,10 @@ mod tests {
     /// (10/2)³ = 125 — cas documenté dans le module doc / *case documented in module doc*
     #[test]
     fn test_cubic_ratio_2_to_10() {
-        assert!((cubic_ratio(10, 2) - 125.0).abs() < 1e-12,
-            "Ratio O(n³) de 2→10 doit être 125 / O(n³) ratio from 2→10 must be 125");
+        assert!(
+            (cubic_ratio(10, 2) - 125.0).abs() < 1e-12,
+            "Ratio O(n³) de 2→10 doit être 125 / O(n³) ratio from 2→10 must be 125"
+        );
     }
 
     /// (100/2)³ = 125 000 — plafond de la courbe de réponse / *ceiling of the response curve*
@@ -1447,9 +1509,11 @@ mod tests {
         let r1 = cubic_ratio(10, 2);
         let r2 = cubic_ratio(20, 2);
         let r3 = cubic_ratio(50, 2);
-        assert!(r1 < r2 && r2 < r3,
+        assert!(
+            r1 < r2 && r2 < r3,
             "cubic_ratio doit être strictement croissant / \
-             cubic_ratio must be strictly increasing");
+             cubic_ratio must be strictly increasing"
+        );
     }
 
     // ── Vérification du seuil de parallélisme pour n_points=100 ──────────────
@@ -1462,14 +1526,18 @@ mod tests {
     #[test]
     fn test_parallelism_threshold_crossed_at_n_species_10() {
         let threshold = chrom_rs::solver::parallel_threshold(); // 999
-        let n_points  = 100_usize;
+        let n_points = 100_usize;
 
         // n_species=9 → ops=900 → sous le seuil / below the threshold
-        assert!(n_points * 9  <= threshold,
-            "n_sp=9  doit être sous le seuil / must be below threshold");
+        assert!(
+            n_points * 9 <= threshold,
+            "n_sp=9  doit être sous le seuil / must be below threshold"
+        );
         // n_species=10 → ops=1000 → au-dessus du seuil / above the threshold
-        assert!(n_points * 10 >  threshold,
-            "n_sp=10 doit dépasser le seuil / must exceed threshold");
+        assert!(
+            n_points * 10 > threshold,
+            "n_sp=10 doit dépasser le seuil / must exceed threshold"
+        );
     }
 
     /// Une simulation TFA stable (CFL=0.15) doit produire un état final fini
@@ -1481,8 +1549,10 @@ mod tests {
         let result = EulerSolver::new()
             .solve(&scenario, &config)
             .expect("Simulation de référence stable / Stable reference simulation");
-        assert!(is_numerically_stable(&result),
+        assert!(
+            is_numerically_stable(&result),
             "État final de la simulation TFA doit être numériquement stable / \
-             TFA simulation final state must be numerically stable");
+             TFA simulation final state must be numerically stable"
+        );
     }
 }

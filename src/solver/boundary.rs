@@ -44,7 +44,7 @@ pub struct DomainBoundaries {
     pub dimensions: Vec<DimensionBoundary>,
 
     /// Convention for identifying time dimensions
-    pub  convention: TimeAxisConvention,
+    pub convention: TimeAxisConvention,
 }
 
 impl DomainBoundaries {
@@ -61,8 +61,10 @@ impl DomainBoundaries {
     /// Create with defined axis convention
     ///
     ///
-    pub fn create(dimensions: Vec<DimensionBoundary>,
-    convention: Option<TimeAxisConvention>) -> Self {
+    pub fn create(
+        dimensions: Vec<DimensionBoundary>,
+        convention: Option<TimeAxisConvention>,
+    ) -> Self {
         Self {
             dimensions,
             convention: convention.unwrap_or(TimeAxisConvention::Last),
@@ -93,12 +95,7 @@ impl DomainBoundaries {
     /// assert!(boundaries.is_time_dependent());
     /// ```
     pub fn temporal(initial: PhysicalState) -> Self {
-        Self::new(
-            vec![DimensionBoundary::new(
-                "t",
-                vec![initial],
-            )]
-        )
+        Self::new(vec![DimensionBoundary::new("t", vec![initial])])
     }
 
     /// Create n-dimensional spatial domain (steady-state)
@@ -148,18 +145,17 @@ impl DomainBoundaries {
     ///
     /// assert_eq!(boundaries.ndim(), 3);
     /// ```
-    pub fn spatial(names: &[&str],
-                   begins: Vec<PhysicalState>,
-                   ends: Vec<PhysicalState>) -> Self {
-
+    pub fn spatial(names: &[&str], begins: Vec<PhysicalState>, ends: Vec<PhysicalState>) -> Self {
         assert_eq!(names.len(), begins.len());
         assert_eq!(names.len(), ends.len());
 
-        let dimensions: Vec<_>= names.iter()
-        .zip(begins.iter().zip(ends.iter()))
-        .map(|(name, (begin, end))| {
-            DimensionBoundary::new(*name, vec![begin.clone(), end.clone()])
-        }).collect();
+        let dimensions: Vec<_> = names
+            .iter()
+            .zip(begins.iter().zip(ends.iter()))
+            .map(|(name, (begin, end))| {
+                DimensionBoundary::new(*name, vec![begin.clone(), end.clone()])
+            })
+            .collect();
 
         Self::create(dimensions, Some(TimeAxisConvention::None))
     }
@@ -214,18 +210,22 @@ impl DomainBoundaries {
     ///
     /// assert_eq!(boundaries.ndim(), 4);
     /// ```
-    pub fn mixed(names: &[&str],
-    begins: Vec<PhysicalState>,
-    ends: Vec<PhysicalState>,
-    initial: PhysicalState) -> Self {
+    pub fn mixed(
+        names: &[&str],
+        begins: Vec<PhysicalState>,
+        ends: Vec<PhysicalState>,
+        initial: PhysicalState,
+    ) -> Self {
         assert_eq!(names.len(), begins.len());
         assert_eq!(names.len(), ends.len());
 
-        let mut dimensions: Vec<_>= names.iter()
+        let mut dimensions: Vec<_> = names
+            .iter()
             .zip(begins.iter().zip(ends.iter()))
             .map(|(name, (begin, end))| {
                 DimensionBoundary::new(*name, vec![begin.clone(), end.clone()])
-            }).collect();
+            })
+            .collect();
 
         dimensions.push(DimensionBoundary::new("t", vec![initial]));
 
@@ -243,7 +243,7 @@ impl DomainBoundaries {
     pub fn sdim(&self) -> usize {
         match self.convention {
             TimeAxisConvention::None => self.ndim(),
-            _ => self.ndim() - 1
+            _ => self.ndim() - 1,
         }
     }
 
@@ -258,18 +258,20 @@ impl DomainBoundaries {
             TimeAxisConvention::Last => Some(self.ndim() - 1),
             TimeAxisConvention::First => Some(0),
             TimeAxisConvention::None => None,
-            TimeAxisConvention::Index(i) => Some(i)
+            TimeAxisConvention::Index(i) => Some(i),
         }
     }
 
     /// Get temporal boundary
     pub fn time_boundary(&self) -> Option<&DimensionBoundary> {
-        self.time_index().and_then(|index| self.dimensions.get(index))
+        self.time_index()
+            .and_then(|index| self.dimensions.get(index))
     }
 
     /// Ges initial condition as the first physical state of temporal boundary
     pub fn initial_condition(&self) -> Option<&PhysicalState> {
-        self.time_boundary().and_then(|boundary| boundary.states.first())
+        self.time_boundary()
+            .and_then(|boundary| boundary.states.first())
     }
 
     /// Get spatial boundaries
@@ -286,7 +288,9 @@ impl DomainBoundaries {
 
     /// Get dimension by its name
     pub fn get_boundary(&self, name: &str) -> Option<&DimensionBoundary> {
-        self.dimensions.iter().find(|boundary| boundary.name == name)
+        self.dimensions
+            .iter()
+            .find(|boundary| boundary.name == name)
     }
 
     /// Validate the object contents
@@ -303,9 +307,7 @@ impl DomainBoundaries {
 
         // Check unicity of dimension's name
 
-        let names:Vec<&str> = self.dimensions.iter()
-            .map(|d| d.name.as_str())
-        .collect();
+        let names: Vec<&str> = self.dimensions.iter().map(|d| d.name.as_str()).collect();
 
         let unicity: std::collections::HashSet<&str> = names.iter().copied().collect();
 
@@ -353,7 +355,10 @@ pub struct DimensionBoundary {
 impl DimensionBoundary {
     /// Generic constructor
     pub fn new(name: impl Into<String>, states: Vec<PhysicalState>) -> Self {
-        Self { name: name.into(), states }
+        Self {
+            name: name.into(),
+            states,
+        }
     }
 
     /// Get first boundary state
@@ -381,8 +386,8 @@ impl DimensionBoundary {
         if self.is_empty() {
             return Err(format!(
                 "Dimensions '{}' must have at least one boundary state",
-                self.name)
-            );
+                self.name
+            ));
         }
 
         Ok(())
@@ -426,9 +431,9 @@ impl fmt::Display for TimeAxisConvention {
 
 #[cfg(test)]
 mod tests {
-    use nalgebra::DVector;
     use super::*;
-    use crate::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+    use crate::physics::{PhysicalData, PhysicalQuantity, PhysicalState};
+    use nalgebra::DVector;
 
     // =================================== Time Axis Convention ===================================
 
@@ -465,8 +470,8 @@ mod tests {
             "volume",
             vec![PhysicalState::new(
                 PhysicalQuantity::Concentration,
-                PhysicalData::Scalar(0.6)
-            )]
+                PhysicalData::Scalar(0.6),
+            )],
         );
 
         assert_eq!(dimension.name, "volume");
@@ -481,23 +486,25 @@ mod tests {
             vec![PhysicalState::new(
                 PhysicalQuantity::Concentration,
                 PhysicalData::Vector(DVector::from_row_slice(&[1., 2., 3., 4.])),
-            )]
+            )],
         );
 
-        assert!(dimension
-            .first()
-            .unwrap()
-            .available_quantities().
-            contains(&PhysicalQuantity::Concentration));
+        assert!(
+            dimension
+                .first()
+                .unwrap()
+                .available_quantities()
+                .contains(&PhysicalQuantity::Concentration)
+        );
 
-        let data = dimension.
-            first()
+        let data = dimension
+            .first()
             .unwrap()
             .get(PhysicalQuantity::Concentration)
             .unwrap();
 
-        assert_eq!(data.as_vector()[0], 1.0) ;
-        assert_eq!(data.as_vector()[2], 3.0) ;
+        assert_eq!(data.as_vector()[0], 1.0);
+        assert_eq!(data.as_vector()[2], 3.0);
     }
 
     // ===================================== Domain Boundary =====================================
@@ -522,9 +529,9 @@ mod tests {
 
     #[test]
     fn test_dimension_boundary_first_last_two() {
-        let left  = PhysicalState::empty();
+        let left = PhysicalState::empty();
         let right = PhysicalState::empty();
-        let dim   = DimensionBoundary::new("x", vec![left, right]);
+        let dim = DimensionBoundary::new("x", vec![left, right]);
 
         assert!(dim.first().is_some());
         assert!(dim.last().is_some());
@@ -539,16 +546,23 @@ mod tests {
         assert_eq!(boundary.sdim(), 0);
         assert!(boundary.is_time_dependent());
         assert_eq!(boundary.convention, TimeAxisConvention::Last);
-
     }
 
     #[test]
     fn test_spatial_only() {
         let domain = DomainBoundaries::spatial(
             &["x", "y", "z"],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-        ) ;
+            vec![
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+            ],
+            vec![
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+            ],
+        );
 
         assert_eq!(domain.ndim(), 3);
         assert_eq!(domain.sdim(), 3);
@@ -560,15 +574,23 @@ mod tests {
     fn test_mixed() {
         let initial = PhysicalState::new(
             PhysicalQuantity::Concentration,
-            PhysicalData::Vector(DVector::from_vec(vec![2.0]))
+            PhysicalData::Vector(DVector::from_vec(vec![2.0])),
         );
 
         let boundary = DomainBoundaries::mixed(
             &["x", "y", "z"],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-            initial
-        ) ;
+            vec![
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+            ],
+            vec![
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+            ],
+            initial,
+        );
 
         assert_eq!(boundary.ndim(), 4);
         assert_eq!(boundary.sdim(), 3);
@@ -586,15 +608,23 @@ mod tests {
     fn test_mixed_spatial() {
         let initial = PhysicalState::new(
             PhysicalQuantity::Concentration,
-            PhysicalData::Vector(DVector::from_vec(vec![2.0]))
+            PhysicalData::Vector(DVector::from_vec(vec![2.0])),
         );
 
         let boundary = DomainBoundaries::mixed(
             &["x", "y", "z"],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-            initial
-        ) ;
+            vec![
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+            ],
+            vec![
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+            ],
+            initial,
+        );
 
         let spatials = boundary.spatial_boundaries();
 
@@ -602,28 +632,34 @@ mod tests {
         assert_eq!(spatials[0].name, "x");
         assert_eq!(spatials[1].name, "y");
         assert_eq!(spatials[2].name, "z");
-
     }
 
-     #[test]
-     fn test_mixed_temporal() {
+    #[test]
+    fn test_mixed_temporal() {
         let initial = PhysicalState::new(
             PhysicalQuantity::Concentration,
-            PhysicalData::Vector(DVector::from_vec(vec![2.0]))
+            PhysicalData::Vector(DVector::from_vec(vec![2.0])),
         );
 
         let boundary = DomainBoundaries::mixed(
             &["x", "y", "z"],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-            vec![PhysicalState::empty(), PhysicalState::empty(), PhysicalState::empty()],
-            initial
-        ) ;
+            vec![
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+            ],
+            vec![
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+                PhysicalState::empty(),
+            ],
+            initial,
+        );
 
         let temporal = boundary.time_boundary();
 
         assert_eq!(temporal.is_some(), true);
         assert_eq!(temporal.unwrap().name, "t");
-
     }
 
     // Validation tests
@@ -633,41 +669,42 @@ mod tests {
         let result = false_boundary.validate();
 
         assert!(result.is_err());
-        assert_eq!(result.err().unwrap(), "Dimension boundaries cannot be empty.");
+        assert_eq!(
+            result.err().unwrap(),
+            "Dimension boundaries cannot be empty."
+        );
     }
 
     #[test]
     fn test_duplicate_dimensions() {
         let false_boundary = DomainBoundaries {
             dimensions: vec![
-                DimensionBoundary::new(
-                    "x",
-                    vec![PhysicalState::empty(), PhysicalState::empty()]
-                ),
-                DimensionBoundary::new(
-                    "x",
-                    vec![PhysicalState::empty(), PhysicalState::empty()]
-                )
-            ],
-            convention: TimeAxisConvention::None,
-        } ;
-
-        let result = false_boundary.validate();
-        assert!(result.is_err());
-        assert_eq!(result.err().unwrap(), "It is impossible to store two dimensions with the same name.");
-    }
-
-    #[test]
-    fn test_domain_without_state() {
-        let false_boundary = DomainBoundaries {
-            dimensions: vec![
-                DimensionBoundary::new("x", vec![])
+                DimensionBoundary::new("x", vec![PhysicalState::empty(), PhysicalState::empty()]),
+                DimensionBoundary::new("x", vec![PhysicalState::empty(), PhysicalState::empty()]),
             ],
             convention: TimeAxisConvention::None,
         };
 
         let result = false_boundary.validate();
         assert!(result.is_err());
-        assert_eq!(result.err().unwrap(), "Dimensions 'x' must have at least one boundary state");
+        assert_eq!(
+            result.err().unwrap(),
+            "It is impossible to store two dimensions with the same name."
+        );
+    }
+
+    #[test]
+    fn test_domain_without_state() {
+        let false_boundary = DomainBoundaries {
+            dimensions: vec![DimensionBoundary::new("x", vec![])],
+            convention: TimeAxisConvention::None,
+        };
+
+        let result = false_boundary.validate();
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            "Dimensions 'x' must have at least one boundary state"
+        );
     }
 }

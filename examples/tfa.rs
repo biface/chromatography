@@ -23,37 +23,31 @@
 //! - Spatial points: 100 (discretization)
 
 use chrom_rs::{
-    models::{LangmuirSingle,
-             TemporalInjection},
-    physics::{PhysicalModel,
-              PhysicalQuantity},
-    solver::{Scenario,
-             SolverConfiguration,
-             SimulationResult,
-             DomainBoundaries,
-             EulerSolver,
-             RK4Solver,
-             Solver},
-    output::{plot_chromatogram, PlotConfig},
+    models::{LangmuirSingle, TemporalInjection},
+    output::{PlotConfig, plot_chromatogram},
+    physics::{PhysicalModel, PhysicalQuantity},
+    solver::{
+        DomainBoundaries, EulerSolver, RK4Solver, Scenario, SimulationResult, Solver,
+        SolverConfiguration,
+    },
 };
 
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-
     println!("═══════════════════════════════════════════════════════");
     println!("  TFA Chromatography - Temporal Injection Study");
     println!("═══════════════════════════════════════════════════════\n");
 
     // ====== TFA Physical parameters ======
 
-    let lambda = 1.2;           // Linear term [-]
-    let langmuir_k = 0.4;       // Equilibrium constant [L/mol]
-    let port_number = 2.0;      // Adsorption capacity [mol/L]
-    let porosity = 0.4;         // Porosity [-]
-    let velocity = 0.001;       // Superficial velocity [m/s]
-    let column_length = 0.25;   // Column length [m]
-    let n_points = 100;         // Spatial discretization
+    let lambda = 1.2; // Linear term [-]
+    let langmuir_k = 0.4; // Equilibrium constant [L/mol]
+    let port_number = 2.0; // Adsorption capacity [mol/L]
+    let porosity = 0.4; // Porosity [-]
+    let velocity = 0.001; // Superficial velocity [m/s]
+    let column_length = 0.25; // Column length [m]
+    let n_points = 100; // Spatial discretization
 
     println!("TFA Parameters:");
     println!("  λ (lambda)     : {}", lambda);
@@ -69,7 +63,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let total_time = 600.0; // 10 minutes or 600 seconds
     let time_steps = 10000;
     println!("Simulation:");
-    println!("  Total time : {} s ({} min)", total_time, total_time / 60.0);
+    println!(
+        "  Total time : {} s ({} min)",
+        total_time,
+        total_time / 60.0
+    );
     println!("  Time steps : {}", time_steps);
     println!("  dt         : {:.6} s\n", total_time / time_steps as f64);
 
@@ -99,14 +97,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ====== Vector of injections ======
 
-    let injections = vec![
-        ("Dirac", dirac),
-        ("Gaussian", gaussian),
-    ];
+    let injections = vec![("Dirac", dirac), ("Gaussian", gaussian)];
 
-    let solvers:Vec<(&str, Box<dyn Solver>)> = vec![
+    let solvers: Vec<(&str, Box<dyn Solver>)> = vec![
         ("Euler", Box::new(EulerSolver::new())),
-        ("Runge-Kutta", Box::new(RK4Solver::new()))
+        ("Runge-Kutta", Box::new(RK4Solver::new())),
     ];
 
     let configuration = SolverConfiguration::time_evolution(total_time, time_steps);
@@ -154,12 +149,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let outlet: Vec<f64> = result
                 .state_trajectory
                 .iter()
-                .map(|state| {
-                    match state.get(PhysicalQuantity::Concentration).unwrap() {
+                .map(
+                    |state| match state.get(PhysicalQuantity::Concentration).unwrap() {
                         chrom_rs::physics::PhysicalData::Vector(v) => v[n_points - 1],
-                        _ => 0.0
-                    }
-                })
+                        _ => 0.0,
+                    },
+                )
                 .collect();
 
             // Analyze peak
@@ -181,8 +176,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 max_concentration,
                 retention_time,
                 final_concentration,
-                result
-                ));
+                result,
+            ));
         }
     }
 
@@ -190,18 +185,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Results Analysis
     // =============================================================================================
 
-
     println!("\n═══════════════════════════════════════════════════════");
     println!("  Results: Peak Characteristics");
     println!("═══════════════════════════════════════════════════════\n");
 
-    println!("{:<10} {:<14} {:>12} {:>12} {:>12}",
-             "Injection", "Solver", "Peak (mol/L)", "Ret.Time (s)", "Final (mol/L)");
+    println!(
+        "{:<10} {:<14} {:>12} {:>12} {:>12}",
+        "Injection", "Solver", "Peak (mol/L)", "Ret.Time (s)", "Final (mol/L)"
+    );
     println!("{:-<60}", "");
 
     for (inj, solver, _, peak, rt, final_c, _) in &results {
-        println!("{:<10} {:<14} {:>12.6} {:>12.2} {:>12.6}",
-                 inj, solver, peak, rt, final_c);
+        println!(
+            "{:<10} {:<14} {:>12.6} {:>12.2} {:>12.6}",
+            inj, solver, peak, rt, final_c
+        );
     }
 
     // =============================================================================================
@@ -221,8 +219,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Calculate speedup
 
-    let euler_dirac = results.iter().find(|(i, s, _, _, _, _, _)| *i == "Dirac" && *s == "Euler").unwrap();
-    let rk4_dirac = results.iter().find(|(i, s, _, _, _, _, _)| *i == "Dirac" && *s == "Runge-Kutta").unwrap();
+    let euler_dirac = results
+        .iter()
+        .find(|(i, s, _, _, _, _, _)| *i == "Dirac" && *s == "Euler")
+        .unwrap();
+    let rk4_dirac = results
+        .iter()
+        .find(|(i, s, _, _, _, _, _)| *i == "Dirac" && *s == "Runge-Kutta")
+        .unwrap();
     let speedup = rk4_dirac.2 / euler_dirac.2;
 
     println!("\nRK4/Euler Speedup: {:.2}x slower (expected ~4x)", speedup);
@@ -245,18 +249,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .find(|(i, s, _, _, _, _, _)| *i == injection_method && *s == "Runge-Kutta")
             .unwrap();
 
-        let peak_difference = (rk4_results.3 - euler_results.3).abs() ;
+        let peak_difference = (rk4_results.3 - euler_results.3).abs();
         let peak_percentage = (peak_difference / euler_results.3) * 100.0;
-        let retention_difference = (rk4_results.4 - euler_results.4).abs() ;
+        let retention_difference = (rk4_results.4 - euler_results.4).abs();
         let retention_percentage = (retention_difference / euler_results.4) * 1000000.0;
 
         println!("\n {} Injection:", injection_method);
-        println!("  Peak difference    : {:.6} mol/L ({:.2}%)",
-                 peak_difference,
-                 peak_percentage);
-        println!("  Ret.Time difference: {:.2} s ({:.2} ppm)",
-                 retention_difference,
-                 retention_percentage);
+        println!(
+            "  Peak difference    : {:.6} mol/L ({:.2}%)",
+            peak_difference, peak_percentage
+        );
+        println!(
+            "  Ret.Time difference: {:.2} s ({:.2} ppm)",
+            retention_difference, retention_percentage
+        );
     }
 
     // =============================================================================================
@@ -267,15 +273,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Peak Validation");
     println!("═══════════════════════════════════════════════════════\n");
 
-    for (injection,
-        solver,
-        _,
-        peak,
-        _,
-        final_concentration,
-        _ ) in &results {
-
-        let is_peak = *peak > 1e-03 && *final_concentration < *peak * 0.1 ;
+    for (injection, solver, _, peak, _, final_concentration, _) in &results {
+        let is_peak = *peak > 1e-03 && *final_concentration < *peak * 0.1;
         let status = if is_peak { "✅ PEAK" } else { "❌ PLATEAU" };
         println!("{:<14} {:<8} : {} ", injection, solver, status);
     }
@@ -291,12 +290,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for (injection, solver, _, _, _, _, result) in &results {
         let filename = format!("tfa_{}_{}.png", injection, solver);
         let path = tmp_dir.join(&filename);
-        let draw_features = PlotConfig::chromatogram(format!(
-            "TFA: {} x {}",
-            injection,
-            solver
-        ));
-        plot_chromatogram(result, 100, path.to_str().unwrap(), Some(&draw_features)).expect("plot failed");
+        let draw_features = PlotConfig::chromatogram(format!("TFA: {} x {}", injection, solver));
+        plot_chromatogram(result, 100, path.to_str().unwrap(), Some(&draw_features))
+            .expect("plot failed");
         println!("  {} x {} : {:?}", injection, solver, path);
     }
 

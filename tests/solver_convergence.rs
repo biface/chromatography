@@ -3,9 +3,9 @@
 //! These tests verify that solvers exhibit the expected
 //! convergence rates when refining the time step.
 
-use chrom_rs::solver::{Solver, SolverConfiguration, Scenario, DomainBoundaries};
-use chrom_rs::solver::{EulerSolver, RK4Solver};
 use chrom_rs::physics::{PhysicalModel, PhysicalQuantity};
+use chrom_rs::solver::{DomainBoundaries, Scenario, Solver, SolverConfiguration};
+use chrom_rs::solver::{EulerSolver, RK4Solver};
 
 mod common;
 use common::ExponentialDecay;
@@ -33,7 +33,8 @@ fn test_euler_first_order_convergence() {
         let config = SolverConfiguration::time_evolution(total_time, steps);
         let result = euler.solve(&scenario, &config).unwrap();
 
-        let final_conc = result.final_state
+        let final_conc = result
+            .final_state
             .get(PhysicalQuantity::Concentration)
             .unwrap()
             .as_vector()[0];
@@ -45,7 +46,7 @@ fn test_euler_first_order_convergence() {
     // Check convergence ratios
     for i in 0..errors.len() - 1 {
         let ratio = errors[i] / errors[i + 1];
-        println!("Euler convergence ratio {}->{}: {}", i, i+1, ratio);
+        println!("Euler convergence ratio {}->{}: {}", i, i + 1, ratio);
 
         // Should be close to 2 for first-order
         assert!(
@@ -79,7 +80,8 @@ fn test_rk4_fourth_order_convergence() {
         let config = SolverConfiguration::time_evolution(total_time, steps);
         let result = rk4.solve(&scenario, &config).unwrap();
 
-        let final_conc = result.final_state
+        let final_conc = result
+            .final_state
             .get(PhysicalQuantity::Concentration)
             .unwrap()
             .as_vector()[0];
@@ -91,7 +93,7 @@ fn test_rk4_fourth_order_convergence() {
     // Check convergence ratios
     for i in 0..errors.len() - 1 {
         let ratio = errors[i] / errors[i + 1];
-        println!("RK4 convergence ratio {}->{}: {}", i, i+1, ratio);
+        println!("RK4 convergence ratio {}->{}: {}", i, i + 1, ratio);
 
         // Should be close to 16 for fourth-order
         assert!(

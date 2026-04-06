@@ -157,13 +157,15 @@ impl EulerSolver {
 }
 
 impl Solver for EulerSolver {
-
-    fn solve(&self, scenario: &Scenario, config: &SolverConfiguration) -> Result<SimulationResult, String> {
-
+    fn solve(
+        &self,
+        scenario: &Scenario,
+        config: &SolverConfiguration,
+    ) -> Result<SimulationResult, String> {
         // ====== Step 1: Validation ======
 
         // Validate configuration parameters
-        config.validate()? ;
+        config.validate()?;
 
         // Validate scenario (model and boundaries)
 
@@ -172,10 +174,11 @@ impl Solver for EulerSolver {
         // Forward Euler is dedicated to time evolution
 
         let (total_time, time_steps) = match &config.solver_type {
-            SolverType::TimeEvolution { total_time, time_steps } => {
-                (*total_time, *time_steps)
-            }
-            other   => {
+            SolverType::TimeEvolution {
+                total_time,
+                time_steps,
+            } => (*total_time, *time_steps),
+            other => {
                 return Err(format!(
                     "EulerSolver only supports TimeEvolution configuration, got {}",
                     other.name()
@@ -258,7 +261,6 @@ impl Solver for EulerSolver {
             // Check for numerical issues (NaN, Inf, etc.)
             // This helps catch problems early rather than propagating them
             solver::validate_state(&state, step + 1)?;
-
         }
 
         // ====== Step 4: Build Result ======
@@ -268,11 +270,7 @@ impl Solver for EulerSolver {
 
         // Create a simulation result
 
-        let mut result = SimulationResult::new(
-            time_points,
-            state_trajectory,
-            final_state
-        );
+        let mut result = SimulationResult::new(time_points, state_trajectory, final_state);
 
         // Add metadata for diagnostics and reproducibility
 
@@ -296,7 +294,7 @@ impl Solver for EulerSolver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+    use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
     use crate::solver::boundary::DomainBoundaries;
 
     // ====== Mock Models for Testing ======
@@ -322,9 +320,8 @@ mod tests {
 
             let mut result = state.clone();
 
-            if let Some(conc) =
-                result.get_mut(PhysicalQuantity::Concentration) {
-                conc.apply(|y| - self.decay_rate * y) ;
+            if let Some(conc) = result.get_mut(PhysicalQuantity::Concentration) {
+                conc.apply(|y| -self.decay_rate * y);
             }
 
             result
@@ -333,7 +330,7 @@ mod tests {
         fn setup_initial_state(&self) -> PhysicalState {
             PhysicalState::new(
                 PhysicalQuantity::Concentration,
-                PhysicalData::uniform_vector(self.points, 1.0)
+                PhysicalData::uniform_vector(self.points, 1.0),
             )
         }
 
@@ -358,14 +355,14 @@ mod tests {
         fn compute_physics(&self, _state: &PhysicalState) -> PhysicalState {
             PhysicalState::new(
                 PhysicalQuantity::Concentration,
-                PhysicalData::uniform_vector(self.points, self.growth_rate)
+                PhysicalData::uniform_vector(self.points, self.growth_rate),
             )
         }
 
         fn setup_initial_state(&self) -> PhysicalState {
             PhysicalState::new(
                 PhysicalQuantity::Concentration,
-                PhysicalData::uniform_vector(self.points, 0.0)
+                PhysicalData::uniform_vector(self.points, 0.0),
             )
         }
 
@@ -398,7 +395,7 @@ mod tests {
         // Create simple scenario
         let model = Box::new(ConstantGrowth {
             points: 10,
-            growth_rate: 1.0
+            growth_rate: 1.0,
         });
 
         let initial = model.setup_initial_state();
@@ -419,7 +416,7 @@ mod tests {
         // Create scenario
         let model = Box::new(ConstantGrowth {
             points: 10,
-            growth_rate: 1.0
+            growth_rate: 1.0,
         });
 
         let initial = model.setup_initial_state();
@@ -440,7 +437,7 @@ mod tests {
         // Create scenario
         let model = Box::new(ConstantGrowth {
             points: 10,
-            growth_rate: 1.0
+            growth_rate: 1.0,
         });
 
         let initial = model.setup_initial_state();
@@ -464,7 +461,7 @@ mod tests {
 
         let model = Box::new(ConstantGrowth {
             points: 5,
-            growth_rate
+            growth_rate,
         });
 
         let initial = model.setup_initial_state();
@@ -481,11 +478,12 @@ mod tests {
 
         // Check final value as y(10) = 2.0 * 10.0 + 0.0
         // y(10) = 20.0
-        let final_state = result.final_state
+        let final_state = result
+            .final_state
             .get(PhysicalQuantity::Concentration)
             .unwrap();
 
-        let expected_concentration = growth_rate * total_time ;
+        let expected_concentration = growth_rate * total_time;
         let actual_concentration = final_state.as_vector()[0];
 
         // Check result should be exact
@@ -503,7 +501,7 @@ mod tests {
 
         let model = Box::new(ExponentialDecay {
             points: 5,
-            decay_rate
+            decay_rate,
         });
 
         let initial = model.setup_initial_state();
@@ -511,13 +509,14 @@ mod tests {
         let scenario = Scenario::new(model, boundaries);
 
         let total_time = 10.0;
-        let time_step = 1000 ;
+        let time_step = 1000;
         let config = SolverConfiguration::time_evolution(total_time, time_step);
 
         let result = solver.solve(&scenario, &config).unwrap();
 
-        let expected = (- decay_rate * total_time).exp();
-        let final_concentration = result.final_state
+        let expected = (-decay_rate * total_time).exp();
+        let final_concentration = result
+            .final_state
             .get(PhysicalQuantity::Concentration)
             .unwrap();
         let actual_concentration = final_concentration.as_vector()[0];
@@ -538,7 +537,7 @@ mod tests {
 
         let model = Box::new(ExponentialDecay {
             points: 3,
-            decay_rate
+            decay_rate,
         });
 
         let exact = (-decay_rate * total_time).exp();
@@ -546,7 +545,7 @@ mod tests {
         // Running tests with different timesteps
 
         let vsteps: Vec<usize> = vec![100, 200, 400, 800];
-        let mut verrors : Vec<f64> = Vec::new();
+        let mut verrors: Vec<f64> = Vec::new();
 
         for &steps in &vsteps {
             let initial = model.setup_initial_state();
@@ -554,15 +553,16 @@ mod tests {
             let scenario = Scenario::new(
                 Box::new(ExponentialDecay {
                     points: 3,
-                    decay_rate
+                    decay_rate,
                 }),
-                boundaries
+                boundaries,
             );
 
             let config = SolverConfiguration::time_evolution(total_time, steps);
             let result = solver.solve(&scenario, &config).unwrap();
 
-            let final_state = result.final_state
+            let final_state = result
+                .final_state
                 .get(PhysicalQuantity::Concentration)
                 .unwrap();
             let actual = final_state.as_vector()[0];
@@ -575,8 +575,12 @@ mod tests {
         for i in 0..verrors.len() - 1 {
             let ratio = verrors[i] / verrors[i + 1];
 
-            assert!(ratio > 1.8 && ratio < 2.2,
-            "Convergence ration {} not a first order at step {}", ratio, i);
+            assert!(
+                ratio > 1.8 && ratio < 2.2,
+                "Convergence ration {} not a first order at step {}",
+                ratio,
+                i
+            );
         }
     }
 
@@ -584,7 +588,6 @@ mod tests {
 
     #[test]
     fn test_euler_trajectory_length() {
-
         let solver = EulerSolver::new();
         let model = Box::new(ConstantGrowth {
             points: 5,
@@ -595,7 +598,7 @@ mod tests {
         let boundaries = DomainBoundaries::temporal(initial);
         let scenario = Scenario::new(model, boundaries);
 
-        let time_steps = 100 ;
+        let time_steps = 100;
         let config = SolverConfiguration::time_evolution(10.0, time_steps);
 
         let result = solver.solve(&scenario, &config).unwrap();
@@ -608,10 +611,9 @@ mod tests {
 
     #[test]
     fn test_euler_time_points() {
-
         let solver = EulerSolver::new();
         let model = Box::new(ConstantGrowth {
-            points:5,
+            points: 5,
             growth_rate: 1.0,
         });
 
@@ -620,7 +622,7 @@ mod tests {
         let scenario = Scenario::new(model, boundaries);
 
         let total_time = 20.0;
-        let time_steps = 100 ;
+        let time_steps = 100;
         let dt = total_time / (time_steps as f64);
 
         let config = SolverConfiguration::time_evolution(total_time, time_steps);
@@ -646,7 +648,6 @@ mod tests {
         // Check a uniform spacing between calculation points even if some small rounding is expected
 
         for i in 1..result.state_trajectory.len() {
-
             let spacing = result.time_points[i] - result.time_points[i - 1];
             assert!(
                 (spacing - dt).abs() <= 1e-12,
@@ -691,7 +692,9 @@ mod tests {
         assert!(
             (final_time - total_time).abs() < 1e-14,
             "Direct calculation maintains precision: {} ≈ {} (error: {:e})",
-            final_time, total_time, (final_time - total_time).abs()
+            final_time,
+            total_time,
+            (final_time - total_time).abs()
         );
     }
 
@@ -717,7 +720,10 @@ mod tests {
         let result = solver.solve(&scenario, &config).unwrap();
 
         // Check metadata
-        assert_eq!(result.metadata.get("solver"), Some(&"Forward Euler".to_string()));
+        assert_eq!(
+            result.metadata.get("solver"),
+            Some(&"Forward Euler".to_string())
+        );
         assert_eq!(result.metadata.get("time steps"), Some(&"500".to_string()));
         assert_eq!(result.metadata.get("total time"), Some(&"100".to_string()));
 
@@ -827,11 +833,10 @@ mod tests {
 
     #[test]
     fn test_euler_single_step() {
-
         let solver = EulerSolver::new();
         let model = Box::new(ConstantGrowth {
-            points:3,
-            growth_rate: 5.0
+            points: 3,
+            growth_rate: 5.0,
         });
 
         let initial = model.setup_initial_state();
@@ -848,7 +853,8 @@ mod tests {
 
         // y(1) = 0 + 5 * 1
 
-        let final_state = result.final_state
+        let final_state = result
+            .final_state
             .get(PhysicalQuantity::Concentration)
             .unwrap();
 
@@ -857,7 +863,6 @@ mod tests {
 
     #[test]
     fn test_euler_multiple_quantity() {
-
         // Simulation with two different PhysicalQuantity
 
         struct MultiQuantityModel {
@@ -865,10 +870,11 @@ mod tests {
         }
 
         impl PhysicalModel for MultiQuantityModel {
-            fn points(&self) -> usize { self.points }
+            fn points(&self) -> usize {
+                self.points
+            }
 
             fn compute_physics(&self, _state: &PhysicalState) -> PhysicalState {
-
                 let mut result = PhysicalState::empty();
 
                 result.set(
@@ -878,7 +884,7 @@ mod tests {
 
                 result.set(
                     PhysicalQuantity::Temperature,
-                    PhysicalData::uniform_vector(self.points, 0.1)
+                    PhysicalData::uniform_vector(self.points, 0.1),
                 );
 
                 result
@@ -903,7 +909,7 @@ mod tests {
         }
 
         let solver = EulerSolver::new();
-        let model = Box::new(MultiQuantityModel {points: 5});
+        let model = Box::new(MultiQuantityModel { points: 5 });
         let initial = model.setup_initial_state();
         let boundaries = DomainBoundaries::temporal(initial);
         let scenario = Scenario::new(model, boundaries);
@@ -913,7 +919,8 @@ mod tests {
 
         // Check concentration as y(10) = 0 + 10*1 = 10
 
-        let final_concentration = result.final_state
+        let final_concentration = result
+            .final_state
             .get(PhysicalQuantity::Concentration)
             .unwrap();
 
@@ -921,11 +928,11 @@ mod tests {
 
         // Check temperature as t(10) = -273.15 + 10*0.1 = -272.15
 
-        let final_temperature = result.final_state
+        let final_temperature = result
+            .final_state
             .get(PhysicalQuantity::Temperature)
             .unwrap();
 
         assert!((final_temperature.as_vector()[0] + 272.15).abs() < 1e-10); // - (- 272.15)
     }
 }
-

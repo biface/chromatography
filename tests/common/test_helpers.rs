@@ -1,8 +1,8 @@
 //! Helper functions for integration tests
 
-use chrom_rs::physics::{PhysicalState, PhysicalQuantity};
-use chrom_rs::solver::{Scenario, DomainBoundaries};
 use chrom_rs::physics::PhysicalModel;
+use chrom_rs::physics::{PhysicalQuantity, PhysicalState};
+use chrom_rs::solver::{DomainBoundaries, Scenario};
 
 /// Assert that two physical states are close (within tolerance)
 pub fn assert_states_close(
@@ -27,7 +27,10 @@ pub fn assert_states_close(
                 assert!(
                     diff < tolerance,
                     "{}: Element {} differs by {} (tolerance {})",
-                    message, i, diff, tolerance
+                    message,
+                    i,
+                    diff,
+                    tolerance
                 );
             }
         }
@@ -62,9 +65,7 @@ pub fn compute_l2_error(state1: &PhysicalState, state2: &PhysicalState) -> f64 {
 }
 
 /// Create a simple scenario for testing
-pub fn create_simple_scenario(
-    model: Box<dyn PhysicalModel>,
-) -> Scenario {
+pub fn create_simple_scenario(model: Box<dyn PhysicalModel>) -> Scenario {
     let initial = model.setup_initial_state();
     let boundaries = DomainBoundaries::temporal(initial);
     Scenario::new(model, boundaries)

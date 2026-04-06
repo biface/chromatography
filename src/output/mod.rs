@@ -66,22 +66,13 @@
 //! - `examples/output_demo.rs` - Complete output pipeline
 //! - `examples/tfa_export.rs` - TFA chromatogram export
 
-pub mod visualization;
 pub mod export;
+pub mod visualization;
 
 // Re-export commonly used items for convenience
 pub use visualization::{
-    plot_steady_state,
-    plot_steady_state_comparison,
-    plot_profile_evolution,
-    plot_chromatogram,
-    plot_chromatogram_multi,
-    plot_chromatograms_comparison,
-    PlotConfig,
+    PlotConfig, plot_chromatogram, plot_chromatogram_multi, plot_chromatograms_comparison,
+    plot_profile_evolution, plot_steady_state, plot_steady_state_comparison,
 };
 
-pub use export::{
-    CsvConfig,
-    CsvError,
-    CsvExporter
-};
+pub use export::{CsvConfig, CsvError, CsvExporter};

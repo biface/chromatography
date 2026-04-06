@@ -104,4 +104,3 @@ pub mod rk4;
 // Re-exports for convenience
 pub use euler::EulerSolver;
 pub use rk4::RK4Solver;
-

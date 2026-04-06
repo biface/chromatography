@@ -13,8 +13,8 @@
 //! - **PhysicalModel**: Physics equations (isotherms, kinetics, etc.)
 //! - **Solver**: Numerical methods (Euler, RK4, etc.)
 
-use std::collections::HashMap;
 use crate::physics::data::PhysicalData;
+use std::collections::HashMap;
 
 // =================================================================================================
 // Physical Quantities (Type-safe Identifiers)
@@ -345,7 +345,6 @@ impl PhysicalState {
         self.metadata.insert(key, value);
     }
 
-
     /// Estimate total memory usage in bytes
     ///
     /// # Example
@@ -362,7 +361,10 @@ impl PhysicalState {
     /// // Output: Memory usage: 2400 bytes (100 × 3 × 8)
     /// ```
     pub fn memory_bytes(&self) -> usize {
-        self.quantities.values().map(|data| data.memory_bytes()).sum()
+        self.quantities
+            .values()
+            .map(|data| data.memory_bytes())
+            .sum()
     }
 
     /// Number of quantities stored
@@ -723,7 +725,7 @@ mod tests {
     fn test_physical_state_from_scalar() {
         let state = PhysicalState::new(
             PhysicalQuantity::Custom("Viscosity"),
-            PhysicalData::Scalar(0.15)
+            PhysicalData::Scalar(0.15),
         );
 
         assert!(!state.is_empty());
@@ -732,47 +734,67 @@ mod tests {
     }
 
     #[test]
-    fn test_retrieve_physical_data () {
-        let state = PhysicalState::new(
-            PhysicalQuantity::Temperature,
-            PhysicalData::Scalar(348.15)
+    fn test_retrieve_physical_data() {
+        let state = PhysicalState::new(PhysicalQuantity::Temperature, PhysicalData::Scalar(348.15));
+        assert!(
+            state
+                .available_quantities()
+                .contains(&PhysicalQuantity::Temperature)
         );
-        assert!(state.available_quantities().contains(&PhysicalQuantity::Temperature));
-        assert_eq!(state.get(PhysicalQuantity::Temperature).unwrap().as_scalar(), 348.15); // is 75 °C
+        assert_eq!(
+            state
+                .get(PhysicalQuantity::Temperature)
+                .unwrap()
+                .as_scalar(),
+            348.15
+        ); // is 75 °C
     }
 
     #[test]
     fn test_physical_state_from_vector() {
         let state = PhysicalState::new(
             PhysicalQuantity::Velocity,
-            PhysicalData::from_vec(vec![25.0, 10.0, 33.0])
+            PhysicalData::from_vec(vec![25.0, 10.0, 33.0]),
         );
 
         assert_eq!(state.len(), 1);
         assert!(state.get(PhysicalQuantity::Velocity).unwrap().is_vector());
-        assert_eq!(state.get(PhysicalQuantity::Velocity).unwrap().as_vector().len(), 3);
+        assert_eq!(
+            state
+                .get(PhysicalQuantity::Velocity)
+                .unwrap()
+                .as_vector()
+                .len(),
+            3
+        );
     }
 
     #[test]
     fn test_physical_state_from_matrix() {
         let state = PhysicalState::new(
             PhysicalQuantity::Custom("Viscosity"),
-            PhysicalData::Matrix(
-                DMatrix::from_row_slice(3, 3,
-                                        &[
-                                            0.12, 0.5, 0.01,
-                                            0.2, 0.23, 0.6,
-                                            0.0, 0.0, 1.0,]))
+            PhysicalData::Matrix(DMatrix::from_row_slice(
+                3,
+                3,
+                &[0.12, 0.5, 0.01, 0.2, 0.23, 0.6, 0.0, 0.0, 1.0],
+            )),
         );
 
         assert_eq!(state.len(), 1);
-        assert!(state.get(PhysicalQuantity::Custom("Viscosity"))
-            .unwrap()
-            .is_matrix());
-        assert_eq!(state.get(PhysicalQuantity::Custom("Viscosity"))
-                       .unwrap()
-                       .as_matrix()
-                       .shape(), (3,3));
+        assert!(
+            state
+                .get(PhysicalQuantity::Custom("Viscosity"))
+                .unwrap()
+                .is_matrix()
+        );
+        assert_eq!(
+            state
+                .get(PhysicalQuantity::Custom("Viscosity"))
+                .unwrap()
+                .as_matrix()
+                .shape(),
+            (3, 3)
+        );
     }
 
     #[test]
@@ -783,15 +805,26 @@ mod tests {
 
         assert_eq!(state.len(), 1);
 
-        assert!(state.get(PhysicalQuantity::Temperature).unwrap().is_scalar());
-        assert_eq!(state.get(PhysicalQuantity::Temperature).unwrap().as_scalar(), 348.15);
+        assert!(
+            state
+                .get(PhysicalQuantity::Temperature)
+                .unwrap()
+                .is_scalar()
+        );
+        assert_eq!(
+            state
+                .get(PhysicalQuantity::Temperature)
+                .unwrap()
+                .as_scalar(),
+            348.15
+        );
     }
 
     #[test]
     fn test_get_mut_physical_state() {
         let mut state = PhysicalState::new(
             PhysicalQuantity::Concentration,
-            PhysicalData::uniform_vector(100, 0.1)
+            PhysicalData::uniform_vector(100, 0.1),
         );
 
         if let Some(concentration) = state.get_mut(PhysicalQuantity::Concentration) {
@@ -799,14 +832,20 @@ mod tests {
         }
 
         assert_eq!(state.len(), 1);
-        assert_eq!(state.get(PhysicalQuantity::Concentration).unwrap().as_vector()[10], 1.0);
+        assert_eq!(
+            state
+                .get(PhysicalQuantity::Concentration)
+                .unwrap()
+                .as_vector()[10],
+            1.0
+        );
     }
 
     #[test]
     fn test_remove_quantity() {
         let mut state = PhysicalState::new(
             PhysicalQuantity::Temperature,
-            PhysicalData::from_scalar(300.0)
+            PhysicalData::from_scalar(300.0),
         );
 
         assert!(!state.is_empty());
@@ -824,9 +863,18 @@ mod tests {
     fn test_available_quantities() {
         let mut state = PhysicalState::empty();
 
-        state.set(PhysicalQuantity::Concentration, PhysicalData::from_scalar(1.0));
-        state.set(PhysicalQuantity::Temperature, PhysicalData::from_scalar(298.15));
-        state.set(PhysicalQuantity::Pressure, PhysicalData::from_scalar(101325.0));
+        state.set(
+            PhysicalQuantity::Concentration,
+            PhysicalData::from_scalar(1.0),
+        );
+        state.set(
+            PhysicalQuantity::Temperature,
+            PhysicalData::from_scalar(298.15),
+        );
+        state.set(
+            PhysicalQuantity::Pressure,
+            PhysicalData::from_scalar(101325.0),
+        );
 
         let quantities = state.available_quantities();
         assert_eq!(quantities.len(), 3);
@@ -867,16 +915,25 @@ mod tests {
         let mut state = PhysicalState::empty();
 
         // Scalar: 8 bytes
-        state.set(PhysicalQuantity::Temperature, PhysicalData::from_scalar(298.15));
+        state.set(
+            PhysicalQuantity::Temperature,
+            PhysicalData::from_scalar(298.15),
+        );
         assert_eq!(state.memory_bytes(), 8);
 
         // Vector[100]: 800 bytes
-        state.set(PhysicalQuantity::Concentration, PhysicalData::uniform_vector(100, 1.0));
-        assert_eq!(state.memory_bytes(), 808);  // 8 + 800
+        state.set(
+            PhysicalQuantity::Concentration,
+            PhysicalData::uniform_vector(100, 1.0),
+        );
+        assert_eq!(state.memory_bytes(), 808); // 8 + 800
 
         // Matrix[100, 3]: 2400 bytes
-        state.set(PhysicalQuantity::Pressure, PhysicalData::uniform_matrix(100, 3, 1.0));
-        assert_eq!(state.memory_bytes(), 3208);  // 8 + 800 + 2400
+        state.set(
+            PhysicalQuantity::Pressure,
+            PhysicalData::uniform_matrix(100, 3, 1.0),
+        );
+        assert_eq!(state.memory_bytes(), 3208); // 8 + 800 + 2400
     }
 
     // ================================== Arithmetic Operators ==================================
@@ -885,12 +942,12 @@ mod tests {
     fn test_add_states_same_quantities() {
         let state1 = PhysicalState::new(
             PhysicalQuantity::Concentration,
-            PhysicalData::uniform_vector(100, 1.0)
+            PhysicalData::uniform_vector(100, 1.0),
         );
 
         let state2 = PhysicalState::new(
             PhysicalQuantity::Concentration,
-            PhysicalData::uniform_vector(100, 0.5)
+            PhysicalData::uniform_vector(100, 0.5),
         );
 
         let result = state1 + state2;
@@ -903,10 +960,16 @@ mod tests {
     #[test]
     fn test_add_states_different_quantities() {
         let mut state1 = PhysicalState::empty();
-        state1.set(PhysicalQuantity::Concentration, PhysicalData::from_scalar(1.0));
+        state1.set(
+            PhysicalQuantity::Concentration,
+            PhysicalData::from_scalar(1.0),
+        );
 
         let mut state2 = PhysicalState::empty();
-        state2.set(PhysicalQuantity::Temperature, PhysicalData::from_scalar(298.15));
+        state2.set(
+            PhysicalQuantity::Temperature,
+            PhysicalData::from_scalar(298.15),
+        );
 
         let result = state1 + state2;
 
@@ -918,26 +981,59 @@ mod tests {
     #[test]
     fn test_add_states_overlapping() {
         let mut state1 = PhysicalState::empty();
-        state1.set(PhysicalQuantity::Concentration, PhysicalData::from_scalar(1.0));
-        state1.set(PhysicalQuantity::Temperature, PhysicalData::from_scalar(300.0));
+        state1.set(
+            PhysicalQuantity::Concentration,
+            PhysicalData::from_scalar(1.0),
+        );
+        state1.set(
+            PhysicalQuantity::Temperature,
+            PhysicalData::from_scalar(300.0),
+        );
 
         let mut state2 = PhysicalState::empty();
-        state2.set(PhysicalQuantity::Concentration, PhysicalData::from_scalar(0.5));
-        state2.set(PhysicalQuantity::Pressure, PhysicalData::from_scalar(101325.0));
+        state2.set(
+            PhysicalQuantity::Concentration,
+            PhysicalData::from_scalar(0.5),
+        );
+        state2.set(
+            PhysicalQuantity::Pressure,
+            PhysicalData::from_scalar(101325.0),
+        );
 
         let result = state1 + state2;
 
         assert_eq!(result.len(), 3);
-        assert_eq!(result.get(PhysicalQuantity::Concentration).unwrap().as_scalar(), 1.5);
-        assert_eq!(result.get(PhysicalQuantity::Temperature).unwrap().as_scalar(), 300.0);
-        assert_eq!(result.get(PhysicalQuantity::Pressure).unwrap().as_scalar(), 101325.0);
+        assert_eq!(
+            result
+                .get(PhysicalQuantity::Concentration)
+                .unwrap()
+                .as_scalar(),
+            1.5
+        );
+        assert_eq!(
+            result
+                .get(PhysicalQuantity::Temperature)
+                .unwrap()
+                .as_scalar(),
+            300.0
+        );
+        assert_eq!(
+            result.get(PhysicalQuantity::Pressure).unwrap().as_scalar(),
+            101325.0
+        );
     }
 
     #[test]
     fn test_mul_scalar() {
         let mut state = PhysicalState::empty();
-        state.set(PhysicalQuantity::Concentration, PhysicalData::uniform_vector(100, 2.0));
-        state.set(PhysicalQuantity::Temperature, PhysicalData::from_scalar(300.0));
+        state.set(
+            PhysicalQuantity::Concentration,
+            PhysicalData::uniform_vector(100, 2.0),
+        );
+        state.set(
+            PhysicalQuantity::Temperature,
+            PhysicalData::from_scalar(300.0),
+        );
 
         let scaled = state * 0.5;
 

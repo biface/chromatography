@@ -87,13 +87,10 @@
 //! - **Langmuir 1D**: 1D chromatography with modified Langmuir isotherm
 
 // module declaration
-pub mod traits;
 pub mod data;
+pub mod traits;
 // Model implementation
 
 // re-export commonly used types for convenience
 pub use data::PhysicalData;
-pub use traits::{
-    PhysicalModel,
-    PhysicalQuantity,
-    PhysicalState, };
+pub use traits::{PhysicalModel, PhysicalQuantity, PhysicalState};

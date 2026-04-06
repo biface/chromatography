@@ -60,12 +60,12 @@
 //! - > 5×: Extra overhead in RK4 (cache misses, allocations)
 //! - < 3×: Unexpected optimization (check black_box usage)
 
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, SamplingMode};
+use chrom_rs::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
+use chrom_rs::solver::{DomainBoundaries, Scenario, Solver, SolverConfiguration};
+use chrom_rs::solver::{EulerSolver, RK4Solver};
+use criterion::{BenchmarkId, Criterion, SamplingMode, criterion_group, criterion_main};
 use std::hint::black_box;
 use std::time::Duration;
-use chrom_rs::solver::{Solver, SolverConfiguration, Scenario, DomainBoundaries};
-use chrom_rs::solver::{EulerSolver, RK4Solver};
-use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
 
 // =================================================================================================
 // Simple Model for Benchmarking
@@ -162,42 +162,40 @@ fn benchmark_euler_solver(c: &mut Criterion) {
     let mut group = c.benchmark_group("Forward Euler Solver");
 
     for points in [10, 50, 100, 500].iter() {
-        group.bench_with_input(
-            BenchmarkId::from_parameter(points),
-            points,
-            |b, &points| {
-                // Setup phase (NOT measured by criterion)
-                // ==========================================
-                
-                // Create model with specified number of points
-                let model = Box::new(SimpleModel { points });
-                
-                // Setup initial state: all points at concentration = 1.0
-                let initial = model.setup_initial_state();
-                
-                // Create temporal domain (ODE problem)
-                let boundaries = DomainBoundaries::temporal(initial);
-                
-                // Package model + boundaries into scenario
-                let scenario = Scenario::new(model, boundaries);
-                
-                // Configure solver: 10 seconds, 100 steps → dt = 0.1s
-                let config = SolverConfiguration::time_evolution(10.0, 100);
-                
-                // Create solver instance
-                let solver = EulerSolver::new();
+        group.bench_with_input(BenchmarkId::from_parameter(points), points, |b, &points| {
+            // Setup phase (NOT measured by criterion)
+            // ==========================================
 
-                // Measurement phase (THIS is what criterion measures)
-                // ====================================================
-                b.iter(|| {
-                    // black_box prevents compiler from:
-                    // 1. Caching the result across iterations
-                    // 2. Eliminating "unused" computations
-                    // 3. Inlining everything and optimizing away
-                    solver.solve(black_box(&scenario), black_box(&config)).unwrap()
-                });
-            },
-        );
+            // Create model with specified number of points
+            let model = Box::new(SimpleModel { points });
+
+            // Setup initial state: all points at concentration = 1.0
+            let initial = model.setup_initial_state();
+
+            // Create temporal domain (ODE problem)
+            let boundaries = DomainBoundaries::temporal(initial);
+
+            // Package model + boundaries into scenario
+            let scenario = Scenario::new(model, boundaries);
+
+            // Configure solver: 10 seconds, 100 steps → dt = 0.1s
+            let config = SolverConfiguration::time_evolution(10.0, 100);
+
+            // Create solver instance
+            let solver = EulerSolver::new();
+
+            // Measurement phase (THIS is what criterion measures)
+            // ====================================================
+            b.iter(|| {
+                // black_box prevents compiler from:
+                // 1. Caching the result across iterations
+                // 2. Eliminating "unused" computations
+                // 3. Inlining everything and optimizing away
+                solver
+                    .solve(black_box(&scenario), black_box(&config))
+                    .unwrap()
+            });
+        });
     }
 
     group.finish();
@@ -241,22 +239,20 @@ fn benchmark_rk4_solver(c: &mut Criterion) {
     let mut group = c.benchmark_group("Runge-Kutta (4 steps) Solver");
 
     for points in [10, 50, 100, 500].iter() {
-        group.bench_with_input(
-            BenchmarkId::from_parameter(points),
-            points,
-            |b, &points| {
-                let model = Box::new(SimpleModel { points });
-                let initial = model.setup_initial_state();
-                let boundaries = DomainBoundaries::temporal(initial);
-                let scenario = Scenario::new(model, boundaries);
-                let config = SolverConfiguration::time_evolution(10.0, 100);
-                let solver = RK4Solver::new();
+        group.bench_with_input(BenchmarkId::from_parameter(points), points, |b, &points| {
+            let model = Box::new(SimpleModel { points });
+            let initial = model.setup_initial_state();
+            let boundaries = DomainBoundaries::temporal(initial);
+            let scenario = Scenario::new(model, boundaries);
+            let config = SolverConfiguration::time_evolution(10.0, 100);
+            let solver = RK4Solver::new();
 
-                b.iter(|| {
-                    solver.solve(black_box(&scenario), black_box(&config)).unwrap()
-                });
-            },
-        );
+            b.iter(|| {
+                solver
+                    .solve(black_box(&scenario), black_box(&config))
+                    .unwrap()
+            });
+        });
     }
 
     group.finish();
@@ -337,10 +333,10 @@ fn benchmark_solver_comparison(c: &mut Criterion) {
     // Define test configurations: (points, time_steps, label)
     // These represent realistic use cases from fast prototyping to high-accuracy
     let configurations = vec![
-        (50, 100, "small"),      // Fast prototyping
-        (100, 1000, "medium"),   // Standard simulation
-        (200, 5000, "large"),    // Publication quality
-        // (500, 10000, "xlarge"),  // High-resolution research
+        (50, 100, "small"),    // Fast prototyping
+        (100, 1000, "medium"), // Standard simulation
+        (200, 5000, "large"),  // Publication quality
+                               // (500, 10000, "xlarge"),  // High-resolution research
     ];
 
     // Test each configuration with both solvers
@@ -348,13 +344,13 @@ fn benchmark_solver_comparison(c: &mut Criterion) {
         // Calculate total time based on problem size
         // We use dt ≈ 0.1s, so total_time = time_steps * 0.1
         let total_time = (time_steps as f64) * 0.1;
-        
+
         // Calculate throughput metric: total operations
         // Operations = points × time_steps × evaluations_per_step
         // This allows Criterion to report "Melem/s" throughput
-        let ops_euler = (points * time_steps) as u64;      // 1 eval per step
-        let ops_rk4 = (points * time_steps * 4) as u64;    // 4 evals per step
-        
+        let ops_euler = (points * time_steps) as u64; // 1 eval per step
+        let ops_rk4 = (points * time_steps * 4) as u64; // 4 evals per step
+
         // Benchmark Euler solver
         {
             // Setup (not measured)
@@ -364,25 +360,24 @@ fn benchmark_solver_comparison(c: &mut Criterion) {
             let scenario = Scenario::new(model, boundaries);
             let config = SolverConfiguration::time_evolution(total_time, time_steps);
             let solver = EulerSolver::new();
-            
+
             // Set throughput for this specific test
             // Criterion will display results as "X Melem/s"
             group.throughput(criterion::Throughput::Elements(ops_euler));
-            
+
             // Benchmark ID format: "euler_50pts_100steps"
             group.bench_function(
                 format!("Forward Euler {} points & {} steps", points, time_steps),
                 |b| {
                     b.iter(|| {
-                        solver.solve(
-                            black_box(&scenario),
-                            black_box(&config)
-                        ).unwrap()
+                        solver
+                            .solve(black_box(&scenario), black_box(&config))
+                            .unwrap()
                     });
                 },
             );
         }
-        
+
         // Benchmark RK4 solver (same problem)
         {
             // Setup (not measured)
@@ -392,18 +387,17 @@ fn benchmark_solver_comparison(c: &mut Criterion) {
             let scenario = Scenario::new(model, boundaries);
             let config = SolverConfiguration::time_evolution(total_time, time_steps);
             let solver = RK4Solver::new();
-            
+
             // RK4 does 4× more operations, so throughput is different
             group.throughput(criterion::Throughput::Elements(ops_rk4));
-            
+
             group.bench_function(
                 format!("Runge-Kutta 4 {} points & {} steps", points, time_steps),
                 |b| {
                     b.iter(|| {
-                        solver.solve(
-                            black_box(&scenario),
-                            black_box(&config)
-                        ).unwrap()
+                        solver
+                            .solve(black_box(&scenario), black_box(&config))
+                            .unwrap()
                     });
                 },
             );
@@ -470,7 +464,7 @@ fn benchmark_exhaustive_comparison(c: &mut Criterion) {
     // Progression
 
     group.significance_level(0.1);
-    
+
     // Fine-grained test points
     let points_values = vec![50, 100, 200];
     // ⚠️ time_steps réduit : 10 000 pas × 200 points × 50 samples = plusieurs heures.
@@ -478,23 +472,28 @@ fn benchmark_exhaustive_comparison(c: &mut Criterion) {
     // ⚠️ time_steps capped: 10,000 steps × 200 points × 50 samples = multi-hour run.
     //    Capped at 5,000; increase with caution.
     let time_steps_values = vec![100, 500, 1000, 5000];
-    
+
     // ⚠️  println! interdit ici : Criterion utilise stdout pour ses tableaux de résultats.
     //     Tout affichage diagnostic doit passer par eprintln! (stderr).
     // ⚠️  println! is forbidden here: Criterion uses stdout for its result tables.
     //     All diagnostic output must go through eprintln! (stderr).
     eprintln!("\n🔬 Running exhaustive comparison:");
-    eprintln!("   {} points configs × {} time_steps configs × 2 solvers",
-             points_values.len(), time_steps_values.len());
-    eprintln!("   = {} benchmarks total",
-             points_values.len() * time_steps_values.len() * 2);
+    eprintln!(
+        "   {} points configs × {} time_steps configs × 2 solvers",
+        points_values.len(),
+        time_steps_values.len()
+    );
+    eprintln!(
+        "   = {} benchmarks total",
+        points_values.len() * time_steps_values.len() * 2
+    );
     eprintln!("   This will take several minutes...\n");
-    
+
     // Test all combinations
     for &points in &points_values {
         for &time_steps in &time_steps_values {
             let total_time = (time_steps as f64) * 0.1;
-            
+
             // Test Euler
             {
                 let model = Box::new(SimpleModel { points });
@@ -503,28 +502,27 @@ fn benchmark_exhaustive_comparison(c: &mut Criterion) {
                 let scenario = Scenario::new(model, boundaries);
                 let config = SolverConfiguration::time_evolution(total_time, time_steps);
                 let solver = EulerSolver::new();
-                
+
                 group.throughput(criterion::Throughput::Elements(
-                    (points * time_steps) as u64
+                    (points * time_steps) as u64,
                 ));
-                
+
                 group.bench_with_input(
                     criterion::BenchmarkId::new(
                         "Forward Euler",
-                        format!("{}x{}", points, time_steps)
+                        format!("{}x{}", points, time_steps),
                     ),
                     &(points, time_steps),
                     |b, _| {
                         b.iter(|| {
-                            solver.solve(
-                                black_box(&scenario),
-                                black_box(&config)
-                            ).unwrap()
+                            solver
+                                .solve(black_box(&scenario), black_box(&config))
+                                .unwrap()
                         });
                     },
                 );
             }
-            
+
             // Test RK4
             {
                 let model = Box::new(SimpleModel { points });
@@ -533,30 +531,29 @@ fn benchmark_exhaustive_comparison(c: &mut Criterion) {
                 let scenario = Scenario::new(model, boundaries);
                 let config = SolverConfiguration::time_evolution(total_time, time_steps);
                 let solver = RK4Solver::new();
-                
+
                 group.throughput(criterion::Throughput::Elements(
-                    (points * time_steps * 4) as u64
+                    (points * time_steps * 4) as u64,
                 ));
-                
+
                 group.bench_with_input(
                     criterion::BenchmarkId::new(
                         "Runge-Kutta",
-                        format!("{}x{}", points, time_steps)
+                        format!("{}x{}", points, time_steps),
                     ),
                     &(points, time_steps),
                     |b, _| {
                         b.iter(|| {
-                            solver.solve(
-                                black_box(&scenario),
-                                black_box(&config)
-                            ).unwrap()
+                            solver
+                                .solve(black_box(&scenario), black_box(&config))
+                                .unwrap()
                         });
                     },
                 );
             }
         }
     }
-    
+
     group.finish();
 }
 
@@ -713,7 +710,7 @@ Criterion reports throughput automatically:
 euler_50pts_100steps
   Throughput: 3.98 Melem/s
 
-euler_100pts_1000steps  
+euler_100pts_1000steps
   Throughput: 6.47 Melem/s  ← Higher is better!
 
 rk4_50pts_100steps
@@ -902,25 +899,25 @@ from pathlib import Path
 
 def parse_criterion_results():
     """Parse Criterion benchmark results from JSON files"""
-    
+
     base_path = Path("target/criterion/solver_comparison")
     results = {}
-    
+
     for benchmark_dir in base_path.glob("*"):
         if not benchmark_dir.is_dir():
             continue
-            
+
         # Parse benchmark name: "euler_50pts_100steps"
         name = benchmark_dir.name
         json_file = benchmark_dir / "base" / "estimates.json"
-        
+
         if json_file.exists():
             with open(json_file) as f:
                 data = json.load(f)
                 # Extract mean time in nanoseconds
                 mean_ns = data["mean"]["point_estimate"]
                 results[name] = mean_ns / 1e6  # Convert to milliseconds
-    
+
     return results
 
 def extract_config(name):
@@ -934,33 +931,33 @@ def extract_config(name):
 
 def plot_solver_comparison():
     """Create comparison plots"""
-    
+
     results = parse_criterion_results()
-    
+
     # Organize data
     euler_data = []
     rk4_data = []
-    
+
     for name, time_ms in results.items():
         solver, points, time_steps = extract_config(name)
         ops = points * time_steps
-        
+
         if solver == "euler":
             euler_data.append((ops, time_ms, points, time_steps))
         else:
             rk4_data.append((ops, time_ms, points, time_steps))
-    
+
     # Sort by operations
     euler_data.sort()
     rk4_data.sort()
-    
+
     # Create figure with 3 subplots
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
-    
+
     # Plot 1: Time vs Operations (log-log)
     euler_ops, euler_times, _, _ = zip(*euler_data)
     rk4_ops, rk4_times, _, _ = zip(*rk4_data)
-    
+
     ax1.loglog(euler_ops, euler_times, 'o-', label='Euler', linewidth=2, markersize=8)
     ax1.loglog(rk4_ops, rk4_times, 's-', label='RK4', linewidth=2, markersize=8)
     ax1.set_xlabel('Total Operations (points × time_steps)', fontsize=12)
@@ -968,11 +965,11 @@ def plot_solver_comparison():
     ax1.set_title('Scaling with Problem Size', fontsize=14, fontweight='bold')
     ax1.legend(fontsize=11)
     ax1.grid(True, which='both', alpha=0.3)
-    
+
     # Plot 2: RK4/Euler Ratio
     ratios = [rk4_times[i] / euler_times[i] for i in range(len(euler_times))]
     labels = [f"{p}×{t}" for _, _, p, t in euler_data]
-    
+
     ax2.bar(range(len(ratios)), ratios, color=['green' if 3.8 < r < 4.2 else 'orange' for r in ratios])
     ax2.axhline(y=4.0, color='red', linestyle='--', linewidth=2, label='Expected (4.0)')
     ax2.set_xticks(range(len(ratios)))
@@ -982,11 +979,11 @@ def plot_solver_comparison():
     ax2.legend(fontsize=11)
     ax2.grid(True, axis='y', alpha=0.3)
     ax2.set_ylim([3.5, 4.5])
-    
+
     # Plot 3: Cost per Operation
     euler_cost = [t / ops * 1e6 for ops, t, _, _ in euler_data]  # ns/op
     rk4_cost = [t / ops * 1e6 for ops, t, _, _ in rk4_data]
-    
+
     x = range(len(euler_cost))
     width = 0.35
     ax3.bar([i - width/2 for i in x], euler_cost, width, label='Euler', alpha=0.8)
@@ -997,31 +994,31 @@ def plot_solver_comparison():
     ax3.set_title('Efficiency (lower is better)', fontsize=14, fontweight='bold')
     ax3.legend(fontsize=11)
     ax3.grid(True, axis='y', alpha=0.3)
-    
+
     plt.tight_layout()
     plt.savefig('solver_analysis.png', dpi=300, bbox_inches='tight')
     print("📊 Plot saved as solver_analysis.png")
-    
+
     # Print summary table
     print("\n📈 PERFORMANCE SUMMARY")
     print("=" * 70)
     print(f"{'Config':<15} {'Euler':>12} {'RK4':>12} {'Ratio':>10} {'Status':>8}")
     print("-" * 70)
-    
+
     for i in range(len(euler_data)):
         ops, e_time, pts, steps = euler_data[i]
         _, r_time, _, _ = rk4_data[i]
         ratio = r_time / e_time
         status = "✅" if 3.8 < ratio < 4.2 else "⚠️"
-        
+
         print(f"{pts}×{steps:<10} {e_time:>10.2f} ms {r_time:>10.2f} ms {ratio:>9.2f} {status:>8}")
-    
+
     print("=" * 70)
-    
+
     # Recommendations
     avg_ratio = np.mean(ratios)
     print(f"\nAverage RK4/Euler ratio: {avg_ratio:.2f}")
-    
+
     if 3.9 < avg_ratio < 4.1:
         print("✅ Excellent! RK4 overhead is exactly 4× as expected.")
     elif avg_ratio > 4.5:

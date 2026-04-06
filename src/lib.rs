@@ -78,16 +78,9 @@ pub mod prelude {
     //!
     //! use chrom_rs::prelude::*;
     //! ```
-    pub use crate::physics::{PhysicalData,
-                             PhysicalQuantity,
-                             PhysicalState,
-                             PhysicalModel};
     pub use crate::models::TemporalInjection;
-    pub use crate::solver::{Solver,
-                            SolverConfiguration,
-                            SolverType,
-                            Scenario,
-                            SimulationResult,
-                            EulerSolver,
-                            RK4Solver};
+    pub use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
+    pub use crate::solver::{
+        EulerSolver, RK4Solver, Scenario, SimulationResult, Solver, SolverConfiguration, SolverType,
+    };
 }

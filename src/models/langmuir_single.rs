@@ -96,8 +96,8 @@
 //! let result = solver.solve(&scenario, &config).unwrap();
 //! ```
 
-use crate::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
 use crate::models::TemporalInjection;
+use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
 use nalgebra::DVector;
 
 // =================================================================================================
@@ -147,7 +147,6 @@ use nalgebra::DVector;
 #[derive(Clone, Debug)]
 pub struct LangmuirSingle {
     // ── Isotherm parameters ───────────────────────────────────────────────────
-
     /// Linear retention term $\lambda$ **\[dimensionless\]**, must be $\geq 0$
     ///
     /// Represents residual linear retention at low concentrations.
@@ -168,7 +167,6 @@ pub struct LangmuirSingle {
     port_number: f64,
 
     // ── Column geometry ───────────────────────────────────────────────────────
-
     /// Column length $L$ **\[m\]**
     length: f64,
 
@@ -182,7 +180,6 @@ pub struct LangmuirSingle {
     dz: f64,
 
     // ── Derived transport quantities ──────────────────────────────────────────
-
     /// Phase ratio $F_e = (1 - \varepsilon) / \varepsilon$ **\[dimensionless\]** — precomputed
     fe: f64,
 
@@ -190,7 +187,6 @@ pub struct LangmuirSingle {
     ue: f64,
 
     // ── Injection ─────────────────────────────────────────────────────────────
-
     /// Temporal injection profile $C(z=0,\ t)$ at the column inlet
     injection: TemporalInjection,
 }
@@ -323,13 +319,11 @@ impl LangmuirSingle {
     }
 }
 
-
 // =================================================================================================
 // PhysicalModel implementation
 // =================================================================================================
 
 impl PhysicalModel for LangmuirSingle {
-
     /// Returns the number of spatial discretisation points $N_z$
     fn points(&self) -> usize {
         self.nz
@@ -355,7 +349,6 @@ impl PhysicalModel for LangmuirSingle {
     /// **Interior and right boundary** ($i > 0$): standard backward difference
     /// using the real upstream neighbor $C_{i-1}$.
     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
-
         // ── Time ──────────────────────────────────────────────────────────────
         //
         // The solver writes the current simulation time into the state metadata
@@ -421,10 +414,7 @@ impl PhysicalModel for LangmuirSingle {
 
         // Return result as a physical state
 
-        PhysicalState::new(
-            PhysicalQuantity::Concentration,
-            PhysicalData::Vector(dc_dt),
-        )
+        PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(dc_dt))
     }
 
     /// Initialises the column state to zero (empty column)
@@ -444,8 +434,8 @@ impl PhysicalModel for LangmuirSingle {
 
     fn description(&self) -> Option<&str> {
         Some(
-        "Using Langmuir isotherm with time varying inlet BC. \
-        Read from Physical State metadata."
+            "Using Langmuir isotherm with time varying inlet BC. \
+        Read from Physical State metadata.",
         )
     }
 }
@@ -457,24 +447,12 @@ impl PhysicalModel for LangmuirSingle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{ TemporalInjection};
+    use crate::models::TemporalInjection;
 
     fn create_langmuir_single() -> LangmuirSingle {
-        let temporal = TemporalInjection::gaussian(
-            10.0,
-            2.0,
-            1.0);
+        let temporal = TemporalInjection::gaussian(10.0, 2.0, 1.0);
 
-        LangmuirSingle::new(
-            1.2,
-            0.4,
-            2.0,
-            0.4,
-            0.001,
-            0.25,
-            100,
-            temporal,
-        )
+        LangmuirSingle::new(1.2, 0.4, 2.0, 0.4, 0.001, 0.25, 100, temporal)
     }
 
     #[test]
@@ -557,8 +535,10 @@ mod tests {
         let model = create_langmuir_single();
         let name = model.name();
 
-        assert_eq!(name, String::from("Langmuir single specie with temporal injection"));
-
+        assert_eq!(
+            name,
+            String::from("Langmuir single specie with temporal injection")
+        );
     }
 
     #[test]
@@ -566,29 +546,26 @@ mod tests {
         let model = create_langmuir_single();
         let description = model.description().unwrap();
 
-        assert_eq!(description,
-                   String::from(
-                       "Using Langmuir isotherm with time varying inlet BC. \
+        assert_eq!(
+            description,
+            String::from(
+                "Using Langmuir isotherm with time varying inlet BC. \
                        Read from Physical State metadata."
-                   ));
+            )
+        );
     }
 
     #[test]
     #[should_panic(expected = "Porosity must be in ]0,1[")]
     fn test_invalid_porosity() {
         let injection = TemporalInjection::none();
-        LangmuirSingle::new(
-            1.2, 0.4, 2.0, 1.5, 0.001, 0.25, 100, injection,
-        );
+        LangmuirSingle::new(1.2, 0.4, 2.0, 1.5, 0.001, 0.25, 100, injection);
     }
 
     #[test]
     #[should_panic(expected = "Need at least 2 spatial points")]
     fn test_invalid_points() {
         let injection = TemporalInjection::none();
-        LangmuirSingle::new(
-            1.2, 0.4, 2.0, 0.4, 0.001, 0.25, 1, injection,
-        );
+        LangmuirSingle::new(1.2, 0.4, 2.0, 0.4, 0.001, 0.25, 1, injection);
     }
 }
-

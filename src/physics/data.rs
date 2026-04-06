@@ -23,7 +23,7 @@
 //! | Matrix\[n×m\] | 8nm bytes | 100 points × 3 species |
 //! | Array\[n₁×...×nₖ\] | 8∏nᵢ bytes | 3D spatial + species |
 
-use nalgebra::{DVector, DMatrix};
+use nalgebra::{DMatrix, DVector};
 use ndarray::{Array, ArrayD, IxDyn};
 use std::fmt;
 
@@ -306,13 +306,8 @@ impl PhysicalData {
                     PhysicalData::Scalar(v[remain_index])
                 } else {
                     // Vector[n] → Vector[n-1]
-                    let new_vec = DVector::from_fn(n - 1, |i, _| {
-                        if i < index {
-                            v[i]
-                        } else {
-                            v[i + 1]
-                        }
-                    });
+                    let new_vec =
+                        DVector::from_fn(n - 1, |i, _| if i < index { v[i] } else { v[i + 1] });
 
                     PhysicalData::Vector(new_vec)
                 }
@@ -375,13 +370,8 @@ impl PhysicalData {
                 );
 
                 // Vector → Matrix [n_rows, 2]
-                let matrix = DMatrix::from_fn(n_rows, 2, |i, j| {
-                    if j == 0 {
-                        v[i]
-                    } else {
-                        column[i]
-                    }
-                });
+                let matrix =
+                    DMatrix::from_fn(n_rows, 2, |i, j| if j == 0 { v[i] } else { column[i] });
 
                 PhysicalData::Matrix(matrix)
             }
@@ -398,11 +388,7 @@ impl PhysicalData {
 
                 // Matrix [n, m] → Matrix [n, m+1]
                 let new_matrix = DMatrix::from_fn(n_rows, n_cols + 1, |i, j| {
-                    if j < n_cols {
-                        m[(i, j)]
-                    } else {
-                        column[i]
-                    }
+                    if j < n_cols { m[(i, j)] } else { column[i] }
                 });
 
                 PhysicalData::Matrix(new_matrix)
@@ -524,13 +510,7 @@ impl PhysicalData {
                 );
 
                 // Vector → Matrix [2, n_cols]
-                let matrix = DMatrix::from_fn(2, n_cols, |i, j| {
-                    if i == 0 {
-                        v[j]
-                    } else {
-                        row[j]
-                    }
-                });
+                let matrix = DMatrix::from_fn(2, n_cols, |i, j| if i == 0 { v[j] } else { row[j] });
 
                 PhysicalData::Matrix(matrix)
             }
@@ -547,11 +527,7 @@ impl PhysicalData {
 
                 // Matrix [n, m] → Matrix [n+1, m]
                 let new_matrix = DMatrix::from_fn(n_rows + 1, n_cols, |i, j| {
-                    if i < n_rows {
-                        m[(i, j)]
-                    } else {
-                        row[j]
-                    }
+                    if i < n_rows { m[(i, j)] } else { row[j] }
                 });
 
                 PhysicalData::Matrix(new_matrix)
@@ -597,13 +573,8 @@ impl PhysicalData {
                 );
 
                 // Vector[n] → Vector[n-1]
-                let new_vec = DVector::from_fn(n - 1, |i, _| {
-                    if i < row_index {
-                        v[i]
-                    } else {
-                        v[i + 1]
-                    }
-                });
+                let new_vec =
+                    DVector::from_fn(n - 1, |i, _| if i < row_index { v[i] } else { v[i + 1] });
 
                 PhysicalData::Vector(new_vec)
             }
@@ -681,11 +652,8 @@ impl PhysicalData {
         match self {
             // Scalar → Matrix 2×2
             Self::Scalar(value) => {
-                let matrix = DMatrix::from_row_slice(
-                    2,
-                    2,
-                    &[value, off_diagonal, off_diagonal, diagonal],
-                );
+                let matrix =
+                    DMatrix::from_row_slice(2, 2, &[value, off_diagonal, off_diagonal, diagonal]);
                 PhysicalData::Matrix(matrix)
             }
 
@@ -1175,7 +1143,7 @@ impl fmt::Display for PhysicalData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nalgebra::{DVector, DMatrix};
+    use nalgebra::{DMatrix, DVector};
 
     // ======================================= Constructors =======================================
 
@@ -1210,8 +1178,7 @@ mod tests {
     fn test_from_matrix() {
         let data = PhysicalData::from_matrix(DMatrix::from_element(4, 2, 1.0));
         assert!(data.is_matrix());
-        assert_eq!(data.as_matrix().shape(), (4, 2) );
-
+        assert_eq!(data.as_matrix().shape(), (4, 2));
     }
 
     #[test]
@@ -1229,11 +1196,11 @@ mod tests {
     fn test_uniform_matrix() {
         let data = PhysicalData::from_matrix(DMatrix::from_element(4, 2, 1.0));
         assert!(data.is_matrix());
-        assert_eq!(data.ndim(), 2 );
-        assert_eq!(data.as_matrix().shape(), (4, 2) );
-        assert_eq!(data.shape(), &[4, 2] );
-        assert_eq!(data.as_matrix()[(0,0)], 1.0 );
-        assert_eq!(data.as_matrix()[(3,1)], 1.0);
+        assert_eq!(data.ndim(), 2);
+        assert_eq!(data.as_matrix().shape(), (4, 2));
+        assert_eq!(data.shape(), &[4, 2]);
+        assert_eq!(data.as_matrix()[(0, 0)], 1.0);
+        assert_eq!(data.as_matrix()[(3, 1)], 1.0);
     }
 
     #[test]
@@ -1300,7 +1267,6 @@ mod tests {
         assert_eq!(result.len(), 3);
         assert_eq!(result[0], 2.0);
         assert_eq!(result[1], 3.0);
-
     }
 
     #[test]
@@ -1353,10 +1319,10 @@ mod tests {
 
         let result = data.as_matrix();
 
-        assert_eq!(result.shape(), (3,2));
-        assert_eq!(result[(0,0)], 1.0);
-        assert_eq!(result[(0,1)], 4.0);
-        assert_eq!(result[(2,0)], 3.0);
+        assert_eq!(result.shape(), (3, 2));
+        assert_eq!(result[(0, 0)], 1.0);
+        assert_eq!(result[(0, 1)], 4.0);
+        assert_eq!(result[(2, 0)], 3.0);
     }
 
     #[test]
@@ -1365,8 +1331,8 @@ mod tests {
         let vector = DVector::from_element(100, 0.5);
         data.add_column(&vector);
         let result = data.as_matrix();
-        assert_eq!(result.shape(), (100,3));
-        assert_eq!(result[(0,2)], 0.5);
+        assert_eq!(result.shape(), (100, 3));
+        assert_eq!(result[(0, 2)], 0.5);
     }
 
     #[test]
@@ -1376,8 +1342,8 @@ mod tests {
         data.add_column(&DVector::from_column_slice(&[7.0, 8.0, 9.0]));
 
         let result = data.as_matrix();
-        assert_eq!(result.shape(), (3,3));
-        assert_eq!(result[(0,2)], 7.0);
+        assert_eq!(result.shape(), (3, 3));
+        assert_eq!(result[(0, 2)], 7.0);
     }
 
     #[test]
@@ -1410,7 +1376,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "out of bounds")]
     fn test_remove_column_matrix_wrong_shape() {
-        let mut data = PhysicalData::uniform_matrix(100,5, 1.0);
+        let mut data = PhysicalData::uniform_matrix(100, 5, 1.0);
         data.remove_column(6);
     }
 
@@ -1433,11 +1399,11 @@ mod tests {
 
         let result = data.as_matrix();
         assert_eq!(result.shape(), (11, 2));
-        assert_eq!(result[(0,0)], 1.0);
-        assert_eq!(result[(9,0)], 1.0);
-        assert_eq!(result[(9,1)], 1.0);
-        assert_eq!(result[(10,0)], 2.0);
-        assert_eq!(result[(10,1)], 3.0);
+        assert_eq!(result[(0, 0)], 1.0);
+        assert_eq!(result[(9, 0)], 1.0);
+        assert_eq!(result[(9, 1)], 1.0);
+        assert_eq!(result[(10, 0)], 2.0);
+        assert_eq!(result[(10, 1)], 3.0);
     }
 
     #[test]
@@ -1449,9 +1415,7 @@ mod tests {
 
     #[test]
     fn test_remove_row_matrix_swap_to_vector() {
-        let matrix = DMatrix::from_row_slice(2, 3, &[
-            1.0, 2.0, 3.0,
-            4.0, 5.0, 6.0,]);
+        let matrix = DMatrix::from_row_slice(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
         let mut data = PhysicalData::from_matrix(matrix);
 
@@ -1470,7 +1434,7 @@ mod tests {
 
         data.remove_row(5);
         assert!(data.is_matrix());
-        assert_eq!(data.shape(), &[9,3]);
+        assert_eq!(data.shape(), &[9, 3]);
     }
 
     #[test]
@@ -1502,7 +1466,7 @@ mod tests {
         let data = PhysicalData::uniform_matrix(2, 2, 1.0);
         let result = data.extend_square_matrix(2.0, 0.5);
         assert!(result.is_matrix());
-        assert_eq!(result.shape(), &[3,3]);
+        assert_eq!(result.shape(), &[3, 3]);
         assert_eq!(result.as_matrix()[(0, 0)], 1.0);
         assert_eq!(result.as_matrix()[(0, 1)], 1.0);
         assert_eq!(result.as_matrix()[(0, 2)], 0.5);
@@ -1517,17 +1481,14 @@ mod tests {
     #[test]
     #[should_panic(expected = "square matrices")]
     fn test_extend_matrix_failed() {
-        let data = PhysicalData::from_matrix(
-            DMatrix::from_element(2, 3, 1.0)
-        );
+        let data = PhysicalData::from_matrix(DMatrix::from_element(2, 3, 1.0));
 
         data.extend_square_matrix(2.0, 0.5);
     }
 
     #[test]
     fn test_reduce_square_matrix_swap_to_vector() {
-        let data = PhysicalData::from_matrix(
-            DMatrix::from_element(2, 2, 1.0));
+        let data = PhysicalData::from_matrix(DMatrix::from_element(2, 2, 1.0));
 
         let scalar = data.reduce_square_matrix(0);
         assert!(scalar.is_scalar());
@@ -1536,11 +1497,7 @@ mod tests {
 
     #[test]
     fn test_reduce_square_matrix() {
-        let matrix = DMatrix::from_row_slice(3, 3, &[
-            1.0, 0.5, 0.3,
-            0.5, 2.0, 0.4,
-            0.3, 0.4, 3.0,
-        ]);
+        let matrix = DMatrix::from_row_slice(3, 3, &[1.0, 0.5, 0.3, 0.5, 2.0, 0.4, 0.3, 0.4, 3.0]);
         let data = PhysicalData::Matrix(matrix);
 
         let result = data.reduce_square_matrix(1);
@@ -1560,7 +1517,6 @@ mod tests {
         data.reduce_square_matrix(5);
     }
 
-
     // ======================================= Accessors =======================================
 
     #[test]
@@ -1577,11 +1533,7 @@ mod tests {
 
     #[test]
     fn test_get_column_from_matrix() {
-        let matrix = DMatrix::from_row_slice(3, 3, &[
-            1.0, 2.0, 3.0,
-            4.0, 5.0, 6.0,
-            7.0, 8.0, 9.0,
-        ]);
+        let matrix = DMatrix::from_row_slice(3, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
         let data = PhysicalData::Matrix(matrix);
 
         let col = data.get_column(1).unwrap();
@@ -1606,11 +1558,7 @@ mod tests {
 
     #[test]
     fn test_get_row_from_matrix() {
-        let matrix = DMatrix::from_row_slice(3, 3, &[
-            1.0, 2.0, 3.0,
-            4.0, 5.0, 6.0,
-            7.0, 8.0, 9.0,
-        ]);
+        let matrix = DMatrix::from_row_slice(3, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
         let data = PhysicalData::Matrix(matrix);
 
         let row = data.get_row(1).unwrap();
@@ -1620,7 +1568,6 @@ mod tests {
 
         assert!(data.get_row(5).is_none());
     }
-
 
     // ======================================== Queries ========================================
 
@@ -1660,8 +1607,14 @@ mod tests {
     fn test_shape() {
         assert_eq!(PhysicalData::Scalar(1.0).shape(), vec![]);
         assert_eq!(PhysicalData::uniform_vector(10, 1.0).shape(), vec![10]);
-        assert_eq!(PhysicalData::uniform_matrix(10, 3, 1.0).shape(), vec![10, 3]);
-        assert_eq!(PhysicalData::uniform_array(&[10, 10, 5], 1.0).shape(), vec![10, 10, 5]);
+        assert_eq!(
+            PhysicalData::uniform_matrix(10, 3, 1.0).shape(),
+            vec![10, 3]
+        );
+        assert_eq!(
+            PhysicalData::uniform_array(&[10, 10, 5], 1.0).shape(),
+            vec![10, 10, 5]
+        );
     }
 
     #[test]
@@ -1675,8 +1628,14 @@ mod tests {
     fn test_memory_bytes() {
         assert_eq!(PhysicalData::Scalar(1.0).memory_bytes(), 8);
         assert_eq!(PhysicalData::uniform_vector(100, 1.0).memory_bytes(), 800);
-        assert_eq!(PhysicalData::uniform_matrix(100, 3, 1.0).memory_bytes(), 2400);
-        assert_eq!(PhysicalData::uniform_array(&[10, 10, 10], 1.0).memory_bytes(), 8000);
+        assert_eq!(
+            PhysicalData::uniform_matrix(100, 3, 1.0).memory_bytes(),
+            2400
+        );
+        assert_eq!(
+            PhysicalData::uniform_array(&[10, 10, 10], 1.0).memory_bytes(),
+            8000
+        );
     }
 
     // ==================================== Extractions ====================================
@@ -1723,7 +1682,6 @@ mod tests {
         data.apply(|v| v * v + 2.0 * v + 1.0);
 
         assert_eq!(data.as_scalar(), 1849.0);
-
     }
 
     #[test]
@@ -1741,23 +1699,20 @@ mod tests {
 
     #[test]
     fn test_apply_function_to_matrix() {
-        let mut data = PhysicalData::from_matrix(
-            DMatrix::from_row_slice(3, 2, &[
-                1.0, 2.0, 3.0,
-                4.0, 5.0, 6.0,
-            ]));
+        let mut data = PhysicalData::from_matrix(DMatrix::from_row_slice(
+            3,
+            2,
+            &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        ));
 
-        let result =
-            DMatrix::from_row_slice(3,
-                                    2,
-                                    &[4.0, 9.0, 16.0, 25.0, 36.0, 49.0]);
+        let result = DMatrix::from_row_slice(3, 2, &[4.0, 9.0, 16.0, 25.0, 36.0, 49.0]);
 
         data.apply(|v| v * v + 2.0 * v + 1.0);
         let (rows, cols) = data.as_matrix().shape();
 
         for i in 0..rows - 1 {
             for j in 0..cols - 1 {
-                assert_eq!(data.as_matrix()[(i,j)], result[(i,j)]);
+                assert_eq!(data.as_matrix()[(i, j)], result[(i, j)]);
             }
         }
     }
@@ -1767,7 +1722,7 @@ mod tests {
         let mut data = PhysicalData::uniform_matrix(2000, 2000, 1.0);
         data.apply(|v| v * v + 2.0 * v + 1.0);
 
-        assert_eq!(data.as_matrix()[(500,500)], 4.0);
+        assert_eq!(data.as_matrix()[(500, 500)], 4.0);
     }
 
     #[test]
@@ -1874,5 +1829,4 @@ mod tests {
         let data = PhysicalData::uniform_array(&[10, 10, 5], 1.0);
         assert_eq!(format!("{}", data), "Array[10 × 10 × 5]");
     }
-
 }

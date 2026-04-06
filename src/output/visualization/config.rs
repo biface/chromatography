@@ -91,7 +91,7 @@ impl Default for PlotConfig {
             width: 1024,
             height: 768,
             title: "Plot".to_string(),
-            xlabel: String::new(),  // Set by specific plot type
+            xlabel: String::new(), // Set by specific plot type
             ylabel: "Concentration (mol/L)".to_string(),
             line_color: RED,
             species_colors: None,
@@ -226,7 +226,7 @@ impl PlotConfig {
             MAGENTA,
             CYAN,
             BLACK,
-            RGBColor(255, 165, 0),  // Orange
+            RGBColor(255, 165, 0),   // Orange
             RGBColor(128, 0, 128),   // Purple
             RGBColor(255, 192, 203), // Pink
             RGBColor(165, 42, 42),   // Brown

@@ -3,15 +3,13 @@
 //! These tests verify that the physics and solver modules
 //! work correctly together.
 
-use chrom_rs::solver::{
-    Solver, SolverConfiguration, Scenario, DomainBoundaries,
-};
-use chrom_rs::solver::{EulerSolver, RK4Solver};
 use chrom_rs::physics::{PhysicalModel, PhysicalQuantity};
+use chrom_rs::solver::{DomainBoundaries, Scenario, Solver, SolverConfiguration};
+use chrom_rs::solver::{EulerSolver, RK4Solver};
 
 mod common;
-use common::{ExponentialDecay, ConstantGrowth};
 use common::test_helpers::relative_error;
+use common::{ConstantGrowth, ExponentialDecay};
 
 // =================================================================================================
 // Basic Integration Tests
@@ -36,14 +34,15 @@ fn test_euler_with_exponential_decay() {
     assert!((result.time_points.last().unwrap() - 10.0).abs() < 1e-10);
 
     // Check final value
-    let final_conc = result.final_state
+    let final_conc = result
+        .final_state
         .get(PhysicalQuantity::Concentration)
         .unwrap()
         .as_vector()[0];
 
     // Analytical: y(10) = exp(-0.1 * 10) = exp(-1) ≈ 0.3679
     let expected = (-0.1 * 10.0f64).exp();
-    let error:f64 = relative_error(final_conc, expected);
+    let error: f64 = relative_error(final_conc, expected);
 
     // Euler with dt=0.01 should have ~1% error
     assert!(error < 0.02, "Error {} too large", error);
@@ -58,12 +57,13 @@ fn test_rk4_with_exponential_decay() {
     let scenario = Scenario::new(model, boundaries);
 
     // Solve
-    let config = SolverConfiguration::time_evolution(10.0, 100);  // Fewer steps
+    let config = SolverConfiguration::time_evolution(10.0, 100); // Fewer steps
     let solver = RK4Solver::new();
     let result = solver.solve(&scenario, &config).unwrap();
 
     // Check final value
-    let final_conc = result.final_state
+    let final_conc = result
+        .final_state
         .get(PhysicalQuantity::Concentration)
         .unwrap()
         .as_vector()[0];
@@ -90,7 +90,8 @@ fn test_euler_is_exact_for_constant_growth() {
     let result = solver.solve(&scenario, &config).unwrap();
 
     // Check final value
-    let final_conc = result.final_state
+    let final_conc = result
+        .final_state
         .get(PhysicalQuantity::Concentration)
         .unwrap()
         .as_vector()[0];
@@ -136,13 +137,15 @@ fn test_euler_vs_rk4_same_problem() {
     // Compare errors
     let exact = (-decay_rate * total_time).exp();
 
-    let euler_final = result_euler.final_state
+    let euler_final = result_euler
+        .final_state
         .get(PhysicalQuantity::Concentration)
         .unwrap()
         .as_vector()[0];
     let euler_error = relative_error(euler_final, exact);
 
-    let rk4_final = result_rk4.final_state
+    let rk4_final = result_rk4
+        .final_state
         .get(PhysicalQuantity::Concentration)
         .unwrap()
         .as_vector()[0];
@@ -152,7 +155,8 @@ fn test_euler_vs_rk4_same_problem() {
     assert!(
         rk4_error < euler_error / 10.0,
         "RK4 error {} not much better than Euler error {}",
-        rk4_error, euler_error
+        rk4_error,
+        euler_error
     );
 }
 

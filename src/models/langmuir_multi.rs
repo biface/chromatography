@@ -78,8 +78,8 @@
 //! let config = SolverConfiguration::time_evolution(600.0, 6000);
 //! ```
 
-use std::fmt::format;
 use nalgebra::{DMatrix, DVector};
+use std::fmt::format;
 
 use crate::models::injection::TemporalInjection;
 use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
@@ -171,7 +171,8 @@ impl SpeciesParams {
         lambda: f64,
         langmuir_k: f64,
         port_number: u32,
-        injection: TemporalInjection) -> Self {
+        injection: TemporalInjection,
+    ) -> Self {
         Self {
             name: name.into(),
             lambda,
@@ -339,7 +340,6 @@ impl LangmuirMulti {
         velocity: f64,
         column_length: f64,
     ) -> Result<Self, String> {
-
         // At least, one specie...
         if species.is_empty() {
             return Err("Langmuir multi species must have at least one species.".to_string());
@@ -364,7 +364,9 @@ impl LangmuirMulti {
         }
 
         if n_points < 2 {
-            return Err(format!("number of points must have at least two points, got {n_points}."));
+            return Err(format!(
+                "number of points must have at least two points, got {n_points}."
+            ));
         }
 
         if porosity <= 0.0 || porosity >= 1.0 {
@@ -372,18 +374,21 @@ impl LangmuirMulti {
         }
 
         if velocity <= 0.0 {
-            return Err(format!("velocity must be strictly positive, got {velocity}."));
+            return Err(format!(
+                "velocity must be strictly positive, got {velocity}."
+            ));
         }
 
         if column_length <= 0.0 {
-            return Err(format!("column length must be strictly positive, got {column_length}."));
+            return Err(format!(
+                "column length must be strictly positive, got {column_length}."
+            ));
         }
 
         let dz = column_length / n_points as f64;
         let fe = (1.0 - porosity) / porosity;
         let ue = velocity / porosity;
         let stationary_fraction = 1.0 - porosity;
-
 
         Ok(Self {
             species,
@@ -419,20 +424,17 @@ impl LangmuirMulti {
     /// assert_eq!(model.n_species(), 2);
     /// ```
     pub fn add_species(&mut self, species: SpeciesParams) -> Result<(), String> {
-
         // validate the specie
         species.validate()?;
 
         // Build the set of existing names on the fly
 
-        let names : std::collections::HashSet<&str> = self.species
-            .iter()
-            .map(|s| s.name.as_str())
-            .collect();
+        let names: std::collections::HashSet<&str> =
+            self.species.iter().map(|s| s.name.as_str()).collect();
 
         if names.contains(species.name.as_str()) {
             return Err(format!(
-               "Species '{}' already exists in this model",
+                "Species '{}' already exists in this model",
                 species.name
             ));
         }
@@ -472,16 +474,23 @@ impl LangmuirMulti {
     /// Debug-panics if `c.len() != self.n_species()`.
     pub(crate) fn jacobian(&self, c: &[f64]) -> DMatrix<f64> {
         let n = self.n_species();
-        debug_assert_eq!(n, self.species.len(),
-                         "Jacobian: c.len()={} != n_species={}", c.len(), n);
+        debug_assert_eq!(
+            n,
+            self.species.len(),
+            "Jacobian: c.len()={} != n_species={}",
+            c.len(),
+            n
+        );
 
         // Σ_KC — computed once, shared by all matrix elements
-        let sum_kc: f64 = self.species.iter()
+        let sum_kc: f64 = self
+            .species
+            .iter()
             .zip(c.iter())
             .map(|(sp, &ck)| sp.langmuir_k * ck)
             .sum();
 
-        let denom = 1.0 + sum_kc ;
+        let denom = 1.0 + sum_kc;
         let denom_exp2 = denom * denom;
 
         let mut jacobian = DMatrix::zeros(n, n);
@@ -515,9 +524,13 @@ impl LangmuirMulti {
         let jacobian = self.jacobian(c);
         let mat = DMatrix::identity(n, n) + self.fe * jacobian;
 
-        mat.try_inverse().ok_or_else(|| format!(
-            "Matrix (I + Fe * J) is singular at concentration {:?}. \
-            Please check langmuir K and port number values", c))
+        mat.try_inverse().ok_or_else(|| {
+            format!(
+                "Matrix (I + Fe * J) is singular at concentration {:?}. \
+            Please check langmuir K and port number values",
+                c
+            )
+        })
     }
 }
 
@@ -573,7 +586,10 @@ impl PhysicalModel for LangmuirMulti {
             (c_matrix.nrows(), c_matrix.ncols()),
             (self.n_points, n_species),
             "State matrix shape [{}, {}] expected, got [{}, {}]",
-            self.n_points, n_species, c_matrix.nrows(), c_matrix.ncols()
+            self.n_points,
+            n_species,
+            c_matrix.nrows(),
+            c_matrix.ncols()
         );
 
         // ── Row kernel ────────────────────────────────────────────────────────────
@@ -591,17 +607,14 @@ impl PhysicalModel for LangmuirMulti {
         // Since no two iterations share the same output row, rayon can run them
         // concurrently without data races.
 
-        let compute_row = | i: usize| -> Vec<f64> {
-
+        let compute_row = |i: usize| -> Vec<f64> {
             // Step 1 — Extract concentration vector at point i
             //
             // We collect into Vec<f64> to pass to inverse_propagation, which
             // expects a slice. This is a small allocation (n_species elements,
             // typically 2-5) — negligible cost.
 
-            let c_at_i: Vec<f64> = (0..n_species)
-                .map(|k| c_matrix[(i,k)])
-                .collect();
+            let c_at_i: Vec<f64> = (0..n_species).map(|k| c_matrix[(i, k)]).collect();
 
             // Step 2 — Compute the inverse propagation matrix (I + Fe·M)^{-1}
             //
@@ -617,9 +630,7 @@ impl PhysicalModel for LangmuirMulti {
             let inv = match self.inverse_propagation(&c_at_i) {
                 Ok(m_inv) => m_inv,
                 Err(e) => {
-                    log::warn!(
-                      "LangmuirMulti at point {i}: {e}. Using identity fallback."
-                    );
+                    log::warn!("LangmuirMulti at point {i}: {e}. Using identity fallback.");
                     DMatrix::identity(n_species, n_species)
                 }
             };
@@ -664,7 +675,7 @@ impl PhysicalModel for LangmuirMulti {
             // The result is collected as Vec<f64> — the caller assembles rows
             // into the output matrix dc_dt.
 
-            let dv:DVector<f64> = inv * grad;
+            let dv: DVector<f64> = inv * grad;
             (0..n_species).map(|k| -self.ue * dv[k]).collect()
         };
 
@@ -690,7 +701,7 @@ impl PhysicalModel for LangmuirMulti {
                 // Each call to compute_row(i) is independent: reads from c_matrix
                 // (shared immutable reference) and produces a Vec<f64> for row i.
                 // collect() gathers all rows in index order before assembly.
-                let rows:Vec<Vec<f64>> = (0..n_species)
+                let rows: Vec<Vec<f64>> = (0..n_species)
                     .into_par_iter()
                     .map(|i| compute_row(i))
                     .collect();
@@ -715,10 +726,11 @@ impl PhysicalModel for LangmuirMulti {
             // Below threshold — sequential is faster than spawning threads.
             for i in 0..self.n_points {
                 let row = compute_row(i);
-                for k in 0..n_species { dc_dt[(i, k)] = row[k]; }
+                for k in 0..n_species {
+                    dc_dt[(i, k)] = row[k];
+                }
             }
         }
-
 
         PhysicalState::new(
             PhysicalQuantity::Concentration,
@@ -825,42 +837,57 @@ mod tests {
 
     #[test]
     fn test_new_rejects_n_points_less_than_2() {
-        assert!(LangmuirMulti::new(vec![species("A", 1.0, 0.5, 1)], 1, 0.4, 0.001, 0.25)
-            .unwrap_err().contains("number of points"));
+        assert!(
+            LangmuirMulti::new(vec![species("A", 1.0, 0.5, 1)], 1, 0.4, 0.001, 0.25)
+                .unwrap_err()
+                .contains("number of points")
+        );
     }
 
     #[test]
     fn test_new_rejects_porosity_zero() {
-        assert!(LangmuirMulti::new(vec![species("A", 1.0, 0.5, 1)], 100, 0.0, 0.001, 0.25)
-            .unwrap_err().contains("porosity"));
+        assert!(
+            LangmuirMulti::new(vec![species("A", 1.0, 0.5, 1)], 100, 0.0, 0.001, 0.25)
+                .unwrap_err()
+                .contains("porosity")
+        );
     }
 
     #[test]
     fn test_new_rejects_porosity_one() {
-        assert!(LangmuirMulti::new(vec![species("A", 1.0, 0.5, 1)], 100, 1.0, 0.001, 0.25)
-            .unwrap_err().contains("porosity"));
+        assert!(
+            LangmuirMulti::new(vec![species("A", 1.0, 0.5, 1)], 100, 1.0, 0.001, 0.25)
+                .unwrap_err()
+                .contains("porosity")
+        );
     }
 
     #[test]
     fn test_new_rejects_zero_velocity() {
-        assert!(LangmuirMulti::new(vec![species("A", 1.0, 0.5, 1)], 100, 0.4, 0.0, 0.25)
-            .unwrap_err().contains("velocity"));
+        assert!(
+            LangmuirMulti::new(vec![species("A", 1.0, 0.5, 1)], 100, 0.4, 0.0, 0.25)
+                .unwrap_err()
+                .contains("velocity")
+        );
     }
 
     #[test]
     fn test_new_rejects_zero_length() {
-        assert!(LangmuirMulti::new(vec![species("A", 1.0, 0.5, 1)], 100, 0.4, 0.001, 0.0)
-            .unwrap_err().contains("column length"));
+        assert!(
+            LangmuirMulti::new(vec![species("A", 1.0, 0.5, 1)], 100, 0.4, 0.001, 0.0)
+                .unwrap_err()
+                .contains("column length")
+        );
     }
 
     #[test]
     fn test_new_precomputes_derived_quantities() {
         // ε = 0.4 → Fe = 0.6/0.4 = 1.5 ; ue = 0.001/0.4 = 0.0025 ; dz = 0.25/99
         let m = LangmuirMulti::new(vec![species("A", 1.0, 0.5, 1)], 100, 0.4, 0.001, 0.25).unwrap();
-        assert_relative_eq!(m.fe,                  1.5,          epsilon = 1e-12);
-        assert_relative_eq!(m.ue,                  0.0025,       epsilon = 1e-12);
-        assert_relative_eq!(m.dz,                  0.25 / 100.0,  epsilon = 1e-12);
-        assert_relative_eq!(m.stationary_fraction, 0.6,          epsilon = 1e-12);
+        assert_relative_eq!(m.fe, 1.5, epsilon = 1e-12);
+        assert_relative_eq!(m.ue, 0.0025, epsilon = 1e-12);
+        assert_relative_eq!(m.dz, 0.25 / 100.0, epsilon = 1e-12);
+        assert_relative_eq!(m.stationary_fraction, 0.6, epsilon = 1e-12);
     }
 
     // ── add_species ───────────────────────────────────────────────────────────
@@ -910,9 +937,8 @@ mod tests {
     fn test_jacobian_1x1_with_n_bar_calculation() {
         // N = 2.0 → N̄ = 0.6·2.0 = 1.2 → M₀₀ = 1.0 + 1.2·0.5 = 1.6
         let sp = SpeciesParams::new("T", 1.0, 0.5, 2, inj());
-        let m  = LangmuirMulti::new(vec![sp], 50, 0.4, 0.001, 0.25).unwrap();
-        assert_relative_eq!(m.jacobian(&[0.0])[(0, 0)], 1.0 + 1.2 * 0.5,
-            epsilon = 1e-12);
+        let m = LangmuirMulti::new(vec![sp], 50, 0.4, 0.001, 0.25).unwrap();
+        assert_relative_eq!(m.jacobian(&[0.0])[(0, 0)], 1.0 + 1.2 * 0.5, epsilon = 1e-12);
     }
 
     #[test]
@@ -958,14 +984,18 @@ mod tests {
 
     #[test]
     fn test_inverse_matrix_invertible() {
-        assert!(two_species_model()
-            .inverse_propagation(&[1e-8, 1e-8]).is_ok());
+        assert!(
+            two_species_model()
+                .inverse_propagation(&[1e-8, 1e-8])
+                .is_ok()
+        );
     }
 
     #[test]
     fn test_inverse_matrix_dimensions() {
         let inv = two_species_model()
-            .inverse_propagation(&[1e-8, 1e-8]).unwrap();
+            .inverse_propagation(&[1e-8, 1e-8])
+            .unwrap();
         assert_eq!((inv.nrows(), inv.ncols()), (2, 2));
     }
 
@@ -973,15 +1003,18 @@ mod tests {
     fn test_inverse_matrix_times_original_is_identity() {
         // A · A⁻¹ ≈ I (numerical tolerance 1e-10)
         let model = two_species_model();
-        let c     = &[1e-6, 2e-6];
-        let mat   = DMatrix::identity(2, 2) + model.fe * model.jacobian(c);
-        let inv   = model.inverse_propagation(c).unwrap();
-        let prod  = &mat * &inv;
+        let c = &[1e-6, 2e-6];
+        let mat = DMatrix::identity(2, 2) + model.fe * model.jacobian(c);
+        let inv = model.inverse_propagation(c).unwrap();
+        let prod = &mat * &inv;
         for i in 0..2 {
             for j in 0..2 {
                 let expected = if i == j { 1.0 } else { 0.0 };
-                assert!((prod[(i, j)] - expected).abs() < 1e-10,
-                    "A·A⁻¹[{i},{j}] should be {}", prod[(i,j)]);
+                assert!(
+                    (prod[(i, j)] - expected).abs() < 1e-10,
+                    "A·A⁻¹[{i},{j}] should be {}",
+                    prod[(i, j)]
+                );
             }
         }
     }
@@ -991,13 +1024,18 @@ mod tests {
     #[test]
     fn test_initial_state_is_empty_column() {
         // The column starts empty — injection enters via the boundary condition
-        let mat = two_species_model().setup_initial_state()
-            .get(PhysicalQuantity::Concentration).unwrap()
-            .as_matrix().clone_owned();
+        let mat = two_species_model()
+            .setup_initial_state()
+            .get(PhysicalQuantity::Concentration)
+            .unwrap()
+            .as_matrix()
+            .clone_owned();
 
         assert_eq!((mat.nrows(), mat.ncols()), (100, 2));
-        assert!(mat.iter().all(|&v| v == 0.0),
-                "Initial state must be zero everywhere — injection handled by compute_physics");
+        assert!(
+            mat.iter().all(|&v| v == 0.0),
+            "Initial state must be zero everywhere — injection handled by compute_physics"
+        );
     }
 
     // ── compute_physics — temporal injection ─────────────────────────────────
@@ -1005,8 +1043,11 @@ mod tests {
     #[test]
     fn test_compute_physics_output_shape() {
         let model = two_species_model();
-        let phys  = model.compute_physics(&model.setup_initial_state());
-        let mat   = phys.get(PhysicalQuantity::Concentration).unwrap().as_matrix();
+        let phys = model.compute_physics(&model.setup_initial_state());
+        let mat = phys
+            .get(PhysicalQuantity::Concentration)
+            .unwrap()
+            .as_matrix();
         assert_eq!((mat.nrows(), mat.ncols()), (100, 2));
     }
 
@@ -1014,68 +1055,110 @@ mod tests {
     fn test_compute_physics_reads_time_from_metadata() {
         // Gaussian injection peaking at t=10: inlet effect at t=10 must exceed t=0
         let mut model = LangmuirMulti::new(
-            vec![SpeciesParams::new("A", 1.0, 0.5, 1,
-                               TemporalInjection::gaussian(10.0, 2.0, 0.1))],
-            100, 0.4, 0.001, 0.25,
-        ).unwrap();
-        model.add_species(SpeciesParams::new("B", 1.0, 2.0, 1,
-                                             TemporalInjection::gaussian(10.0, 2.0, 0.1))).unwrap();
+            vec![SpeciesParams::new(
+                "A",
+                1.0,
+                0.5,
+                1,
+                TemporalInjection::gaussian(10.0, 2.0, 0.1),
+            )],
+            100,
+            0.4,
+            0.001,
+            0.25,
+        )
+        .unwrap();
+        model
+            .add_species(SpeciesParams::new(
+                "B",
+                1.0,
+                2.0,
+                1,
+                TemporalInjection::gaussian(10.0, 2.0, 0.1),
+            ))
+            .unwrap();
 
         let mut state = model.setup_initial_state();
 
         state.set_metadata("time".to_string(), 0.0);
-        let dc_t0 = model.compute_physics(&state)
-            .get(PhysicalQuantity::Concentration).unwrap()
-            .as_matrix().clone_owned();
+        let dc_t0 = model
+            .compute_physics(&state)
+            .get(PhysicalQuantity::Concentration)
+            .unwrap()
+            .as_matrix()
+            .clone_owned();
 
         state.set_metadata("time".to_string(), 10.0);
-        let dc_t10 = model.compute_physics(&state)
-            .get(PhysicalQuantity::Concentration).unwrap()
-            .as_matrix().clone_owned();
+        let dc_t10 = model
+            .compute_physics(&state)
+            .get(PhysicalQuantity::Concentration)
+            .unwrap()
+            .as_matrix()
+            .clone_owned();
 
-        assert!(dc_t10[(0, 0)].abs() > dc_t0[(0, 0)].abs(),
-                "Inlet dC/dt for A must be stronger at injection peak (t=10)");
-        assert!(dc_t10[(0, 1)].abs() > dc_t0[(0, 1)].abs(),
-                "Inlet dC/dt for B must be stronger at injection peak (t=10)");
+        assert!(
+            dc_t10[(0, 0)].abs() > dc_t0[(0, 0)].abs(),
+            "Inlet dC/dt for A must be stronger at injection peak (t=10)"
+        );
+        assert!(
+            dc_t10[(0, 1)].abs() > dc_t0[(0, 1)].abs(),
+            "Inlet dC/dt for B must be stronger at injection peak (t=10)"
+        );
     }
 
     #[test]
     fn test_compute_physics_defaults_to_t0_without_metadata() {
         // Without metadata the model must not panic — defaults to t=0.0
         let model = two_species_model();
-        let mat   = model.compute_physics(&model.setup_initial_state())
-            .get(PhysicalQuantity::Concentration).unwrap()
-            .as_matrix().clone_owned();
-        assert!(mat.iter().all(|v| v.is_finite()),
-                "compute_physics must produce finite values when metadata is absent");
+        let mat = model
+            .compute_physics(&model.setup_initial_state())
+            .get(PhysicalQuantity::Concentration)
+            .unwrap()
+            .as_matrix()
+            .clone_owned();
+        assert!(
+            mat.iter().all(|v| v.is_finite()),
+            "compute_physics must produce finite values when metadata is absent"
+        );
     }
 
     #[test]
     fn test_compute_physics_no_nan_or_inf() {
-        let model  = two_species_model();
+        let model = two_species_model();
         let mut st = model.setup_initial_state();
         st.set_metadata("time".to_string(), 5.0);
-        let mat = model.compute_physics(&st)
-            .get(PhysicalQuantity::Concentration).unwrap()
-            .as_matrix().clone_owned();
-        assert!(mat.iter().all(|v| v.is_finite()), "All dC/dt values must be finite");
+        let mat = model
+            .compute_physics(&st)
+            .get(PhysicalQuantity::Concentration)
+            .unwrap()
+            .as_matrix()
+            .clone_owned();
+        assert!(
+            mat.iter().all(|v| v.is_finite()),
+            "All dC/dt values must be finite"
+        );
     }
 
     #[test]
     fn test_compute_physics_interior_zero_on_empty_column() {
         // On an empty column, interior points (i>0) have zero gradient → dC/dt = 0.
         // Row 0 may be non-zero if injection.evaluate(t) > 0 (Dirac at t=0).
-        let model  = two_species_model();
+        let model = two_species_model();
         let mut st = model.setup_initial_state();
         st.set_metadata("time".to_string(), 0.0);
-        let mat = model.compute_physics(&st)
-            .get(PhysicalQuantity::Concentration).unwrap()
-            .as_matrix().clone_owned();
+        let mat = model
+            .compute_physics(&st)
+            .get(PhysicalQuantity::Concentration)
+            .unwrap()
+            .as_matrix()
+            .clone_owned();
 
         for i in 1..100 {
             for k in 0..2 {
-                assert!(mat[(i, k)].abs() < 1e-15,
-                    "dC/dt[{i},{k}] must be 0 for interior of empty column");
+                assert!(
+                    mat[(i, k)].abs() < 1e-15,
+                    "dC/dt[{i},{k}] must be 0 for interior of empty column"
+                );
             }
         }
     }

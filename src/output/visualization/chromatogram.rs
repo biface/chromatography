@@ -61,9 +61,9 @@
 use plotters::prelude::*;
 use std::error::Error;
 
+use super::config::{NO_TITLE, PlotConfig};
 use crate::physics::{PhysicalData, PhysicalQuantity};
 use crate::solver::SimulationResult;
-use super::config::{PlotConfig, NO_TITLE};
 
 // =================================================================================================
 // Helper Functions — Extract Outlet Concentrations
@@ -85,7 +85,8 @@ use super::config::{PlotConfig, NO_TITLE};
 /// * `result`   — Simulation result with state trajectory
 /// * `n_points` — Number of spatial points (to identify the outlet index)
 fn extract_single_species_outlet(result: &SimulationResult, n_points: usize) -> Vec<f64> {
-    result.state_trajectory
+    result
+        .state_trajectory
         .iter()
         .map(|state| {
             match state.get(PhysicalQuantity::Concentration) {
@@ -319,15 +320,27 @@ pub fn plot_chromatogram_multi(
         "svg" => {
             let backend = SVGBackend::new(output_path, (config.width, config.height));
             plot_cumulative_chromatogram_impl(
-                backend, time_points, &outlets, &cumulative, species_names,
-                config, max_time, max_conc,
+                backend,
+                time_points,
+                &outlets,
+                &cumulative,
+                species_names,
+                config,
+                max_time,
+                max_conc,
             )
         }
         _ => {
             let backend = BitMapBackend::new(output_path, (config.width, config.height));
             plot_cumulative_chromatogram_impl(
-                backend, time_points, &outlets, &cumulative, species_names,
-                config, max_time, max_conc,
+                backend,
+                time_points,
+                &outlets,
+                &cumulative,
+                species_names,
+                config,
+                max_time,
+                max_conc,
             )
         }
     }
@@ -416,13 +429,25 @@ pub fn plot_chromatogram_envelope(
         "svg" => {
             let backend = SVGBackend::new(output_path, (config.width, config.height));
             plot_envelope_impl(
-                backend, time_points, &outlets, species_names, config, max_time, max_conc,
+                backend,
+                time_points,
+                &outlets,
+                species_names,
+                config,
+                max_time,
+                max_conc,
             )
         }
         _ => {
             let backend = BitMapBackend::new(output_path, (config.width, config.height));
             plot_envelope_impl(
-                backend, time_points, &outlets, species_names, config, max_time, max_conc,
+                backend,
+                time_points,
+                &outlets,
+                species_names,
+                config,
+                max_time,
+                max_conc,
             )
         }
     }
@@ -552,9 +577,7 @@ where
             ShapeStyle::from(&config.line_color).stroke_width(config.line_width),
         ))?
         .label("Outlet Concentration")
-        .legend(|(x, y)| {
-            PathElement::new(vec![(x, y), (x + 20, y)], &config.line_color)
-        });
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &config.line_color));
 
     chart
         .configure_series_labels()
@@ -584,8 +607,8 @@ where
 fn plot_cumulative_chromatogram_impl<DB: DrawingBackend>(
     backend: DB,
     time_points: &[f64],
-    outlets: &[Vec<f64>],    // [n_species][n_time_steps] — individual contributions
-    cumulative: &[f64],       // [n_time_steps] — Σ_k outlets[k][i]
+    outlets: &[Vec<f64>], // [n_species][n_time_steps] — individual contributions
+    cumulative: &[f64],   // [n_time_steps] — Σ_k outlets[k][i]
     species_names: &[&str],
     config: &PlotConfig,
     max_time: f64,
@@ -623,7 +646,7 @@ where
         let faded_style = ShapeStyle {
             color: base_color.mix(0.35),
             filled: false,
-            stroke_width: 1,  // deliberately thin
+            stroke_width: 1, // deliberately thin
         };
         let label = species_names.get(k).copied().unwrap_or("?");
 
@@ -633,9 +656,7 @@ where
                 faded_style,
             ))?
             .label(label)
-            .legend(move |(x, y)| {
-                PathElement::new(vec![(x, y), (x + 20, y)], base_color.mix(0.5))
-            });
+            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], base_color.mix(0.5)));
     }
 
     // ── 2. Cumulative / total signal (bold) ──────────────────────────────────
@@ -645,9 +666,16 @@ where
     let cumulative_color = RGBColor(150, 150, 150);
     chart
         .draw_series(LineSeries::new(
-            time_points.iter().zip(cumulative.iter()).enumerate()
-                .filter_map(|(i, (t, c))| if i % 5 < 2 {Some((*t, *c))} else {None}),
-            ShapeStyle { color: cumulative_color.to_rgba(), filled: false, stroke_width: config.line_width },
+            time_points
+                .iter()
+                .zip(cumulative.iter())
+                .enumerate()
+                .filter_map(|(i, (t, c))| if i % 5 < 2 { Some((*t, *c)) } else { None }),
+            ShapeStyle {
+                color: cumulative_color.to_rgba(),
+                filled: false,
+                stroke_width: config.line_width,
+            },
         ))?
         .label("Σ Total")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK));
@@ -680,7 +708,7 @@ where
 fn plot_envelope_impl<DB: DrawingBackend>(
     backend: DB,
     time_points: &[f64],
-    outlets: &[Vec<f64>],  // shape: [n_species][n_time_steps]
+    outlets: &[Vec<f64>], // shape: [n_species][n_time_steps]
     species_names: &[&str],
     config: &PlotConfig,
     max_time: f64,
@@ -743,7 +771,7 @@ where
         let envelope_style = ShapeStyle {
             color: envelope_color.to_rgba(),
             filled: false,
-            stroke_width: config.line_width,  // same thickness, dashed via step series
+            stroke_width: config.line_width, // same thickness, dashed via step series
         };
 
         chart
@@ -760,12 +788,10 @@ where
                         // For a true dashed look the step should scale with time resolution.
                         .filter_map(|(i, (t, c))| if i % 2 == 0 { Some((*t, *c)) } else { None }),
                     envelope_style,
-                )
+                ),
             )?
             .label("Envelope")
-            .legend(move |(x, y)| {
-                PathElement::new(vec![(x, y), (x + 20, y)], &envelope_color)
-            });
+            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &envelope_color));
     }
 
     chart
@@ -838,8 +864,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::physics::{PhysicalModel, PhysicalState, PhysicalQuantity};
-    use crate::solver::{Scenario, SolverConfiguration, DomainBoundaries, EulerSolver, Solver};
+    use crate::physics::{PhysicalModel, PhysicalQuantity, PhysicalState};
+    use crate::solver::{DomainBoundaries, EulerSolver, Scenario, Solver, SolverConfiguration};
     use nalgebra::{DMatrix, DVector};
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -852,10 +878,15 @@ mod tests {
     }
 
     impl PhysicalModel for SingleModel {
-        fn points(&self) -> usize { self.n_points }
+        fn points(&self) -> usize {
+            self.n_points
+        }
 
         fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
-            let c = state.get(PhysicalQuantity::Concentration).unwrap().as_vector();
+            let c = state
+                .get(PhysicalQuantity::Concentration)
+                .unwrap()
+                .as_vector();
             let dc_dt = DVector::from_element(c.len(), -0.01);
             PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(dc_dt))
         }
@@ -867,7 +898,9 @@ mod tests {
             )
         }
 
-        fn name(&self) -> &str { "SingleModel" }
+        fn name(&self) -> &str {
+            "SingleModel"
+        }
     }
 
     /// Multi-species model (Matrix state) — mimics LangmuirMulti
@@ -877,10 +910,15 @@ mod tests {
     }
 
     impl PhysicalModel for MultiModel {
-        fn points(&self) -> usize { self.n_points }
+        fn points(&self) -> usize {
+            self.n_points
+        }
 
         fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
-            let m = state.get(PhysicalQuantity::Concentration).unwrap().as_matrix();
+            let m = state
+                .get(PhysicalQuantity::Concentration)
+                .unwrap()
+                .as_matrix();
             let mut dc_dt = DMatrix::zeros(self.n_points, self.n_species);
             for k in 0..self.n_species {
                 let rate = -0.01 * (k + 1) as f64;
@@ -902,7 +940,9 @@ mod tests {
             PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Matrix(c))
         }
 
-        fn name(&self) -> &str { "MultiModel" }
+        fn name(&self) -> &str {
+            "MultiModel"
+        }
     }
 
     // Convenience runners
@@ -910,14 +950,21 @@ mod tests {
         let model = Box::new(SingleModel { n_points: n });
         let init = model.setup_initial_state();
         let scenario = Scenario::new(model, DomainBoundaries::temporal(init));
-        EulerSolver.solve(&scenario, &SolverConfiguration::time_evolution(10.0, 100)).unwrap()
+        EulerSolver
+            .solve(&scenario, &SolverConfiguration::time_evolution(10.0, 100))
+            .unwrap()
     }
 
     fn run_multi(n: usize, k: usize) -> SimulationResult {
-        let model = Box::new(MultiModel { n_points: n, n_species: k });
+        let model = Box::new(MultiModel {
+            n_points: n,
+            n_species: k,
+        });
         let init = model.setup_initial_state();
         let scenario = Scenario::new(model, DomainBoundaries::temporal(init));
-        EulerSolver.solve(&scenario, &SolverConfiguration::time_evolution(10.0, 100)).unwrap()
+        EulerSolver
+            .solve(&scenario, &SolverConfiguration::time_evolution(10.0, 100))
+            .unwrap()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1030,9 +1077,7 @@ mod tests {
         let result = run_multi(10, 2);
         let tmp = tempfile::NamedTempFile::new().unwrap();
         let path = tmp.path().with_extension("png");
-        plot_chromatogram_multi(
-            &result, 10, &["A", "B"], path.to_str().unwrap(), None,
-        ).unwrap();
+        plot_chromatogram_multi(&result, 10, &["A", "B"], path.to_str().unwrap(), None).unwrap();
         assert!(path.exists());
     }
 
@@ -1041,9 +1086,7 @@ mod tests {
         let result = run_multi(10, 2);
         let tmp = tempfile::NamedTempFile::new().unwrap();
         let path = tmp.path().with_extension("svg");
-        plot_chromatogram_multi(
-            &result, 10, &["A", "B"], path.to_str().unwrap(), None,
-        ).unwrap();
+        plot_chromatogram_multi(&result, 10, &["A", "B"], path.to_str().unwrap(), None).unwrap();
         assert!(path.exists());
     }
 
@@ -1053,8 +1096,13 @@ mod tests {
         let tmp = tempfile::NamedTempFile::new().unwrap();
         let path = tmp.path().with_extension("png");
         plot_chromatogram_multi(
-            &result, 10, &["Ascorbic", "Erythorbic", "Citric"], path.to_str().unwrap(), None,
-        ).unwrap();
+            &result,
+            10,
+            &["Ascorbic", "Erythorbic", "Citric"],
+            path.to_str().unwrap(),
+            None,
+        )
+        .unwrap();
         assert!(path.exists());
     }
 
@@ -1065,8 +1113,13 @@ mod tests {
         let path = tmp.path().with_extension("png");
         let config = PlotConfig::multi_species_colors(vec![RED, BLUE]);
         plot_chromatogram_multi(
-            &result, 10, &["X", "Y"], path.to_str().unwrap(), Some(&config),
-        ).unwrap();
+            &result,
+            10,
+            &["X", "Y"],
+            path.to_str().unwrap(),
+            Some(&config),
+        )
+        .unwrap();
         assert!(path.exists());
     }
 
@@ -1079,9 +1132,7 @@ mod tests {
         let result = run_multi(10, 2);
         let tmp = tempfile::NamedTempFile::new().unwrap();
         let path = tmp.path().with_extension("png");
-        plot_chromatogram_envelope(
-            &result, 10, &["A", "B"], path.to_str().unwrap(), None,
-        ).unwrap();
+        plot_chromatogram_envelope(&result, 10, &["A", "B"], path.to_str().unwrap(), None).unwrap();
         assert!(path.exists());
     }
 
@@ -1090,9 +1141,7 @@ mod tests {
         let result = run_multi(10, 2);
         let tmp = tempfile::NamedTempFile::new().unwrap();
         let path = tmp.path().with_extension("svg");
-        plot_chromatogram_envelope(
-            &result, 10, &["A", "B"], path.to_str().unwrap(), None,
-        ).unwrap();
+        plot_chromatogram_envelope(&result, 10, &["A", "B"], path.to_str().unwrap(), None).unwrap();
         assert!(path.exists());
     }
 
@@ -1102,8 +1151,13 @@ mod tests {
         let tmp = tempfile::NamedTempFile::new().unwrap();
         let path = tmp.path().with_extension("png");
         plot_chromatogram_envelope(
-            &result, 10, &["Ascorbic", "Erythorbic", "Citric"], path.to_str().unwrap(), None,
-        ).unwrap();
+            &result,
+            10,
+            &["Ascorbic", "Erythorbic", "Citric"],
+            path.to_str().unwrap(),
+            None,
+        )
+        .unwrap();
         assert!(path.exists());
     }
 
@@ -1114,8 +1168,13 @@ mod tests {
         let path = tmp.path().with_extension("png");
         let config = PlotConfig::multi_species_colors(vec![RED, BLUE]);
         plot_chromatogram_envelope(
-            &result, 10, &["X", "Y"], path.to_str().unwrap(), Some(&config),
-        ).unwrap();
+            &result,
+            10,
+            &["X", "Y"],
+            path.to_str().unwrap(),
+            Some(&config),
+        )
+        .unwrap();
         assert!(path.exists());
     }
 
@@ -1129,7 +1188,8 @@ mod tests {
             vec![("Run 1", &result1, 10), ("Run 2", &result2, 10)],
             path.to_str().unwrap(),
             None,
-        ).unwrap();
+        )
+        .unwrap();
         assert!(path.exists());
     }
 
@@ -1141,7 +1201,12 @@ mod tests {
         let outlets: Vec<Vec<f64>> = vec![vec![1.0, 0.5], vec![0.8, 0.9]];
         let n_steps = outlets[0].len();
         let envelope: Vec<f64> = (0..n_steps)
-            .map(|i| outlets.iter().map(|o| o[i]).fold(f64::NEG_INFINITY, f64::max))
+            .map(|i| {
+                outlets
+                    .iter()
+                    .map(|o| o[i])
+                    .fold(f64::NEG_INFINITY, f64::max)
+            })
             .collect();
         assert!((envelope[0] - 1.0).abs() < 1e-12);
         assert!((envelope[1] - 0.9).abs() < 1e-12);
@@ -1153,7 +1218,12 @@ mod tests {
         let outlets: Vec<Vec<f64>> = vec![vec![0.3, 0.7, 0.5]];
         let n_steps = outlets[0].len();
         let envelope: Vec<f64> = (0..n_steps)
-            .map(|i| outlets.iter().map(|o| o[i]).fold(f64::NEG_INFINITY, f64::max))
+            .map(|i| {
+                outlets
+                    .iter()
+                    .map(|o| o[i])
+                    .fold(f64::NEG_INFINITY, f64::max)
+            })
             .collect();
         assert_eq!(envelope, outlets[0]);
     }
@@ -1165,11 +1235,13 @@ mod tests {
         let tmp = tempfile::NamedTempFile::new().unwrap();
         let path = tmp.path().with_extension("png");
         plot_chromatogram_envelope(
-            &result, 10,
+            &result,
+            10,
             &["Ascorbic", "Erythorbic", "Citric"],
             path.to_str().unwrap(),
             None,
-        ).unwrap();
+        )
+        .unwrap();
         assert!(path.exists());
     }
 
@@ -1187,8 +1259,16 @@ mod tests {
         let cumulative: Vec<f64> = (0..n_steps)
             .map(|i| outlets.iter().map(|o| o[i]).sum::<f64>())
             .collect();
-        assert!((cumulative[0] - 1.8).abs() < 1e-12, "step 0: {}", cumulative[0]);
-        assert!((cumulative[1] - 1.4).abs() < 1e-12, "step 1: {}", cumulative[1]);
+        assert!(
+            (cumulative[0] - 1.8).abs() < 1e-12,
+            "step 0: {}",
+            cumulative[0]
+        );
+        assert!(
+            (cumulative[1] - 1.4).abs() < 1e-12,
+            "step 1: {}",
+            cumulative[1]
+        );
     }
 
     #[test]
@@ -1202,14 +1282,20 @@ mod tests {
             .map(|i| outlets.iter().map(|o| o[i]).sum::<f64>())
             .collect();
         let envelope: Vec<f64> = (0..n_steps)
-            .map(|i| outlets.iter().map(|o| o[i]).fold(f64::NEG_INFINITY, f64::max))
+            .map(|i| {
+                outlets
+                    .iter()
+                    .map(|o| o[i])
+                    .fold(f64::NEG_INFINITY, f64::max)
+            })
             .collect();
 
         for i in 0..n_steps {
             assert!(
                 cumulative[i] >= envelope[i] - 1e-12,
                 "step {i}: cumulative={} < envelope={}",
-                cumulative[i], envelope[i]
+                cumulative[i],
+                envelope[i]
             );
         }
     }
@@ -1256,11 +1342,13 @@ mod tests {
         let tmp = tempfile::NamedTempFile::new().unwrap();
         let path = tmp.path().with_extension("png");
         plot_chromatogram_multi(
-            &result, 10,
+            &result,
+            10,
             &["Ascorbic", "Erythorbic", "Citric"],
             path.to_str().unwrap(),
             None,
-        ).unwrap();
+        )
+        .unwrap();
         assert!(path.exists());
     }
 

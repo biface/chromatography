@@ -7,9 +7,9 @@
 //! - Temporal initial state: u(x,t=0) = profile
 
 use chrom_rs::{
-    physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData},
-    solver::{Scenario, SolverConfiguration, DomainBoundaries, Solver, EulerSolver, RK4Solver},
-    output::visualization::{plot_steady_state, plot_steady_state_comparison, PlotConfig},
+    output::visualization::{PlotConfig, plot_steady_state, plot_steady_state_comparison},
+    physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState},
+    solver::{DomainBoundaries, EulerSolver, RK4Solver, Scenario, Solver, SolverConfiguration},
 };
 use nalgebra::DVector;
 use std::error::Error;
@@ -53,7 +53,8 @@ impl PhysicalModel for FisherKPP {
     }
 
     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
-        let u = state.get(PhysicalQuantity::Concentration)
+        let u = state
+            .get(PhysicalQuantity::Concentration)
             .expect("Concentration not found")
             .as_vector();
 
@@ -62,12 +63,13 @@ impl PhysicalModel for FisherKPP {
         for i in 0..self.n_points {
             // Conditions de Dirichlet : bords fixes
             if i == 0 || i == self.n_points - 1 {
-                du_dt[i] = 0.0;  // ← Bords ne changent PAS
+                du_dt[i] = 0.0; // ← Bords ne changent PAS
                 continue;
             }
 
             // Diffusion term: D·∂²u/∂x² (points intérieurs seulement)
-            let diffusion_term = self.diffusion * (u[i + 1] - 2.0 * u[i] + u[i - 1]) / (self.dx * self.dx);
+            let diffusion_term =
+                self.diffusion * (u[i + 1] - 2.0 * u[i] + u[i - 1]) / (self.dx * self.dx);
 
             // Reaction term: r·u·(1-u)
             let reaction_term = self.growth_rate * u[i] * (1.0 - u[i]);
@@ -93,8 +95,8 @@ impl PhysicalModel for FisherKPP {
         }
 
         // Forcer les conditions de Dirichlet
-        u[0] = self.bc_left;                    // ← u(0) = 1.0
-        u[self.n_points - 1] = self.bc_right;   // ← u(L) = 0.0
+        u[0] = self.bc_left; // ← u(0) = 1.0
+        u[self.n_points - 1] = self.bc_right; // ← u(L) = 0.0
 
         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(u))
     }
@@ -159,10 +161,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let scenario = Scenario::new(
         model,
         DomainBoundaries::mixed(
-            &["x"],                 // Spatial dimension name
-            vec![begin_state],      // u(x=0, t) = bc_left
-            vec![end_state],        // u(x=L, t) = bc_right
-            initial_state,          // u(x, t=0) = initial profile
+            &["x"],            // Spatial dimension name
+            vec![begin_state], // u(x=0, t) = bc_left
+            vec![end_state],   // u(x=L, t) = bc_right
+            initial_state,     // u(x, t=0) = initial profile
         ),
     );
 
@@ -175,14 +177,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     let elapsed_euler = start.elapsed();
     println!("✓ Euler completed in {:.3}s\n", elapsed_euler.as_secs_f64());
 
-    let u_final = result_euler.state_trajectory
+    let u_final = result_euler
+        .state_trajectory
         .last()
         .unwrap()
-        .get(PhysicalQuantity::Concentration).unwrap().as_vector();
+        .get(PhysicalQuantity::Concentration)
+        .unwrap()
+        .as_vector();
 
     println!("\nBoundary values (Euler):");
-    println!("  u(x=0) = {:.10}", u_final[0]);                  // Doit être 1.0
-    println!("  u(x=L) = {:.10}", u_final[n_points - 1]);       // Doit être 0.0
+    println!("  u(x=0) = {:.10}", u_final[0]); // Doit être 1.0
+    println!("  u(x=L) = {:.10}", u_final[n_points - 1]); // Doit être 0.0
 
     // Solve with RK4
     println!("Solving with RK4...");
@@ -191,23 +196,30 @@ fn main() -> Result<(), Box<dyn Error>> {
     let elapsed_rk4 = start.elapsed();
     println!("✓ RK4 completed in {:.3}s\n", elapsed_rk4.as_secs_f64());
 
-    let u_final = result_euler.state_trajectory
+    let u_final = result_euler
+        .state_trajectory
         .last()
-        .unwrap()
-        .get(PhysicalQuantity::Concentration).unwrap().as_vector();
-
-    println!("\nBoundary values (RK4):");
-    println!("  u(x=0) = {:.10}", u_final[0]);                  // Doit être 1.0
-    println!("  u(x=L) = {:.10}", u_final[n_points - 1]);       // Doit être 0.0
-
-    // Analysis
-    let u_euler_final = result_euler.state_trajectory.last()
         .unwrap()
         .get(PhysicalQuantity::Concentration)
         .unwrap()
         .as_vector();
 
-    let u_rk4_final = result_rk4.state_trajectory.last()
+    println!("\nBoundary values (RK4):");
+    println!("  u(x=0) = {:.10}", u_final[0]); // Doit être 1.0
+    println!("  u(x=L) = {:.10}", u_final[n_points - 1]); // Doit être 0.0
+
+    // Analysis
+    let u_euler_final = result_euler
+        .state_trajectory
+        .last()
+        .unwrap()
+        .get(PhysicalQuantity::Concentration)
+        .unwrap()
+        .as_vector();
+
+    let u_rk4_final = result_rk4
+        .state_trajectory
+        .last()
         .unwrap()
         .get(PhysicalQuantity::Concentration)
         .unwrap()
@@ -245,11 +257,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     let tmp_dir = std::env::temp_dir();
 
     let config_euler = PlotConfig::steady_state("Fisher-KPP: Euler - Final Profile");
-    plot_steady_state(&result_euler, length, tmp_dir.join("fisher_kpp_euler.png").to_str().unwrap(), Some(&config_euler))?;
+    plot_steady_state(
+        &result_euler,
+        length,
+        tmp_dir.join("fisher_kpp_euler.png").to_str().unwrap(),
+        Some(&config_euler),
+    )?;
     println!("✓ fisher_kpp_euler.png");
 
     let config_rk4 = PlotConfig::steady_state("Fisher-KPP: RK4 - Final Profile");
-    plot_steady_state(&result_rk4, length, tmp_dir.join("fisher_kpp_rk4.png").to_str().unwrap(), Some(&config_rk4))?;
+    plot_steady_state(
+        &result_rk4,
+        length,
+        tmp_dir.join("fisher_kpp_rk4.png").to_str().unwrap(),
+        Some(&config_rk4),
+    )?;
     println!("✓ fisher_kpp_rk4.png");
 
     // Comparison plot

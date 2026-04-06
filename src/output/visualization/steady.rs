@@ -42,9 +42,9 @@
 use plotters::prelude::*;
 use std::error::Error;
 
-use crate::solver::SimulationResult;
+use super::config::{NO_TITLE, PlotConfig};
 use crate::physics::{PhysicalData, PhysicalQuantity};
-use super::config::{PlotConfig, NO_TITLE};
+use crate::solver::SimulationResult;
 
 // =================================================================================================
 // Core Plotting Functions
@@ -81,10 +81,7 @@ pub fn plot_steady_state(
     config: Option<&PlotConfig>,
 ) -> Result<(), Box<dyn Error>> {
     // Extract final state
-    let final_state = result
-        .state_trajectory
-        .last()
-        .ok_or("Empty trajectory")?;
+    let final_state = result.state_trajectory.last().ok_or("Empty trajectory")?;
 
     let physical_data = final_state
         .get(PhysicalQuantity::Concentration)
@@ -100,7 +97,9 @@ pub fn plot_steady_state(
         // Array is not yet used in transport calculations — reject early
         // rather than silently returning a meaningless profile.
         PhysicalData::Array(_) => {
-            return Err("Array physical data is not yet supported for spatial profile plotting".into());
+            return Err(
+                "Array physical data is not yet supported for spatial profile plotting".into(),
+            );
         }
     };
 
@@ -131,11 +130,25 @@ pub fn plot_steady_state(
     match ext {
         "svg" => {
             let backend = SVGBackend::new(output_path, (config.width, config.height));
-            plot_steady_impl(backend, &z_values, &conc_vec, config, column_length, max_conc)
+            plot_steady_impl(
+                backend,
+                &z_values,
+                &conc_vec,
+                config,
+                column_length,
+                max_conc,
+            )
         }
         _ => {
             let backend = BitMapBackend::new(output_path, (config.width, config.height));
-            plot_steady_impl(backend, &z_values, &conc_vec, config, column_length, max_conc)
+            plot_steady_impl(
+                backend,
+                &z_values,
+                &conc_vec,
+                config,
+                column_length,
+                max_conc,
+            )
         }
     }
 }
@@ -163,7 +176,8 @@ where
         .build_cartesian_2d(0.0..max_z, 0.0..(max_conc * 1.1))?;
 
     if config.show_grid {
-        chart.configure_mesh()
+        chart
+            .configure_mesh()
             .x_desc(&config.xlabel)
             .y_desc(&config.ylabel)
             .x_label_formatter(&|x| format!("{:.3}", x))
@@ -171,14 +185,16 @@ where
             .draw()?;
     }
 
-    chart.draw_series(LineSeries::new(
-        z_values.iter().zip(concentration.iter()).map(|(z, c)| (*z, *c)),
-        ShapeStyle::from(&config.line_color).stroke_width(config.line_width),
-    ))?
+    chart
+        .draw_series(LineSeries::new(
+            z_values
+                .iter()
+                .zip(concentration.iter())
+                .map(|(z, c)| (*z, *c)),
+            ShapeStyle::from(&config.line_color).stroke_width(config.line_width),
+        ))?
         .label("Concentration Profile")
-        .legend(|(x, y)| {
-            PathElement::new(vec![(x, y), (x + 20, y)], &config.line_color)
-        });
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &config.line_color));
 
     chart
         .configure_series_labels()
@@ -281,7 +297,8 @@ where
         .build_cartesian_2d(0.0..max_z, 0.0..(max_conc * 1.1))?;
 
     if config.show_grid {
-        chart.configure_mesh()
+        chart
+            .configure_mesh()
             .x_desc(&config.xlabel)
             .y_desc(&config.ylabel)
             .x_label_formatter(&|x| format!("{:.3}", x))
@@ -295,7 +312,10 @@ where
 
         chart
             .draw_series(LineSeries::new(
-                z_values.iter().zip(concentration.iter()).map(|(z, c)| (*z, *c)),
+                z_values
+                    .iter()
+                    .zip(concentration.iter())
+                    .map(|(z, c)| (*z, *c)),
                 &color,
             ))?
             .label(*label)
@@ -383,7 +403,6 @@ pub fn plot_profile_evolution(
     plot_steady_state_comparison(profile_refs, output_path, config)
 }
 
-
 // =================================================================================================
 // Multi-Species Spatial Profile
 // =================================================================================================
@@ -433,10 +452,7 @@ pub fn plot_steady_state_multi(
     output_path: &str,
     config: Option<&PlotConfig>,
 ) -> Result<(), Box<dyn Error>> {
-    let final_state = result
-        .state_trajectory
-        .last()
-        .ok_or("Empty trajectory")?;
+    let final_state = result.state_trajectory.last().ok_or("Empty trajectory")?;
 
     let physical_data = final_state
         .get(PhysicalQuantity::Concentration)
@@ -444,11 +460,9 @@ pub fn plot_steady_state_multi(
 
     // Transpose [n_points × n_species] matrix into [n_species][n_points] vecs
     let profiles: Vec<Vec<f64>> = match physical_data {
-        PhysicalData::Matrix(m) => {
-            (0..species_names.len().min(m.ncols()))
-                .map(|k| (0..m.nrows()).map(|i| m[(i, k)]).collect())
-                .collect()
-        }
+        PhysicalData::Matrix(m) => (0..species_names.len().min(m.ncols()))
+            .map(|k| (0..m.nrows()).map(|i| m[(i, k)]).collect())
+            .collect(),
         // Single-species fallback: wrap the vector in an outer Vec
         PhysicalData::Vector(v) => vec![v.iter().cloned().collect()],
         _ => return Err("No multi-species concentration data found in final state".into()),
@@ -482,11 +496,27 @@ pub fn plot_steady_state_multi(
     match ext {
         "svg" => {
             let backend = SVGBackend::new(output_path, (config.width, config.height));
-            plot_multi_impl(backend, &z_values, &profiles, species_names, config, column_length, max_conc)
+            plot_multi_impl(
+                backend,
+                &z_values,
+                &profiles,
+                species_names,
+                config,
+                column_length,
+                max_conc,
+            )
         }
         _ => {
             let backend = BitMapBackend::new(output_path, (config.width, config.height));
-            plot_multi_impl(backend, &z_values, &profiles, species_names, config, column_length, max_conc)
+            plot_multi_impl(
+                backend,
+                &z_values,
+                &profiles,
+                species_names,
+                config,
+                column_length,
+                max_conc,
+            )
         }
     }
 }
@@ -495,7 +525,7 @@ pub fn plot_steady_state_multi(
 fn plot_multi_impl<DB: DrawingBackend>(
     backend: DB,
     z_values: &[f64],
-    profiles: &[Vec<f64>],  // shape: [n_species][n_points]
+    profiles: &[Vec<f64>], // shape: [n_species][n_points]
     species_names: &[&str],
     config: &PlotConfig,
     max_z: f64,
@@ -554,8 +584,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
-    use crate::solver::{Scenario, SolverConfiguration, DomainBoundaries, EulerSolver, Solver};
+    use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
+    use crate::solver::{DomainBoundaries, EulerSolver, Scenario, Solver, SolverConfiguration};
     use nalgebra::{DMatrix, DVector};
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -568,10 +598,15 @@ mod tests {
     }
 
     impl PhysicalModel for SingleModel {
-        fn points(&self) -> usize { self.n_points }
+        fn points(&self) -> usize {
+            self.n_points
+        }
 
         fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
-            let c = state.get(PhysicalQuantity::Concentration).unwrap().as_vector();
+            let c = state
+                .get(PhysicalQuantity::Concentration)
+                .unwrap()
+                .as_vector();
             let dc_dt = DVector::from_element(c.len(), -0.01);
             PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(dc_dt))
         }
@@ -586,7 +621,9 @@ mod tests {
             PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(c))
         }
 
-        fn name(&self) -> &str { "SingleModel" }
+        fn name(&self) -> &str {
+            "SingleModel"
+        }
     }
 
     /// Multi-species model: n_species columns with species-dependent amplitudes
@@ -596,10 +633,15 @@ mod tests {
     }
 
     impl PhysicalModel for MultiModel {
-        fn points(&self) -> usize { self.n_points }
+        fn points(&self) -> usize {
+            self.n_points
+        }
 
         fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
-            let m = state.get(PhysicalQuantity::Concentration).unwrap().as_matrix();
+            let m = state
+                .get(PhysicalQuantity::Concentration)
+                .unwrap()
+                .as_matrix();
             let mut dc_dt = DMatrix::zeros(self.n_points, self.n_species);
             for k in 0..self.n_species {
                 for i in 0..self.n_points {
@@ -622,7 +664,9 @@ mod tests {
             PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Matrix(c))
         }
 
-        fn name(&self) -> &str { "MultiModel" }
+        fn name(&self) -> &str {
+            "MultiModel"
+        }
     }
 
     // Convenience runners
@@ -630,14 +674,21 @@ mod tests {
         let model = Box::new(SingleModel { n_points: n });
         let init = model.setup_initial_state();
         let scenario = Scenario::new(model, DomainBoundaries::temporal(init));
-        EulerSolver.solve(&scenario, &SolverConfiguration::time_evolution(1.0, 10)).unwrap()
+        EulerSolver
+            .solve(&scenario, &SolverConfiguration::time_evolution(1.0, 10))
+            .unwrap()
     }
 
     fn run_multi(n: usize, k: usize) -> SimulationResult {
-        let model = Box::new(MultiModel { n_points: n, n_species: k });
+        let model = Box::new(MultiModel {
+            n_points: n,
+            n_species: k,
+        });
         let init = model.setup_initial_state();
         let scenario = Scenario::new(model, DomainBoundaries::temporal(init));
-        EulerSolver.solve(&scenario, &SolverConfiguration::time_evolution(1.0, 10)).unwrap()
+        EulerSolver
+            .solve(&scenario, &SolverConfiguration::time_evolution(1.0, 10))
+            .unwrap()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -694,9 +745,7 @@ mod tests {
         let result = run_multi(50, 2);
         let temp = tempfile::NamedTempFile::new().unwrap();
         let path = temp.path().with_extension("png");
-        plot_steady_state_multi(
-            &result, 0.25, &["A", "B"], path.to_str().unwrap(), None,
-        ).unwrap();
+        plot_steady_state_multi(&result, 0.25, &["A", "B"], path.to_str().unwrap(), None).unwrap();
         assert!(path.exists());
     }
 
@@ -706,10 +755,13 @@ mod tests {
         let temp = tempfile::NamedTempFile::new().unwrap();
         let path = temp.path().with_extension("png");
         plot_steady_state_multi(
-            &result, 0.25,
+            &result,
+            0.25,
             &["Ascorbic", "Erythorbic", "Citric"],
-            path.to_str().unwrap(), None,
-        ).unwrap();
+            path.to_str().unwrap(),
+            None,
+        )
+        .unwrap();
         assert!(path.exists());
     }
 
@@ -718,9 +770,7 @@ mod tests {
         let result = run_multi(30, 2);
         let temp = tempfile::NamedTempFile::new().unwrap();
         let path = temp.path().with_extension("svg");
-        plot_steady_state_multi(
-            &result, 0.25, &["X", "Y"], path.to_str().unwrap(), None,
-        ).unwrap();
+        plot_steady_state_multi(&result, 0.25, &["X", "Y"], path.to_str().unwrap(), None).unwrap();
         assert!(path.exists());
     }
 
@@ -731,8 +781,13 @@ mod tests {
         let path = temp.path().with_extension("png");
         let config = PlotConfig::multi_species_colors(vec![RED, BLUE]);
         plot_steady_state_multi(
-            &result, 0.25, &["X", "Y"], path.to_str().unwrap(), Some(&config),
-        ).unwrap();
+            &result,
+            0.25,
+            &["X", "Y"],
+            path.to_str().unwrap(),
+            Some(&config),
+        )
+        .unwrap();
         assert!(path.exists());
     }
 
@@ -743,18 +798,27 @@ mod tests {
     #[test]
     fn test_plot_steady_state_comparison_png() {
         let z: Vec<f64> = (0..50).map(|i| i as f64 / 49.0 * 0.25).collect();
-        let c1: Vec<f64> = z.iter().map(|&zi| (-(zi - 0.1).powi(2) / 0.002).exp()).collect();
-        let c2: Vec<f64> = z.iter().map(|&zi| (-(zi - 0.2).powi(2) / 0.002).exp()).collect();
+        let c1: Vec<f64> = z
+            .iter()
+            .map(|&zi| (-(zi - 0.1).powi(2) / 0.002).exp())
+            .collect();
+        let c2: Vec<f64> = z
+            .iter()
+            .map(|&zi| (-(zi - 0.2).powi(2) / 0.002).exp())
+            .collect();
 
         let temp = tempfile::NamedTempFile::new().unwrap();
         let path = temp.path().with_extension("png");
 
         plot_steady_state_comparison(
-            vec![("Initial", z.as_slice(), c1.as_slice()),
-                 ("Final",   z.as_slice(), c2.as_slice())],
+            vec![
+                ("Initial", z.as_slice(), c1.as_slice()),
+                ("Final", z.as_slice(), c2.as_slice()),
+            ],
             path.to_str().unwrap(),
             None,
-        ).unwrap();
+        )
+        .unwrap();
         assert!(path.exists());
     }
 

@@ -3,7 +3,7 @@
 //! These models have known analytical solutions, making them
 //! ideal for validating numerical solver accuracy.
 
-use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+use chrom_rs::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
 
 // =================================================================================================
 // Exponential Decay: dy/dt = -k*y
@@ -16,7 +16,7 @@ use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, Physical
 /// Useful for testing solver accuracy since we know the exact solution.
 pub struct ExponentialDecay {
     pub points: usize,
-    pub decay_rate: f64,  // k in dy/dt = -k*y
+    pub decay_rate: f64, // k in dy/dt = -k*y
 }
 
 impl ExponentialDecay {
@@ -74,7 +74,10 @@ pub struct ConstantGrowth {
 
 impl ConstantGrowth {
     pub fn new(points: usize, growth_rate: f64) -> Self {
-        Self { points, growth_rate }
+        Self {
+            points,
+            growth_rate,
+        }
     }
 
     /// Compute analytical solution at time t

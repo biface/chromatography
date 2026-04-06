@@ -93,7 +93,9 @@
 //! ```
 
 use crate::physics::PhysicalState;
-use crate::solver::{Solver, SolverConfiguration, SolverType, SimulationResult, Scenario, validate_state};
+use crate::solver::{
+    Scenario, SimulationResult, Solver, SolverConfiguration, SolverType, validate_state,
+};
 
 // =================================================================================================
 // RK4 Solver
@@ -198,13 +200,12 @@ impl Solver for RK4Solver {
     fn solve(
         &self,
         scenario: &Scenario,
-        config: &SolverConfiguration
+        config: &SolverConfiguration,
     ) -> Result<SimulationResult, String> {
-
         // ====== Step 1: Validation ======
 
         // Validate configuration parameters
-        config.validate()? ;
+        config.validate()?;
 
         // Validate scenario (model and boundaries)
 
@@ -213,10 +214,11 @@ impl Solver for RK4Solver {
         // Forward Euler is dedicated to time evolution
 
         let (total_time, time_steps) = match &config.solver_type {
-            SolverType::TimeEvolution { total_time, time_steps } => {
-                (*total_time, *time_steps)
-            }
-            other   => {
+            SolverType::TimeEvolution {
+                total_time,
+                time_steps,
+            } => (*total_time, *time_steps),
+            other => {
                 return Err(format!(
                     "EulerSolver only supports TimeEvolution configuration, got {}",
                     other.name()
@@ -257,11 +259,10 @@ impl Solver for RK4Solver {
         //   4. Validate state
 
         for step in 0..time_steps {
-
             let t = (step as f64) * dt;
 
             // ====== RK4 Stages ======
-            
+
             state.set_metadata("time".to_string(), t);
 
             // Stage 1: Slope at beginning of interval
@@ -297,10 +298,7 @@ impl Solver for RK4Solver {
             // - k₂ and k₃ (midpoints): weight 2/6 = 1/3 each
             // This comes from Simpson's quadrature rule for integration
 
-            let weighted_slope = k1 +
-                k2 * 2.0 +
-                k3 * 2.0 +
-                k4 ;
+            let weighted_slope = k1 + k2 * 2.0 + k3 * 2.0 + k4;
 
             state = state.clone() + weighted_slope * (dt / 6.0);
 
@@ -323,7 +321,6 @@ impl Solver for RK4Solver {
             // ====== Validation ======
 
             validate_state(&state, step + 1)?;
-
         }
 
         // ====== Step 4: Build Result ======
@@ -332,11 +329,7 @@ impl Solver for RK4Solver {
 
         // Create simulation result
 
-        let mut result = SimulationResult::new(
-            time_points,
-            state_trajectory,
-            final_state,
-        );
+        let mut result = SimulationResult::new(time_points, state_trajectory, final_state);
 
         // Add metadata
         result.add_metadata("solver", "Runge-Kutta 4");
@@ -360,7 +353,7 @@ impl Solver for RK4Solver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+    use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
     use crate::solver::boundary::DomainBoundaries;
 
     // ====== Mock Models for Testing ======
@@ -388,9 +381,8 @@ mod tests {
 
             let mut result = state.clone();
 
-            if let Some(conc) =
-                result.get_mut(PhysicalQuantity::Concentration) {
-                conc.apply(|y| - self.decay_rate * y) ;
+            if let Some(conc) = result.get_mut(PhysicalQuantity::Concentration) {
+                conc.apply(|y| -self.decay_rate * y);
             }
 
             result
@@ -399,7 +391,7 @@ mod tests {
         fn setup_initial_state(&self) -> PhysicalState {
             PhysicalState::new(
                 PhysicalQuantity::Concentration,
-                PhysicalData::uniform_vector(self.points, 1.0)
+                PhysicalData::uniform_vector(self.points, 1.0),
             )
         }
 
@@ -424,14 +416,14 @@ mod tests {
         fn compute_physics(&self, _state: &PhysicalState) -> PhysicalState {
             PhysicalState::new(
                 PhysicalQuantity::Concentration,
-                PhysicalData::uniform_vector(self.points, self.growth_rate)
+                PhysicalData::uniform_vector(self.points, self.growth_rate),
             )
         }
 
         fn setup_initial_state(&self) -> PhysicalState {
             PhysicalState::new(
                 PhysicalQuantity::Concentration,
-                PhysicalData::uniform_vector(self.points, 0.0)
+                PhysicalData::uniform_vector(self.points, 0.0),
             )
         }
 
@@ -448,7 +440,7 @@ mod tests {
     ///   dy_2/dt = -omega^2·y_1     (acceleration)
     struct HarmonicOscillator {
         points: usize,
-        omega: f64,  // Angular frequency
+        omega: f64, // Angular frequency
     }
 
     impl PhysicalModel for HarmonicOscillator {
@@ -498,7 +490,6 @@ mod tests {
 
     #[test]
     fn test_rk4_solver_creation() {
-
         let solver = RK4Solver::new();
         assert_eq!(solver.name(), "Runge Kutta (RK4)");
     }
@@ -567,7 +558,6 @@ mod tests {
 
     #[test]
     fn test_rk4_constant_growth() {
-
         // dy/dt = c → y(t) = y_0 + c*t
         // RK4 should be exact for linear problems (within floating-point precision)
 
@@ -590,7 +580,8 @@ mod tests {
 
         // Check final concentration is y(10) = 0 + 10.0 * 2.0 = 20.0
 
-        let final_concentration = result.final_state
+        let final_concentration = result
+            .final_state
             .get(PhysicalQuantity::Concentration)
             .unwrap();
 
@@ -611,8 +602,8 @@ mod tests {
         let decay_rate = 0.1;
 
         let model = Box::new(ExponentialDecay {
-            points:5,
-            decay_rate
+            points: 5,
+            decay_rate,
         });
 
         let initial = model.setup_initial_state();
@@ -628,8 +619,9 @@ mod tests {
 
         // Analytical solution is y(10) = 1.0 * exp(-0.1 * 10) = exp(-1) = 1/e (≈ 0.367879)
 
-        let expected_concentraion = (- decay_rate * total_time).exp();
-        let final_concentration = result.final_state
+        let expected_concentraion = (-decay_rate * total_time).exp();
+        let final_concentration = result
+            .final_state
             .get(PhysicalQuantity::Concentration)
             .unwrap();
         let actual_concentration = final_concentration.as_vector()[0];
@@ -644,14 +636,13 @@ mod tests {
 
     #[test]
     fn test_rk4_convergence() {
-
         let solver = RK4Solver::new();
         let decay_rate = 0.1;
         let total_time = 5.0;
 
         let model = Box::new(ExponentialDecay {
-            points:3,
-            decay_rate
+            points: 3,
+            decay_rate,
         });
 
         let exact_solution = (-decay_rate * total_time).exp();
@@ -661,26 +652,25 @@ mod tests {
         let mut verrors: Vec<f64> = Vec::new();
 
         for &steps in &vsteps {
-
             let initial = model.setup_initial_state();
             let boundaries = DomainBoundaries::temporal(initial);
             let scenario = Scenario::new(
-                Box::new(
-                ExponentialDecay{
-                    points:3,
-                    decay_rate }),
-                boundaries);
+                Box::new(ExponentialDecay {
+                    points: 3,
+                    decay_rate,
+                }),
+                boundaries,
+            );
 
             let config = SolverConfiguration::time_evolution(total_time, steps);
             let result = solver.solve(&scenario, &config).unwrap();
 
-            let final_concentration = result.final_state
+            let final_concentration = result
+                .final_state
                 .get(PhysicalQuantity::Concentration)
                 .unwrap();
 
-            verrors.push(
-                (final_concentration.as_vector()[0] - exact_solution)
-                    .abs());
+            verrors.push((final_concentration.as_vector()[0] - exact_solution).abs());
         }
 
         // Check fourth-order convergence: error(dt/2) ≈ error(dt) / 16
@@ -692,25 +682,20 @@ mod tests {
                 ratio > 12.0 && ratio < 20.0,
                 "Convergence ratio {} is not a fourth-order a step {}",
                 ratio,
-                i);
+                i
+            );
         }
     }
 
     #[test]
     fn test_rk4_solver_harmonic_oscillator() {
-
         // Test RK4 on oscillatory problem
         // d²y/dt² = -omega^2y → y(t) = cos(ωt)
 
         let solver = RK4Solver::new();
         let omega = 1.0; // ω = 1 → period T = 2π
 
-        let model = Box::new(
-          HarmonicOscillator {
-              points: 3,
-              omega
-          }
-        );
+        let model = Box::new(HarmonicOscillator { points: 3, omega });
 
         let initial = model.setup_initial_state();
         let boundaries = DomainBoundaries::temporal(initial);
@@ -725,7 +710,8 @@ mod tests {
         // After one period, should return to initial position
         // y(2π) = cos(2π) = 1.0
 
-        let final_position = result.final_state
+        let final_position = result
+            .final_state
             .get(PhysicalQuantity::Concentration)
             .unwrap();
 
@@ -815,12 +801,18 @@ mod tests {
         let result = solver.solve(&scenario, &config).unwrap();
 
         // Check metadata
-        assert_eq!(result.metadata.get("solver"), Some(&"Runge-Kutta 4".to_string()));
+        assert_eq!(
+            result.metadata.get("solver"),
+            Some(&"Runge-Kutta 4".to_string())
+        );
         assert_eq!(result.metadata.get("time steps"), Some(&"500".to_string()));
         assert_eq!(result.metadata.get("total time"), Some(&"100".to_string()));
 
         // Function evaluations = 4 * time_steps
-        assert_eq!(result.metadata.get("function evaluations"), Some(&"2000".to_string()));
+        assert_eq!(
+            result.metadata.get("function evaluations"),
+            Some(&"2000".to_string())
+        );
 
         // dt = 100 / 500 = 0.2
         let dt_str = result.metadata.get("dt").unwrap();
@@ -941,7 +933,8 @@ mod tests {
         assert_eq!(result.state_trajectory.len(), 2);
 
         // y(1) = 0 + 5*1 = 5
-        let final_conc = result.final_state
+        let final_conc = result
+            .final_state
             .get(PhysicalQuantity::Concentration)
             .unwrap();
         assert!((final_conc.as_vector()[0] - 5.0).abs() < 1e-10);
@@ -1004,13 +997,15 @@ mod tests {
         let result = solver.solve(&scenario, &config).unwrap();
 
         // Check concentration: y(10) = 0 + 1*10 = 10
-        let final_conc = result.final_state
+        let final_conc = result
+            .final_state
             .get(PhysicalQuantity::Concentration)
             .unwrap();
         assert!((final_conc.as_vector()[0] - 10.0).abs() < 1e-10);
 
         // Check temperature: T(10) = 298 + 0.1*10 = 299
-        let final_temp = result.final_state
+        let final_temp = result
+            .final_state
             .get(PhysicalQuantity::Temperature)
             .unwrap();
         assert!((final_temp.as_vector()[0] - 299.0).abs() < 1e-10);
@@ -1041,7 +1036,8 @@ mod tests {
             let result = solver.solve(&scenario, &config).unwrap();
 
             let analytical = (-k * t).exp();
-            let numerical = result.final_state
+            let numerical = result
+                .final_state
                 .get(PhysicalQuantity::Concentration)
                 .unwrap()
                 .as_vector()[0];
@@ -1052,9 +1048,9 @@ mod tests {
             assert!(
                 relative_error < 0.001,
                 "At t={}: relative error {} too large",
-                t, relative_error
+                t,
+                relative_error
             );
         }
     }
-
 }

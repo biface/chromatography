@@ -344,10 +344,10 @@
 // =================================================================================================
 // Module Declarations
 // =================================================================================================
-mod traits;
 mod boundary;
-mod scenario;
 pub mod methods;
+mod scenario;
+mod traits;
 
 // =================================================================================================
 // Parallel Execution Threshold
@@ -464,18 +464,12 @@ impl Drop for ThresholdGuard {
 // Public Re-exports
 // =================================================================================================
 
-pub use traits::{
-    SimulationResult,
-    Solver,
-    SolverConfiguration,
-    SolverType,
-};
+pub use traits::{SimulationResult, Solver, SolverConfiguration, SolverType};
 
 pub use boundary::DomainBoundaries;
 pub use scenario::Scenario;
 
 pub use methods::{EulerSolver, RK4Solver};
-
 
 // =================================================================================================
 // Helper Functions
@@ -598,4 +592,3 @@ mod tests {
         }
     }
 }
-

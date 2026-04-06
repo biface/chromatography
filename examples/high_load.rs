@@ -19,9 +19,12 @@
 
 use chrom_rs::{
     models::{LangmuirSingle, TemporalInjection},
+    output::{PlotConfig, plot_chromatogram},
     physics::{PhysicalModel, PhysicalQuantity},
-    solver::{Scenario, SolverConfiguration, SimulationResult, DomainBoundaries, EulerSolver, RK4Solver, Solver},
-    output::{plot_chromatogram, PlotConfig},
+    solver::{
+        DomainBoundaries, EulerSolver, RK4Solver, Scenario, SimulationResult, Solver,
+        SolverConfiguration,
+    },
 };
 use std::time::Instant;
 
@@ -32,11 +35,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ====== High-Load Physical parameters ======
 
-    let lambda = 0.6;           // Lower → more retention
-    let langmuir_k = 2.5;       // Higher → stronger adsorption
-    let port_number = 0.6;      // Lower → easier saturation
-    let porosity = 0.35;        // Tighter packing
-    let velocity = 0.0008;      // Slower flow
+    let lambda = 0.6; // Lower → more retention
+    let langmuir_k = 2.5; // Higher → stronger adsorption
+    let port_number = 0.6; // Lower → easier saturation
+    let porosity = 0.35; // Tighter packing
+    let velocity = 0.0008; // Slower flow
     let column_length = 0.25;
     let n_points = 3000;
 
@@ -51,10 +54,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ====== Simulation configuration ======
 
-    let total_time = 800.0;     // Longer due to stronger retention
+    let total_time = 800.0; // Longer due to stronger retention
     let time_steps = 12000;
     println!("Simulation:");
-    println!("  Total time : {} s ({:.1} min)", total_time, total_time / 60.0);
+    println!(
+        "  Total time : {} s ({:.1} min)",
+        total_time,
+        total_time / 60.0
+    );
     println!("  Time steps : {}", time_steps);
     println!("  dt         : {:.6} s\n", total_time / time_steps as f64);
 
@@ -133,12 +140,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let outlet: Vec<f64> = result
                 .state_trajectory
                 .iter()
-                .map(|state| {
-                    match state.get(PhysicalQuantity::Concentration).unwrap() {
+                .map(
+                    |state| match state.get(PhysicalQuantity::Concentration).unwrap() {
                         chrom_rs::physics::PhysicalData::Vector(v) => v[n_points - 1],
-                        _ => 0.0
-                    }
-                })
+                        _ => 0.0,
+                    },
+                )
                 .collect();
 
             // Analyze peak
@@ -170,13 +177,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Results: Peak Characteristics");
     println!("═══════════════════════════════════════════════════════\n");
 
-    println!("{:<10} {:<14} {:>12} {:>12} {:>12}",
-             "Injection", "Solver", "Peak (mol/L)", "Ret.Time (s)", "Final (mol/L)");
+    println!(
+        "{:<10} {:<14} {:>12} {:>12} {:>12}",
+        "Injection", "Solver", "Peak (mol/L)", "Ret.Time (s)", "Final (mol/L)"
+    );
     println!("{:-<60}", "");
 
     for (inj, solver, _, peak, rt, final_c, _) in &results {
-        println!("{:<10} {:<14} {:>12.6} {:>12.2} {:>12.6}",
-                 inj, solver, peak, rt, final_c);
+        println!(
+            "{:<10} {:<14} {:>12.6} {:>12.2} {:>12.6}",
+            inj, solver, peak, rt, final_c
+        );
     }
 
     // ====== Performance Comparison ======
@@ -192,8 +203,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{:<10} {:<14} {:>12.2}", inj, solver, elapsed);
     }
 
-    let euler_dirac = results.iter().find(|(i, s, _, _, _, _, _)| *i == "Dirac" && *s == "Euler").unwrap();
-    let rk4_dirac = results.iter().find(|(i, s, _, _, _, _, _)| *i == "Dirac" && *s == "RK4").unwrap();
+    let euler_dirac = results
+        .iter()
+        .find(|(i, s, _, _, _, _, _)| *i == "Dirac" && *s == "Euler")
+        .unwrap();
+    let rk4_dirac = results
+        .iter()
+        .find(|(i, s, _, _, _, _, _)| *i == "Dirac" && *s == "RK4")
+        .unwrap();
     let speedup = rk4_dirac.2 / euler_dirac.2;
 
     println!("\nRK4/Euler Speedup: {:.2}x slower (expected ~4x)", speedup);
@@ -220,10 +237,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let retention_percentage = (retention_difference / euler_results.4) * 1000000.0;
 
         println!("\n {} Injection:", injection_method);
-        println!("  Peak difference    : {:.6} mol/L ({:.2}%)",
-                 peak_difference, peak_percentage);
-        println!("  Ret.Time difference: {:.2} s ({:.2} ppm)",
-                 retention_difference, retention_percentage);
+        println!(
+            "  Peak difference    : {:.6} mol/L ({:.2}%)",
+            peak_difference, peak_percentage
+        );
+        println!(
+            "  Ret.Time difference: {:.2} s ({:.2} ppm)",
+            retention_difference, retention_percentage
+        );
     }
 
     // ====== Peak Validation ======
@@ -245,16 +266,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("═══════════════════════════════════════════════════════\n");
 
     for (injection, solver, _, _, _, _, result) in &results {
-        let filename = format!("highload_{}_{}.png",
-                               injection.to_lowercase(),
-                               solver.to_lowercase());
+        let filename = format!(
+            "highload_{}_{}.png",
+            injection.to_lowercase(),
+            solver.to_lowercase()
+        );
         let path = tmp_dir.join(&filename);
-        let draw_features = PlotConfig::chromatogram(format!(
-            "High-Load: {} × {}",
-            injection,
-            solver
-        ));
-        plot_chromatogram(result, n_points, path.to_str().unwrap(), Some(&draw_features))?;
+        let draw_features =
+            PlotConfig::chromatogram(format!("High-Load: {} × {}", injection, solver));
+        plot_chromatogram(
+            result,
+            n_points,
+            path.to_str().unwrap(),
+            Some(&draw_features),
+        )?;
         println!("  {} × {} : {:?}", injection, solver, path);
     }
 

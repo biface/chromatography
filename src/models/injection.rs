@@ -37,7 +37,6 @@
 /// - **Gaussian**: Smooth injection over time with bell-shaped profile
 /// - **Rectangle**: Constant injection for a duration
 /// - **Custom**: User-defined temporal profile
-
 use std::sync::Arc;
 pub enum TemporalInjection {
     /// Dirac delta injection at a single time point
@@ -58,10 +57,7 @@ pub enum TemporalInjection {
     /// // Inject at t=5s
     /// let injection = TemporalInjection::dirac(5.0, 0.1);
     /// ```
-    Dirac {
-        time: f64,
-        amount: f64,
-    },
+    Dirac { time: f64, amount: f64 },
 
     /// Gaussian (bell-shaped) injection over time
     ///
@@ -136,17 +132,25 @@ impl Clone for TemporalInjection {
                 time: *time,
                 amount: *amount,
             },
-            Self::Gaussian { center, width, peak_concentration } => Self::Gaussian {
+            Self::Gaussian {
+                center,
+                width,
+                peak_concentration,
+            } => Self::Gaussian {
                 center: *center,
                 width: *width,
                 peak_concentration: *peak_concentration,
             },
-            Self::Rectangle { start, end, concentration } => Self::Rectangle {
+            Self::Rectangle {
+                start,
+                end,
+                concentration,
+            } => Self::Rectangle {
                 start: *start,
                 end: *end,
                 concentration: *concentration,
             },
-            Self::Custom(f) => Self::Custom(Arc::clone(f)),  // ✅ Arc allows cloning
+            Self::Custom(f) => Self::Custom(Arc::clone(f)), // ✅ Arc allows cloning
             Self::None => Self::None,
         }
     }
@@ -162,13 +166,21 @@ impl std::fmt::Debug for TemporalInjection {
                 .field("time", time)
                 .field("amount", amount)
                 .finish(),
-            Self::Gaussian { center, width, peak_concentration } => f
+            Self::Gaussian {
+                center,
+                width,
+                peak_concentration,
+            } => f
                 .debug_struct("Gaussian")
                 .field("center", center)
                 .field("width", width)
                 .field("peak_concentration", peak_concentration)
                 .finish(),
-            Self::Rectangle { start, end, concentration } => f
+            Self::Rectangle {
+                start,
+                end,
+                concentration,
+            } => f
                 .debug_struct("Rectangle")
                 .field("start", start)
                 .field("end", end)
@@ -208,7 +220,11 @@ impl TemporalInjection {
     /// * `width` - Standard deviation \[s\]
     /// * `peak_concentration` - Maximum concentration \[mol/L\]
     pub fn gaussian(center: f64, width: f64, peak_concentration: f64) -> Self {
-        Self::Gaussian { center, width, peak_concentration }
+        Self::Gaussian {
+            center,
+            width,
+            peak_concentration,
+        }
     }
 
     /// Create a rectangular temporal injection
@@ -220,7 +236,11 @@ impl TemporalInjection {
     /// * `concentration` - Constant concentration \[mol/L\]
     pub fn rectangle(start: f64, end: f64, concentration: f64) -> Self {
         assert!(end > start, "Rectangle end must be > start");
-        Self::Rectangle { start, end, concentration }
+        Self::Rectangle {
+            start,
+            end,
+            concentration,
+        }
     }
 
     /// Create a custom temporal injection
@@ -257,23 +277,31 @@ impl TemporalInjection {
                 let width = 0.1; // 0.1 second width for Dirac approximation
                 let distance = (t - time) / width;
                 let peak = amount / (width * (2.0 * std::f64::consts::PI).sqrt());
-                let exposant = - (distance * distance) / (2.0 * width * width);
+                let exposant = -(distance * distance) / (2.0 * width * width);
 
                 peak * exposant.exp()
-            },
+            }
 
-            Self::Gaussian { center, width, peak_concentration } => {
+            Self::Gaussian {
+                center,
+                width,
+                peak_concentration,
+            } => {
                 let distance = (t - center) / width;
                 peak_concentration * (-distance * distance / 2.0).exp()
-            },
+            }
 
-            Self::Rectangle { start, end, concentration } => {
+            Self::Rectangle {
+                start,
+                end,
+                concentration,
+            } => {
                 if t >= *start && t < *end {
                     *concentration
                 } else {
                     0.0
                 }
-            },
+            }
 
             Self::Custom(f) => f(t),
 
@@ -306,13 +334,13 @@ mod tests {
     #[test]
     fn test_dirac_injection() {
         let injection = TemporalInjection::dirac(10.0, 1.0);
-        
+
         // Before injection
         assert!(injection.evaluate(0.0) < 0.01);
-        
+
         // At injection time (should have high concentration)
         assert!(injection.evaluate(10.0) > 1.0);
-        
+
         // After injection
         assert!(injection.evaluate(20.0) < 0.01);
     }
@@ -320,15 +348,15 @@ mod tests {
     #[test]
     fn test_gaussian_injection() {
         let injection = TemporalInjection::gaussian(10.0, 2.0, 0.1);
-        
+
         // At center
         assert!((injection.evaluate(10.0) - 0.1).abs() < 1e-10);
-        
+
         // At ±σ should be exp(-0.5) ≈ 0.606 of peak
         let expected = 0.1 * 0.606;
         assert!((injection.evaluate(8.0) - expected).abs() < 0.01);
         assert!((injection.evaluate(12.0) - expected).abs() < 0.01);
-        
+
         // Far from center
         assert!(injection.evaluate(0.0) < 0.001);
         assert!(injection.evaluate(20.0) < 0.001);
@@ -337,25 +365,23 @@ mod tests {
     #[test]
     fn test_rectangle_injection() {
         let injection = TemporalInjection::rectangle(5.0, 15.0, 0.05);
-        
+
         // Before
         assert_eq!(injection.evaluate(4.0), 0.0);
-        
+
         // During
         assert_eq!(injection.evaluate(5.0), 0.05);
         assert_eq!(injection.evaluate(10.0), 0.05);
         assert_eq!(injection.evaluate(14.9), 0.05);
-        
+
         // After
         assert_eq!(injection.evaluate(15.0), 0.0);
     }
 
     #[test]
     fn test_custom_injection() {
-        let injection = TemporalInjection::custom(|t| {
-            if t < 10.0 { 0.01 * t } else { 0.0 }
-        });
-        
+        let injection = TemporalInjection::custom(|t| if t < 10.0 { 0.01 * t } else { 0.0 });
+
         assert_eq!(injection.evaluate(0.0), 0.0);
         assert_eq!(injection.evaluate(5.0), 0.05);
         assert_eq!(injection.evaluate(10.0), 0.0);
@@ -364,7 +390,7 @@ mod tests {
     #[test]
     fn test_none_injection() {
         let injection = TemporalInjection::none();
-        
+
         assert_eq!(injection.evaluate(0.0), 0.0);
         assert_eq!(injection.evaluate(100.0), 0.0);
     }
@@ -374,7 +400,7 @@ mod tests {
         let injection = TemporalInjection::gaussian(10.0, 2.0, 0.1);
         let times = vec![0.0, 5.0, 10.0, 15.0, 20.0];
         let values = injection.evaluate_series(&times);
-        
+
         assert_eq!(values.len(), 5);
         assert!((values[2] - 0.1).abs() < 1e-10); // Peak at t=10
     }
@@ -398,7 +424,10 @@ mod tests {
         let injection = TemporalInjection::gaussian(10.0, 2.0, 0.1);
         let debug = format!("{:?}", injection);
 
-        assert_eq!(debug, "Gaussian { center: 10.0, width: 2.0, peak_concentration: 0.1 }");
+        assert_eq!(
+            debug,
+            "Gaussian { center: 10.0, width: 2.0, peak_concentration: 0.1 }"
+        );
     }
 
     #[test]
@@ -406,12 +435,15 @@ mod tests {
         let injection = TemporalInjection::rectangle(5.0, 9.0, 0.25);
         let debug = format!("{:?}", injection);
 
-        assert_eq!(debug, "Rectangle { start: 5.0, end: 9.0, concentration: 0.25 }");
+        assert_eq!(
+            debug,
+            "Rectangle { start: 5.0, end: 9.0, concentration: 0.25 }"
+        );
     }
 
     #[test]
     fn test_debug_temporal_injection_custom() {
-        let injection = TemporalInjection::custom(|t| {t.exp()});
+        let injection = TemporalInjection::custom(|t| t.exp());
         let debug = format!("{:?}", injection);
 
         assert_eq!(debug, "Custom { function: \"<user-defined>\" }");
@@ -493,9 +525,7 @@ mod tests {
 
     #[test]
     fn test_clone_temporal_injection_custom() {
-        let injection = TemporalInjection::custom(|t| {
-            if t < 10.0 { 0.01 * t } else { 0.0 }
-        });
+        let injection = TemporalInjection::custom(|t| if t < 10.0 { 0.01 * t } else { 0.0 });
         let clone = injection.clone();
 
         assert_eq!(injection.evaluate(0.0), 0.0);

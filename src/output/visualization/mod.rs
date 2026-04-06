@@ -50,12 +50,18 @@
 //! | Compare spatial profiles | `steady` | `plot_steady_state_comparison` |
 //! | Profile evolution over time | `steady` | `plot_profile_evolution` |
 
-pub mod config;
 pub mod chromatogram;
+pub mod config;
 pub mod steady;
 
 pub use config::PlotConfig;
 
-pub use steady::{plot_steady_state, plot_steady_state_comparison, plot_profile_evolution, plot_steady_state_multi};
+pub use steady::{
+    plot_profile_evolution, plot_steady_state, plot_steady_state_comparison,
+    plot_steady_state_multi,
+};
 
-pub use chromatogram::{plot_chromatogram, plot_chromatograms_comparison, plot_chromatogram_multi, plot_chromatogram_envelope};
+pub use chromatogram::{
+    plot_chromatogram, plot_chromatogram_envelope, plot_chromatogram_multi,
+    plot_chromatograms_comparison,
+};

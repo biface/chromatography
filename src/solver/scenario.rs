@@ -49,11 +49,10 @@ pub struct Scenario {
     pub model: Box<dyn PhysicalModel>,
 
     /// Conditions and boundaries
-    pub conditions: DomainBoundaries
+    pub conditions: DomainBoundaries,
 }
 
 impl Scenario {
-
     /// Create a scenario
     pub fn new(model: Box<dyn PhysicalModel>, conditions: DomainBoundaries) -> Self {
         Self { model, conditions }
@@ -88,12 +87,12 @@ impl Scenario {
 impl std::fmt::Debug for Scenario {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Scenario")
-        .field("name", &self.get_model_name())
-        .field("dimension", &self.ndim())
-        .field("spatial dim", &self.sdim())
-        .field("is time dependent", &self.is_time_dependent())
-        .field("Boundaries / conditions", &self.conditions)
-        .finish()
+            .field("name", &self.get_model_name())
+            .field("dimension", &self.ndim())
+            .field("spatial dim", &self.sdim())
+            .field("is time dependent", &self.is_time_dependent())
+            .field("Boundaries / conditions", &self.conditions)
+            .finish()
     }
 }
 
@@ -104,20 +103,20 @@ impl std::fmt::Debug for Scenario {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::physics::traits::{PhysicalState, PhysicalModel};
-    use crate::solver::boundary::{DomainBoundaries, DimensionBoundary, TimeAxisConvention};
+    use crate::physics::traits::{PhysicalModel, PhysicalState};
+    use crate::solver::boundary::{DimensionBoundary, DomainBoundaries, TimeAxisConvention};
 
     // Mocking a Physical model
     struct MockModel {
         content: Vec<PhysicalState>,
-        model_name: String
+        model_name: String,
     }
 
     impl MockModel {
         fn new(name: &str) -> Self {
             Self {
                 content: vec![PhysicalState::empty()],
-                model_name: name.to_string()
+                model_name: name.to_string(),
             }
         }
     }
@@ -130,7 +129,7 @@ mod tests {
         fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
             if !self.content.is_empty() {
                 self.content.last().unwrap().clone() + state.clone()
-            } else { 
+            } else {
                 state.clone()
             }
         }
@@ -163,11 +162,7 @@ mod tests {
         let x_left = PhysicalState::empty();
         let x_right = PhysicalState::empty();
 
-        let boundaries = DomainBoundaries::spatial(
-            &["x"],
-            vec![x_left],
-            vec![x_right],
-        );
+        let boundaries = DomainBoundaries::spatial(&["x"], vec![x_left], vec![x_right]);
 
         Scenario::new(model, boundaries)
     }
@@ -180,12 +175,7 @@ mod tests {
         let x_right = PhysicalState::empty();
         let initial = PhysicalState::empty();
 
-        let boundaries = DomainBoundaries::mixed(
-            &["x"],
-            vec![x_left],
-            vec![x_right],
-            initial,
-        );
+        let boundaries = DomainBoundaries::mixed(&["x"], vec![x_left], vec![x_right], initial);
 
         Scenario::new(model, boundaries)
     }
@@ -310,10 +300,7 @@ mod tests {
 
         let result = scenario.validate();
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            "Dimension boundaries cannot be empty."
-        );
+        assert_eq!(result.unwrap_err(), "Dimension boundaries cannot be empty.");
     }
 
     #[test]
@@ -338,12 +325,10 @@ mod tests {
         // Deux dimensions avec même nom -> erreur
         let model = Box::new(MockModel::new("DuplicateModel"));
 
-        let dim1 = DimensionBoundary::new(
-            "x",
-            vec![PhysicalState::empty(), PhysicalState::empty()],
-        );
+        let dim1 =
+            DimensionBoundary::new("x", vec![PhysicalState::empty(), PhysicalState::empty()]);
         let dim2 = DimensionBoundary::new(
-            "x",  // Même nom !
+            "x", // Même nom !
             vec![PhysicalState::empty(), PhysicalState::empty()],
         );
 
@@ -493,10 +478,7 @@ mod tests {
         // Convention Last (time-dependent)
         let boundaries_last = DomainBoundaries::create(
             vec![
-                DimensionBoundary::new("x", vec![
-                    PhysicalState::empty(),
-                    PhysicalState::empty()
-                ]),
+                DimensionBoundary::new("x", vec![PhysicalState::empty(), PhysicalState::empty()]),
                 DimensionBoundary::new("t", vec![PhysicalState::empty()]),
             ],
             Some(TimeAxisConvention::Last),
@@ -507,12 +489,10 @@ mod tests {
         // Convention None (NOT time-dependent)
         let model2 = Box::new(MockModel::new("ConventionTestModel2"));
         let boundaries_none = DomainBoundaries::create(
-            vec![
-                DimensionBoundary::new("x", vec![
-                    PhysicalState::empty(),
-                    PhysicalState::empty()
-                ]),
-            ],
+            vec![DimensionBoundary::new(
+                "x",
+                vec![PhysicalState::empty(), PhysicalState::empty()],
+            )],
             Some(TimeAxisConvention::None),
         );
         let scenario_none = Scenario::new(model2, boundaries_none);
@@ -640,23 +620,30 @@ mod tests {
             // Validation
             assert!(
                 scenario.validate().is_ok(),
-                "{} scenario should be valid", name
+                "{} scenario should be valid",
+                name
             );
 
             // Dimensions
             assert_eq!(
-                scenario.ndim(), expected_ndim,
-                "{} scenario: wrong ndim", name
+                scenario.ndim(),
+                expected_ndim,
+                "{} scenario: wrong ndim",
+                name
             );
             assert_eq!(
-                scenario.sdim(), expected_sdim,
-                "{} scenario: wrong sdim", name
+                scenario.sdim(),
+                expected_sdim,
+                "{} scenario: wrong sdim",
+                name
             );
 
             // Time dependency
             assert_eq!(
-                scenario.is_time_dependent(), expected_time_dep,
-                "{} scenario: wrong time dependency", name
+                scenario.is_time_dependent(),
+                expected_time_dep,
+                "{} scenario: wrong time dependency",
+                name
             );
         }
     }
@@ -733,7 +720,7 @@ mod tests {
             "Model-2.0",
             "Test_Model",
             "Model (v1)",
-            "Modèle UTF-8",  // UTF-8
+            "Modèle UTF-8", // UTF-8
         ];
 
         for name in special_names {
@@ -755,10 +742,7 @@ mod tests {
         // Test avec une seule boundary state par dimension
         let model = Box::new(MockModel::new("SingleStateModel"));
 
-        let dim = DimensionBoundary::new(
-            "t",
-            vec![PhysicalState::empty()],
-        );
+        let dim = DimensionBoundary::new("t", vec![PhysicalState::empty()]);
 
         let boundaries = DomainBoundaries::new(vec![dim]);
         let scenario = Scenario::new(model, boundaries);
@@ -792,7 +776,7 @@ mod tests {
         let model = Box::new(MockModel::new("MixedNamesModel"));
 
         let boundaries = DomainBoundaries::spatial(
-            &["x", "y", "z", "r", "theta", "phi"],  // Mix cartésien/polaire
+            &["x", "y", "z", "r", "theta", "phi"], // Mix cartésien/polaire
             vec![
                 PhysicalState::empty(),
                 PhysicalState::empty(),
@@ -824,15 +808,11 @@ mod tests {
         let model = Box::new(MockModel::new("FirstConventionModel"));
 
         let t_dim = DimensionBoundary::new("t", vec![PhysicalState::empty()]);
-        let x_dim = DimensionBoundary::new(
-            "x",
-            vec![PhysicalState::empty(), PhysicalState::empty()],
-        );
+        let x_dim =
+            DimensionBoundary::new("x", vec![PhysicalState::empty(), PhysicalState::empty()]);
 
-        let boundaries = DomainBoundaries::create(
-            vec![t_dim, x_dim],
-            Some(TimeAxisConvention::First),
-        );
+        let boundaries =
+            DomainBoundaries::create(vec![t_dim, x_dim], Some(TimeAxisConvention::First));
 
         let scenario = Scenario::new(model, boundaries);
 
@@ -847,20 +827,14 @@ mod tests {
         let model = Box::new(MockModel::new("IndexConventionModel"));
 
         let dims = vec![
-            DimensionBoundary::new(
-                "x",
-                vec![PhysicalState::empty(), PhysicalState::empty()],
-            ),
+            DimensionBoundary::new("x", vec![PhysicalState::empty(), PhysicalState::empty()]),
             DimensionBoundary::new("t", vec![PhysicalState::empty()]),
-            DimensionBoundary::new(
-                "y",
-                vec![PhysicalState::empty(), PhysicalState::empty()],
-            ),
+            DimensionBoundary::new("y", vec![PhysicalState::empty(), PhysicalState::empty()]),
         ];
 
         let boundaries = DomainBoundaries::create(
             dims,
-            Some(TimeAxisConvention::Index(1)),  // t est à l'index 1
+            Some(TimeAxisConvention::Index(1)), // t est à l'index 1
         );
 
         let scenario = Scenario::new(model, boundaries);
@@ -887,7 +861,7 @@ mod tests {
             // Vérifier format de base
             assert!(debug_str.contains("Scenario"));
             assert!(!debug_str.is_empty());
-            assert!(debug_str.len() > 50);  // Doit être assez détaillé
+            assert!(debug_str.len() > 50); // Doit être assez détaillé
         }
     }
 }

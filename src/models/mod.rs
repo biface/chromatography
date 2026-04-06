@@ -30,14 +30,13 @@
 
 //mod langmuir_single_simple;
 pub mod injection;
-pub mod langmuir_single;
 pub mod langmuir_multi;
+pub mod langmuir_single;
 // =================================================================================================
 // Public Re-exports
 // =================================================================================================
 
-
 //pub use langmuir_single_simple::LangmuirSingleSimple;
-pub use langmuir_single::LangmuirSingle;
-pub use langmuir_multi::{SpeciesParams, LangmuirMulti};
 pub use injection::TemporalInjection;
+pub use langmuir_multi::{LangmuirMulti, SpeciesParams};
+pub use langmuir_single::LangmuirSingle;

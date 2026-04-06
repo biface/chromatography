@@ -98,10 +98,7 @@ pub enum CsvError {
     /// # Fields
     /// - `expected`: number of species in the concentration vector
     /// - `got`: number of names provided by the caller
-    SpeciesCountMismatch {
-        expected: usize,
-        got: usize,
-    },
+    SpeciesCountMismatch { expected: usize, got: usize },
 }
 
 // Display implementation for human-readable error messages.
@@ -111,7 +108,10 @@ impl fmt::Display for CsvError {
         match self {
             CsvError::Io(e) => write!(f, "CSV I/O error: {e}"),
             CsvError::EmptyResult => {
-                write!(f, "CSV export failed: SimulationResult contains no time points")
+                write!(
+                    f,
+                    "CSV export failed: SimulationResult contains no time points"
+                )
             }
             CsvError::SpeciesCountMismatch { expected, got } => write!(
                 f,
@@ -179,8 +179,8 @@ pub struct CsvConfig {
 impl Default for CsvConfig {
     fn default() -> Self {
         Self {
-            separator: ';',  // European convention: readable without config in LibreOffice
-            precision: 6,    // 6 significant digits: reasonable physical precision
+            separator: ';', // European convention: readable without config in LibreOffice
+            precision: 6,   // 6 significant digits: reasonable physical precision
         }
     }
 }
@@ -431,9 +431,7 @@ fn compute_sample_indices(total: usize, n_points: Option<usize>) -> Vec<usize> {
 /// # Errors
 ///
 /// Returns [`CsvError::EmptyResult`] if the `Concentration` quantity is absent.
-fn extract_scalar_concentration(
-    state: &crate::physics::PhysicalState,
-) -> Result<f64, CsvError> {
+fn extract_scalar_concentration(state: &crate::physics::PhysicalState) -> Result<f64, CsvError> {
     let data = state
         .get(PhysicalQuantity::Concentration)
         .ok_or(CsvError::EmptyResult)?;
@@ -524,10 +522,7 @@ mod tests {
         let state_trajectory: Vec<PhysicalState> = (0..n_steps)
             .map(|i| {
                 let c = i as f64 * 0.001;
-                PhysicalState::new(
-                    PhysicalQuantity::Concentration,
-                    PhysicalData::Scalar(c),
-                )
+                PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(c))
             })
             .collect();
 
@@ -797,7 +792,10 @@ mod tests {
 
         assert!(matches!(
             err,
-            CsvError::SpeciesCountMismatch { expected: 2, got: 3 }
+            CsvError::SpeciesCountMismatch {
+                expected: 2,
+                got: 3
+            }
         ));
     }
 

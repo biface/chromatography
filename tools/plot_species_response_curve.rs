@@ -48,7 +48,7 @@ const N_POINTS: usize = 100;
 // Seuil de parallélisme : ops = n_points × n_species ≥ 1000 → n_species ≥ 10
 // Parallelism threshold: ops = n_points × n_species ≥ 1000 → n_species ≥ 10
 const PARALLEL_THRESHOLD_OPS: usize = 1000;
-const THRESHOLD_N_SPECIES: usize    = PARALLEL_THRESHOLD_OPS / N_POINTS; // = 10
+const THRESHOLD_N_SPECIES: usize = PARALLEL_THRESHOLD_OPS / N_POINTS; // = 10
 
 // n_species de référence pour le calage de la courbe O(n³)
 // Reference n_species for O(n³) curve anchoring
@@ -118,10 +118,7 @@ fn read_estimates(path: &Path) -> anyhow::Result<Estimates> {
 
 /// Collecte tous les points pour un solveur donné
 /// *Collects all points for a given solver*
-fn collect_solver_points(
-    solver_dir: &Path,
-    solver: Solver,
-) -> anyhow::Result<Vec<DataPoint>> {
+fn collect_solver_points(solver_dir: &Path, solver: Solver) -> anyhow::Result<Vec<DataPoint>> {
     if !solver_dir.exists() {
         return Ok(vec![]);
     }
@@ -130,7 +127,7 @@ fn collect_solver_points(
 
     for entry in fs::read_dir(solver_dir)? {
         let entry = entry?;
-        let name  = entry.file_name();
+        let name = entry.file_name();
         let Some(n_species) = parse_n_species(&name.to_string_lossy()) else {
             continue;
         };
@@ -139,7 +136,10 @@ fn collect_solver_points(
         // Criterion may write into "new/" or directly in the directory
         let estimates_path = entry.path().join("new").join("estimates.json");
         if !estimates_path.exists() {
-            eprintln!("[WARN] Fichier manquant / Missing: {}", estimates_path.display());
+            eprintln!(
+                "[WARN] Fichier manquant / Missing: {}",
+                estimates_path.display()
+            );
             continue;
         }
 
@@ -149,8 +149,8 @@ fn collect_solver_points(
         points.push(DataPoint {
             n_species,
             solver: solver.clone(),
-            time_ms:      est.mean.point_estimate / 1e6,
-            time_low_ms:  est.mean.confidence_interval.lower_bound / 1e6,
+            time_ms: est.mean.point_estimate / 1e6,
+            time_low_ms: est.mean.confidence_interval.lower_bound / 1e6,
             time_high_ms: est.mean.confidence_interval.upper_bound / 1e6,
         });
     }
@@ -190,7 +190,7 @@ fn collect_all_points(criterion_dir: &Path) -> anyhow::Result<Vec<DataPoint>> {
         found_any = true;
 
         let mut euler = collect_solver_points(&group_dir.join("euler"), Solver::Euler)?;
-        let mut rk4   = collect_solver_points(&group_dir.join("rk4"),   Solver::Rk4)?;
+        let mut rk4 = collect_solver_points(&group_dir.join("rk4"), Solver::Rk4)?;
 
         all_points.append(&mut euler);
         all_points.append(&mut rk4);
@@ -211,7 +211,8 @@ fn collect_all_points(criterion_dir: &Path) -> anyhow::Result<Vec<DataPoint>> {
     // Dédoublonnage par (n_species, solver) si les deux architectures coexistent
     // Deduplication by (n_species, solver) if both architectures coexist
     all_points.sort_by(|a, b| {
-        a.n_species.cmp(&b.n_species)
+        a.n_species
+            .cmp(&b.n_species)
             .then_with(|| format!("{:?}", a.solver).cmp(&format!("{:?}", b.solver)))
     });
     all_points.dedup_by(|a, b| a.n_species == b.n_species && a.solver == b.solver);
@@ -237,21 +238,26 @@ impl LogLogRegression {
     /// Régression OLS sur les paires (log x, log y)
     /// *OLS regression on pairs (log x, log y)*
     fn fit(pts: &[(f64, f64)]) -> Option<Self> {
-        let valid: Vec<(f64, f64)> = pts.iter()
+        let valid: Vec<(f64, f64)> = pts
+            .iter()
             .filter(|&&(x, y)| x > 0.0 && y > 0.0)
             .map(|&(x, y)| (x.ln(), y.ln()))
             .collect();
 
-        if valid.len() < 2 { return None; }
+        if valid.len() < 2 {
+            return None;
+        }
 
-        let n      = valid.len() as f64;
-        let sum_x  = valid.iter().map(|(x, _)| x).sum::<f64>();
-        let sum_y  = valid.iter().map(|(_, y)| y).sum::<f64>();
+        let n = valid.len() as f64;
+        let sum_x = valid.iter().map(|(x, _)| x).sum::<f64>();
+        let sum_y = valid.iter().map(|(_, y)| y).sum::<f64>();
         let sum_xx = valid.iter().map(|(x, _)| x * x).sum::<f64>();
         let sum_xy = valid.iter().map(|(x, y)| x * y).sum::<f64>();
 
         let denom = n * sum_xx - sum_x * sum_x;
-        if denom.abs() < 1e-12 { return None; }
+        if denom.abs() < 1e-12 {
+            return None;
+        }
 
         let alpha = (n * sum_xy - sum_x * sum_y) / denom;
         let log_a = (sum_y - alpha * sum_x) / n;
@@ -275,19 +281,27 @@ fn generate_plot(all_points: &[DataPoint], output_path: &Path) -> anyhow::Result
         fs::create_dir_all(parent)?;
     }
 
-    let euler_pts: Vec<&DataPoint> = all_points.iter()
-        .filter(|p| p.solver == Solver::Euler).collect();
-    let rk4_pts: Vec<&DataPoint> = all_points.iter()
-        .filter(|p| p.solver == Solver::Rk4).collect();
+    let euler_pts: Vec<&DataPoint> = all_points
+        .iter()
+        .filter(|p| p.solver == Solver::Euler)
+        .collect();
+    let rk4_pts: Vec<&DataPoint> = all_points
+        .iter()
+        .filter(|p| p.solver == Solver::Rk4)
+        .collect();
 
     // ── Régressions log-log ───────────────────────────────────────────────
-    let euler_xy: Vec<(f64, f64)> = euler_pts.iter()
-        .map(|p| (p.n_species as f64, p.time_ms)).collect();
-    let rk4_xy: Vec<(f64, f64)> = rk4_pts.iter()
-        .map(|p| (p.n_species as f64, p.time_ms)).collect();
+    let euler_xy: Vec<(f64, f64)> = euler_pts
+        .iter()
+        .map(|p| (p.n_species as f64, p.time_ms))
+        .collect();
+    let rk4_xy: Vec<(f64, f64)> = rk4_pts
+        .iter()
+        .map(|p| (p.n_species as f64, p.time_ms))
+        .collect();
 
     let reg_euler = LogLogRegression::fit(&euler_xy);
-    let reg_rk4   = LogLogRegression::fit(&rk4_xy);
+    let reg_rk4 = LogLogRegression::fit(&rk4_xy);
 
     // ── Courbe O(n³) théorique calée sur Euler à n_species = N_REF ────────
     // ── Theoretical O(n³) curve anchored on Euler at n_species = N_REF ────
@@ -295,7 +309,8 @@ fn generate_plot(all_points: &[DataPoint], output_path: &Path) -> anyhow::Result
     // t_théo(n) = t_euler(N_REF) × (n / N_REF)³
     // Ce calage isole la forme de la loi (exposant) du coefficient absolu.
     // This anchoring isolates the law shape (exponent) from the absolute coefficient.
-    let t_ref = euler_pts.iter()
+    let t_ref = euler_pts
+        .iter()
         .find(|p| p.n_species == N_REF)
         .map(|p| p.time_ms)
         .unwrap_or_else(|| euler_pts.first().map(|p| p.time_ms).unwrap_or(1.0));
@@ -303,7 +318,11 @@ fn generate_plot(all_points: &[DataPoint], output_path: &Path) -> anyhow::Result
 
     // ── Bornes des axes ───────────────────────────────────────────────────
     let x_max = all_points.iter().map(|p| p.n_species).max().unwrap_or(100) as f64;
-    let y_max = all_points.iter().map(|p| p.time_high_ms).fold(0.0_f64, f64::max) * 1.15;
+    let y_max = all_points
+        .iter()
+        .map(|p| p.time_high_ms)
+        .fold(0.0_f64, f64::max)
+        * 1.15;
 
     // ── Backend SVG ───────────────────────────────────────────────────────
     let root = SVGBackend::new(output_path, (1200, 700)).into_drawing_area();
@@ -333,17 +352,23 @@ fn generate_plot(all_points: &[DataPoint], output_path: &Path) -> anyhow::Result
 
     // ── Zones de fond : série (bleu pâle) + parallèle (rouge pâle) ────────
     let tx = THRESHOLD_N_SPECIES as f64;
-    chart.draw_series(std::iter::once(
-        Rectangle::new([(0.0, 0.0), (tx, y_max)], BLUE.mix(0.04).filled())
-    ))?;
-    chart.draw_series(std::iter::once(
-        Rectangle::new([(tx, 0.0), (x_max * 1.05, y_max)], RED.mix(0.04).filled())
-    ))?;
+    chart.draw_series(std::iter::once(Rectangle::new(
+        [(0.0, 0.0), (tx, y_max)],
+        BLUE.mix(0.04).filled(),
+    )))?;
+    chart.draw_series(std::iter::once(Rectangle::new(
+        [(tx, 0.0), (x_max * 1.05, y_max)],
+        RED.mix(0.04).filled(),
+    )))?;
 
     // ── Ligne verticale du seuil de parallélisme ──────────────────────────
     chart.draw_series(std::iter::once(PathElement::new(
         vec![(tx, 0.0), (tx, y_max)],
-        ShapeStyle { color: GREEN.mix(0.7).to_rgba(), filled: false, stroke_width: 2 },
+        ShapeStyle {
+            color: GREEN.mix(0.7).to_rgba(),
+            filled: false,
+            stroke_width: 2,
+        },
     )))?;
     chart.draw_series(std::iter::once(Text::new(
         format!("Seuil / Threshold\nn_species={THRESHOLD_N_SPECIES}"),
@@ -362,20 +387,28 @@ fn generate_plot(all_points: &[DataPoint], output_path: &Path) -> anyhow::Result
         .filter(|&(_, y)| y <= y_max)
         .collect();
 
-    chart.draw_series(
-        theory_curve.windows(2).map(|w| PathElement::new(
-            vec![w[0], w[1]],
-            ShapeStyle {
-                color: RGBColor(150, 150, 150).mix(0.8).to_rgba(),
-                filled: false,
-                stroke_width: 2,
-            },
-        ))
-    )?.label("O(n³) théorique / theoretical")
-      .legend(|(x, y)| PathElement::new(
-          vec![(x, y), (x + 20, y)],
-          ShapeStyle { color: RGBColor(150, 150, 150).to_rgba(), filled: false, stroke_width: 2 }
-      ));
+    chart
+        .draw_series(theory_curve.windows(2).map(|w| {
+            PathElement::new(
+                vec![w[0], w[1]],
+                ShapeStyle {
+                    color: RGBColor(150, 150, 150).mix(0.8).to_rgba(),
+                    filled: false,
+                    stroke_width: 2,
+                },
+            )
+        }))?
+        .label("O(n³) théorique / theoretical")
+        .legend(|(x, y)| {
+            PathElement::new(
+                vec![(x, y), (x + 20, y)],
+                ShapeStyle {
+                    color: RGBColor(150, 150, 150).to_rgba(),
+                    filled: false,
+                    stroke_width: 2,
+                },
+            )
+        });
 
     // ── Droite de régression Euler ─────────────────────────────────────────
     if let Some(ref reg) = reg_euler {
@@ -388,20 +421,28 @@ fn generate_plot(all_points: &[DataPoint], output_path: &Path) -> anyhow::Result
             .filter(|&(_, y)| y > 0.0 && y <= y_max)
             .collect();
 
-        chart.draw_series(
-            reg_curve.windows(2).map(|w| PathElement::new(
-                vec![w[0], w[1]],
-                ShapeStyle {
-                    color: RGBColor(0, 0, 180).mix(0.55).to_rgba(),
-                    filled: false,
-                    stroke_width: 2,
-                },
-            ))
-        )?.label(format!("Régr. Euler: O(n^{:.2})", reg.alpha))
-          .legend(|(x, y)| PathElement::new(
-              vec![(x, y), (x + 20, y)],
-              ShapeStyle { color: RGBColor(0, 0, 180).mix(0.55).to_rgba(), filled: false, stroke_width: 2 }
-          ));
+        chart
+            .draw_series(reg_curve.windows(2).map(|w| {
+                PathElement::new(
+                    vec![w[0], w[1]],
+                    ShapeStyle {
+                        color: RGBColor(0, 0, 180).mix(0.55).to_rgba(),
+                        filled: false,
+                        stroke_width: 2,
+                    },
+                )
+            }))?
+            .label(format!("Régr. Euler: O(n^{:.2})", reg.alpha))
+            .legend(|(x, y)| {
+                PathElement::new(
+                    vec![(x, y), (x + 20, y)],
+                    ShapeStyle {
+                        color: RGBColor(0, 0, 180).mix(0.55).to_rgba(),
+                        filled: false,
+                        stroke_width: 2,
+                    },
+                )
+            });
     }
 
     // ── Droite de régression RK4 ──────────────────────────────────────────
@@ -415,55 +456,89 @@ fn generate_plot(all_points: &[DataPoint], output_path: &Path) -> anyhow::Result
             .filter(|&(_, y)| y > 0.0 && y <= y_max)
             .collect();
 
-        chart.draw_series(
-            reg_curve.windows(2).map(|w| PathElement::new(
-                vec![w[0], w[1]],
-                ShapeStyle {
-                    color: RGBColor(180, 0, 0).mix(0.55).to_rgba(),
-                    filled: false,
-                    stroke_width: 2,
-                },
-            ))
-        )?.label(format!("Régr. RK4: O(n^{:.2})", reg.alpha))
-          .legend(|(x, y)| PathElement::new(
-              vec![(x, y), (x + 20, y)],
-              ShapeStyle { color: RGBColor(180, 0, 0).mix(0.55).to_rgba(), filled: false, stroke_width: 2 }
-          ));
+        chart
+            .draw_series(reg_curve.windows(2).map(|w| {
+                PathElement::new(
+                    vec![w[0], w[1]],
+                    ShapeStyle {
+                        color: RGBColor(180, 0, 0).mix(0.55).to_rgba(),
+                        filled: false,
+                        stroke_width: 2,
+                    },
+                )
+            }))?
+            .label(format!("Régr. RK4: O(n^{:.2})", reg.alpha))
+            .legend(|(x, y)| {
+                PathElement::new(
+                    vec![(x, y), (x + 20, y)],
+                    ShapeStyle {
+                        color: RGBColor(180, 0, 0).mix(0.55).to_rgba(),
+                        filled: false,
+                        stroke_width: 2,
+                    },
+                )
+            });
     }
 
     // ── Barres d'erreur IC 95% ────────────────────────────────────────────
     for p in all_points {
-        let x   = p.n_species as f64;
-        let col = if p.solver == Solver::Euler { BLUE.mix(0.35) } else { RED.mix(0.35) };
+        let x = p.n_species as f64;
+        let col = if p.solver == Solver::Euler {
+            BLUE.mix(0.35)
+        } else {
+            RED.mix(0.35)
+        };
         let cap = x_max * 0.003;
 
         chart.draw_series(std::iter::once(PathElement::new(
             vec![(x, p.time_low_ms), (x, p.time_high_ms)],
-            ShapeStyle { color: col.to_rgba(), filled: false, stroke_width: 1 },
+            ShapeStyle {
+                color: col.to_rgba(),
+                filled: false,
+                stroke_width: 1,
+            },
         )))?;
         for &y_cap in &[p.time_low_ms, p.time_high_ms] {
             chart.draw_series(std::iter::once(PathElement::new(
                 vec![(x - cap, y_cap), (x + cap, y_cap)],
-                ShapeStyle { color: col.to_rgba(), filled: false, stroke_width: 1 },
+                ShapeStyle {
+                    color: col.to_rgba(),
+                    filled: false,
+                    stroke_width: 1,
+                },
             )))?;
         }
     }
 
     // ── Courbe Euler mesurée (bleue) ──────────────────────────────────────
-    let euler_curve: Vec<(f64, f64)> = euler_pts.iter()
-        .map(|p| (p.n_species as f64, p.time_ms)).collect();
-    chart.draw_series(LineSeries::new(euler_curve.clone(), BLUE.stroke_width(3)))?
+    let euler_curve: Vec<(f64, f64)> = euler_pts
+        .iter()
+        .map(|p| (p.n_species as f64, p.time_ms))
+        .collect();
+    chart
+        .draw_series(LineSeries::new(euler_curve.clone(), BLUE.stroke_width(3)))?
         .label("Euler mesuré / Measured Euler")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLUE.stroke_width(3)));
-    chart.draw_series(euler_curve.iter().map(|&(x, y)| Circle::new((x, y), 5, BLUE.filled())))?;
+    chart.draw_series(
+        euler_curve
+            .iter()
+            .map(|&(x, y)| Circle::new((x, y), 5, BLUE.filled())),
+    )?;
 
     // ── Courbe RK4 mesurée (rouge) ────────────────────────────────────────
-    let rk4_curve: Vec<(f64, f64)> = rk4_pts.iter()
-        .map(|p| (p.n_species as f64, p.time_ms)).collect();
-    chart.draw_series(LineSeries::new(rk4_curve.clone(), RED.stroke_width(3)))?
+    let rk4_curve: Vec<(f64, f64)> = rk4_pts
+        .iter()
+        .map(|p| (p.n_species as f64, p.time_ms))
+        .collect();
+    chart
+        .draw_series(LineSeries::new(rk4_curve.clone(), RED.stroke_width(3)))?
         .label("RK4 mesuré / Measured RK4")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED.stroke_width(3)));
-    chart.draw_series(rk4_curve.iter().map(|&(x, y)| Circle::new((x, y), 5, RED.filled())))?;
+    chart.draw_series(
+        rk4_curve
+            .iter()
+            .map(|&(x, y)| Circle::new((x, y), 5, RED.filled())),
+    )?;
 
     // ── Annotation du seuil de parallélisme ───────────────────────────────
     // ── Parallelism threshold annotation ─────────────────────────────────
@@ -471,15 +546,20 @@ fn generate_plot(all_points: &[DataPoint], output_path: &Path) -> anyhow::Result
     // Si les deux solveurs ont des mesures à n=9 et n=10, on annote le gain
     // obtenu grâce au parallélisme Rayon.
     // If both solvers have measurements at n=9 and n=10, annotate the Rayon gain.
-    let euler_before = euler_pts.iter().find(|p| p.n_species == THRESHOLD_N_SPECIES - 1);
-    let euler_after  = euler_pts.iter().find(|p| p.n_species == THRESHOLD_N_SPECIES);
+    let euler_before = euler_pts
+        .iter()
+        .find(|p| p.n_species == THRESHOLD_N_SPECIES - 1);
+    let euler_after = euler_pts
+        .iter()
+        .find(|p| p.n_species == THRESHOLD_N_SPECIES);
 
     if let (Some(eb), Some(ea)) = (euler_before, euler_after) {
         // Rapport attendu sans parallélisme : (10/9)³ ≈ 1.37×
         // Expected ratio without parallelism: (10/9)³ ≈ 1.37×
-        let expected_ratio = (THRESHOLD_N_SPECIES as f64 / (THRESHOLD_N_SPECIES - 1) as f64).powi(3);
-        let actual_ratio   = ea.time_ms / eb.time_ms;
-        let par_effect     = actual_ratio / expected_ratio;
+        let expected_ratio =
+            (THRESHOLD_N_SPECIES as f64 / (THRESHOLD_N_SPECIES - 1) as f64).powi(3);
+        let actual_ratio = ea.time_ms / eb.time_ms;
+        let par_effect = actual_ratio / expected_ratio;
 
         chart.draw_series(std::iter::once(Text::new(
             format!(
@@ -497,19 +577,27 @@ fn generate_plot(all_points: &[DataPoint], output_path: &Path) -> anyhow::Result
                 ((THRESHOLD_N_SPECIES - 1) as f64, eb.time_ms),
                 (THRESHOLD_N_SPECIES as f64, ea.time_ms),
             ],
-            ShapeStyle { color: RGBColor(0, 140, 0).to_rgba(), filled: false, stroke_width: 3 },
+            ShapeStyle {
+                color: RGBColor(0, 140, 0).to_rgba(),
+                filled: false,
+                stroke_width: 3,
+            },
         )))?;
     }
 
     // ── Légende ───────────────────────────────────────────────────────────
-    chart.configure_series_labels()
+    chart
+        .configure_series_labels()
         .background_style(WHITE.mix(0.92))
         .border_style(RGBColor(180, 180, 180))
         .position(SeriesLabelPosition::UpperLeft)
         .draw()?;
 
     root.present()?;
-    println!("✅ Graphique généré / Plot generated: {}", output_path.display());
+    println!(
+        "✅ Graphique généré / Plot generated: {}",
+        output_path.display()
+    );
     Ok(())
 }
 
@@ -519,30 +607,50 @@ fn generate_plot(all_points: &[DataPoint], output_path: &Path) -> anyhow::Result
 
 fn main() -> anyhow::Result<()> {
     let criterion_dir = PathBuf::from("target/criterion");
-    let output_path   = PathBuf::from("target/plots/species_response_curve.svg");
+    let output_path = PathBuf::from("target/plots/species_response_curve.svg");
 
     println!("📂 Lecture des données Criterion / Reading Criterion data...");
 
     let all_points = collect_all_points(&criterion_dir)?;
 
-    let euler_pts: Vec<&DataPoint> = all_points.iter().filter(|p| p.solver == Solver::Euler).collect();
-    let rk4_pts:   Vec<&DataPoint> = all_points.iter().filter(|p| p.solver == Solver::Rk4).collect();
+    let euler_pts: Vec<&DataPoint> = all_points
+        .iter()
+        .filter(|p| p.solver == Solver::Euler)
+        .collect();
+    let rk4_pts: Vec<&DataPoint> = all_points
+        .iter()
+        .filter(|p| p.solver == Solver::Rk4)
+        .collect();
 
     // ── Tableau récapitulatif ─────────────────────────────────────────────
-    println!("\n{:<12} {:<10} {:<10} {:<12} {:<12} {:<10}",
-        "n_species", "ops", "régime", "Euler_ms", "RK4_ms", "ratio");
+    println!(
+        "\n{:<12} {:<10} {:<10} {:<12} {:<12} {:<10}",
+        "n_species", "ops", "régime", "Euler_ms", "RK4_ms", "ratio"
+    );
     println!("{:-<68}", "");
 
     let n_species_list: Vec<usize> = {
         let mut ns: Vec<usize> = all_points.iter().map(|p| p.n_species).collect();
-        ns.sort(); ns.dedup(); ns
+        ns.sort();
+        ns.dedup();
+        ns
     };
 
     for &n_sp in &n_species_list {
-        let ops    = N_POINTS * n_sp;
-        let regime = if ops >= PARALLEL_THRESHOLD_OPS { "PARALLÈLE" } else { "série" };
-        let e_time = euler_pts.iter().find(|p| p.n_species == n_sp).map(|p| p.time_ms);
-        let r_time = rk4_pts.iter().find(|p| p.n_species == n_sp).map(|p| p.time_ms);
+        let ops = N_POINTS * n_sp;
+        let regime = if ops >= PARALLEL_THRESHOLD_OPS {
+            "PARALLÈLE"
+        } else {
+            "série"
+        };
+        let e_time = euler_pts
+            .iter()
+            .find(|p| p.n_species == n_sp)
+            .map(|p| p.time_ms);
+        let r_time = rk4_pts
+            .iter()
+            .find(|p| p.n_species == n_sp)
+            .map(|p| p.time_ms);
 
         let ratio_str = match (e_time, r_time) {
             (Some(e), Some(r)) => format!("{:.2}×", r / e),
@@ -551,7 +659,9 @@ fn main() -> anyhow::Result<()> {
 
         println!(
             "{:<12} {:<10} {:<10} {:<12} {:<12} {:<10}",
-            n_sp, ops, regime,
+            n_sp,
+            ops,
+            regime,
             e_time.map(|t| format!("{:.2}", t)).unwrap_or("-".into()),
             r_time.map(|t| format!("{:.2}", t)).unwrap_or("-".into()),
             ratio_str,
@@ -559,17 +669,29 @@ fn main() -> anyhow::Result<()> {
     }
 
     // ── Régressions log-log ───────────────────────────────────────────────
-    let euler_xy: Vec<(f64, f64)> = euler_pts.iter()
-        .map(|p| (p.n_species as f64, p.time_ms)).collect();
-    let rk4_xy: Vec<(f64, f64)> = rk4_pts.iter()
-        .map(|p| (p.n_species as f64, p.time_ms)).collect();
+    let euler_xy: Vec<(f64, f64)> = euler_pts
+        .iter()
+        .map(|p| (p.n_species as f64, p.time_ms))
+        .collect();
+    let rk4_xy: Vec<(f64, f64)> = rk4_pts
+        .iter()
+        .map(|p| (p.n_species as f64, p.time_ms))
+        .collect();
 
     println!("\n📐 Régressions log-log / Log-log regressions (théorique O(n³) = 3.000):");
     if let Some(r) = LogLogRegression::fit(&euler_xy) {
-        println!("   Euler : t ∝ n^{:.3}  (écart / deviation: {:+.3})", r.alpha, r.alpha - 3.0);
+        println!(
+            "   Euler : t ∝ n^{:.3}  (écart / deviation: {:+.3})",
+            r.alpha,
+            r.alpha - 3.0
+        );
     }
     if let Some(r) = LogLogRegression::fit(&rk4_xy) {
-        println!("   RK4   : t ∝ n^{:.3}  (écart / deviation: {:+.3})", r.alpha, r.alpha - 3.0);
+        println!(
+            "   RK4   : t ∝ n^{:.3}  (écart / deviation: {:+.3})",
+            r.alpha,
+            r.alpha - 3.0
+        );
     }
 
     println!("\n🎨 Génération du graphique / Generating plot...");
@@ -589,17 +711,17 @@ mod tests {
 
     #[test]
     fn test_parse_n_species_valid() {
-        assert_eq!(parse_n_species("n_sp_10"),  Some(10));
+        assert_eq!(parse_n_species("n_sp_10"), Some(10));
         assert_eq!(parse_n_species("n_sp_100"), Some(100));
-        assert_eq!(parse_n_species("n_sp_2"),   Some(2));
+        assert_eq!(parse_n_species("n_sp_2"), Some(2));
     }
 
     #[test]
     fn test_parse_n_species_invalid() {
-        assert_eq!(parse_n_species("euler"),     None);
-        assert_eq!(parse_n_species("n_sp_abc"),  None);
-        assert_eq!(parse_n_species(""),          None);
-        assert_eq!(parse_n_species("npts_100"),  None);
+        assert_eq!(parse_n_species("euler"), None);
+        assert_eq!(parse_n_species("n_sp_abc"), None);
+        assert_eq!(parse_n_species(""), None);
+        assert_eq!(parse_n_species("npts_100"), None);
     }
 
     // ── Régression log-log ────────────────────────────────────────────────
@@ -608,10 +730,12 @@ mod tests {
     /// *Regression on y = x³ must recover α = 3.0*
     #[test]
     fn test_regression_cubic() {
-        let pts: Vec<(f64, f64)> = (1..=10).map(|i| {
-            let x = i as f64 * 5.0;
-            (x, x.powi(3))
-        }).collect();
+        let pts: Vec<(f64, f64)> = (1..=10)
+            .map(|i| {
+                let x = i as f64 * 5.0;
+                (x, x.powi(3))
+            })
+            .collect();
         let reg = LogLogRegression::fit(&pts).unwrap();
         assert!((reg.alpha - 3.0).abs() < 1e-6, "α={}", reg.alpha);
     }
@@ -641,7 +765,7 @@ mod tests {
     #[test]
     fn test_threshold_at_n_species_10() {
         assert_eq!(THRESHOLD_N_SPECIES, 10);
-        assert!((9  * N_POINTS) < PARALLEL_THRESHOLD_OPS);
+        assert!((9 * N_POINTS) < PARALLEL_THRESHOLD_OPS);
         assert!((10 * N_POINTS) >= PARALLEL_THRESHOLD_OPS);
     }
 
@@ -651,8 +775,8 @@ mod tests {
     /// *The O(n³) curve anchored at (N_REF, t_ref) is exact at the anchoring point*
     #[test]
     fn test_theory_curve_exact_at_anchor() {
-        let t_ref  = 1.5_f64;
-        let n_ref  = N_REF as f64;
+        let t_ref = 1.5_f64;
+        let n_ref = N_REF as f64;
         let n_test = n_ref;
         let t_theo = t_ref * (n_test / n_ref).powi(3);
         assert!((t_theo - t_ref).abs() < 1e-12);
