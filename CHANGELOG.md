@@ -16,6 +16,7 @@ Versioning: [SemVer](https://semver.org/)
 
 ### Changed
 - Upgrade `dynamic-cli` dependency from `0.1.1` to `0.2.0`
+- Upgrade `nalgebra` dependency from `0.33` to `0.34`
 - Fix rustdoc redirect in CI: `dynamic_cli/index.html` → `chrom_rs/index.html`
 - Enable and fix all doc-tests across `models/`, `solver/`, and `output/` modules — remove `ignore` attribute, align examples with current public API
 - Add `libfontconfig1-dev` system dependency in CI jobs (required by `plotters`)

@@ -23,8 +23,8 @@ opt-level = 0
 
 
 [dependencies]
-dynamic-cli = "0.1.1"
-nalgebra = "0.34.1"
+dynamic-cli = "0.2.0"
+nalgebra = "0.34.2"
 num = "0.4.3"
 serde = { version = "1.0.228", features = ["derive"] }
 log = "0.4.29"
