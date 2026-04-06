@@ -92,7 +92,6 @@
 //! # }
 //! ```
 
-use crate::physics::PhysicalState;
 use crate::solver::{
     Scenario, SimulationResult, Solver, SolverConfiguration, SolverType, validate_state,
 };
@@ -333,10 +332,10 @@ impl Solver for RK4Solver {
 
         // Add metadata
         result.add_metadata("solver", "Runge-Kutta 4");
-        result.add_metadata("time steps", &time_steps.to_string());
-        result.add_metadata("dt", &dt.to_string());
-        result.add_metadata("total time", &total_time.to_string());
-        result.add_metadata("function evaluations", &(4 * time_steps).to_string());
+        result.add_metadata("time steps", time_steps.to_string());
+        result.add_metadata("dt", dt.to_string());
+        result.add_metadata("total time", total_time.to_string());
+        result.add_metadata("function evaluations", (4 * time_steps).to_string());
 
         Ok(result)
     }

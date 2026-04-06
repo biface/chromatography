@@ -194,12 +194,12 @@ where
             ShapeStyle::from(&config.line_color).stroke_width(config.line_width),
         ))?
         .label("Concentration Profile")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &config.line_color));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], config.line_color));
 
     chart
         .configure_series_labels()
-        .background_style(&config.background.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(config.background.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     root.present()?;
@@ -319,13 +319,13 @@ where
                 &color,
             ))?
             .label(*label)
-            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &color));
+            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], color));
     }
 
     chart
         .configure_series_labels()
-        .background_style(&config.background.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(config.background.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     root.present()?;
@@ -564,13 +564,13 @@ where
                 ShapeStyle::from(&color).stroke_width(config.line_width),
             ))?
             .label(label)
-            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &color));
+            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], color));
     }
 
     chart
         .configure_series_labels()
-        .background_style(&config.background.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(config.background.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     root.present()?;

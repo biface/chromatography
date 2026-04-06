@@ -1,3 +1,4 @@
+#![allow(clippy::doc_overindented_list_items)]
 //! Chromatogram plotting for temporal simulations
 //!
 //! This module provides plotting functions for time-series data,
@@ -577,12 +578,12 @@ where
             ShapeStyle::from(&config.line_color).stroke_width(config.line_width),
         ))?
         .label("Outlet Concentration")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &config.line_color));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], config.line_color));
 
     chart
         .configure_series_labels()
-        .background_style(&config.background.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(config.background.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     root.present()?;
@@ -604,6 +605,7 @@ where
 ///
 /// The Y-axis is scaled on the cumulative signal, which is always
 /// $\geq \max_k C_{outlet,k}(t_i)$.
+#[allow(clippy::too_many_arguments)]
 fn plot_cumulative_chromatogram_impl<DB: DrawingBackend>(
     backend: DB,
     time_points: &[f64],
@@ -678,12 +680,12 @@ where
             },
         ))?
         .label("Σ Total")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));
 
     chart
         .configure_series_labels()
-        .background_style(&config.background.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(config.background.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     root.present()?;
@@ -749,7 +751,7 @@ where
                 ShapeStyle::from(&color).stroke_width(config.line_width),
             ))?
             .label(label)
-            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &color));
+            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], color));
     }
 
     // ── 2. Concentration envelope ────────────────────────────────────────────
@@ -791,13 +793,13 @@ where
                 ),
             )?
             .label("Envelope")
-            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &envelope_color));
+            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], envelope_color));
     }
 
     chart
         .configure_series_labels()
-        .background_style(&config.background.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(config.background.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     root.present()?;
@@ -844,13 +846,13 @@ where
                 &color,
             ))?
             .label(*label)
-            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &color));
+            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], color));
     }
 
     chart
         .configure_series_labels()
-        .background_style(&config.background.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(config.background.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     root.present()?;

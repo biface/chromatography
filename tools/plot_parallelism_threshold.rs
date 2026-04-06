@@ -382,7 +382,7 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
     // The O(n²) curve is extrapolated up to x_max: its natural clip by
     // y_max visually shows where the serial regime without Rayon would
     // exceed the measured parallel cost.
-    let x_serial_max = serial.last().map(|p| p.n_points as f64).unwrap_or(tx);
+    let _x_serial_max = serial.last().map(|p| p.n_points as f64).unwrap_or(tx);
     let theory_points: Vec<(f64, f64)> = (0..=400)
         .map(|i| {
             let x = n0 + (x_max - n0) * i as f64 / 400.0;

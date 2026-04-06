@@ -155,6 +155,7 @@ impl PlotConfig {
     /// // With default title
     /// let config = PlotConfig::chromatogram(None::<&str>);
     /// ```
+    #[allow(clippy::field_reassign_with_default)]
     pub fn chromatogram(title: impl IntoOptionalTitle) -> Self {
         let mut config = Self::default();
         config.xlabel = "Time (s)".to_string();
@@ -183,6 +184,7 @@ impl PlotConfig {
     /// // With default title
     /// let config = PlotConfig::steady_state(None::<&str>);
     /// ```
+    #[allow(clippy::field_reassign_with_default)]
     pub fn steady_state(title: impl IntoOptionalTitle) -> Self {
         let mut config = Self::default();
         config.xlabel = "Position (m)".to_string();
@@ -202,6 +204,7 @@ impl PlotConfig {
     ///
     /// let config = PlotConfig::multi_species_colors(vec![RED, BLUE, GREEN]);
     /// ```
+    #[allow(clippy::field_reassign_with_default)]
     pub fn multi_species_colors(colors: Vec<RGBColor>) -> Self {
         let mut config = Self::default();
         config.species_colors = Some(colors);
@@ -212,11 +215,10 @@ impl PlotConfig {
     ///
     /// Uses custom colors if provided, otherwise falls back to default palette
     pub(crate) fn get_species_color(&self, species_index: usize) -> RGBColor {
-        if let Some(ref colors) = self.species_colors {
-            if species_index < colors.len() {
+        if let Some(ref colors) = self.species_colors
+            && species_index < colors.len() {
                 return colors[species_index];
             }
-        }
 
         // Default palette
         let default_colors = vec![

@@ -441,7 +441,7 @@ fn extract_scalar_concentration(state: &crate::physics::PhysicalState) -> Result
         PhysicalData::Vector(v) => {
             // For a spatial profile, the detector sits at the column outlet
             // = last spatial point (index n-1)
-            *v.iter().last().unwrap_or(&0.0)
+            *v.iter().next_back().unwrap_or(&0.0)
         }
         // Other variants (Matrix, etc.) are not used in 1D chromatography
         _ => 0.0,

@@ -275,9 +275,9 @@ impl Solver for EulerSolver {
         // Add metadata for diagnostics and reproducibility
 
         result.add_metadata("solver", "Forward Euler");
-        result.add_metadata("time steps", &time_steps.to_string());
-        result.add_metadata("dt", &dt.to_string());
-        result.add_metadata("total time", &total_time.to_string());
+        result.add_metadata("time steps", time_steps.to_string());
+        result.add_metadata("dt", dt.to_string());
+        result.add_metadata("total time", total_time.to_string());
 
         Ok(result)
     }

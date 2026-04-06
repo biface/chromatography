@@ -79,7 +79,6 @@
 //! ```
 
 use nalgebra::{DMatrix, DVector};
-use std::fmt::format;
 
 use crate::models::injection::TemporalInjection;
 use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
@@ -278,6 +277,7 @@ impl SpeciesParams {
 /// model.add_species(fourth_species).unwrap();    // Jacobian: 3×3 → 4×4
 /// ```
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct LangmuirMulti {
     /// Chemical species (at least 1, extensible via \[`add_species`\](Self::add_species))
     species: Vec<SpeciesParams>,
@@ -703,7 +703,7 @@ impl PhysicalModel for LangmuirMulti {
                 // collect() gathers all rows in index order before assembly.
                 let rows: Vec<Vec<f64>> = (0..n_species)
                     .into_par_iter()
-                    .map(|i| compute_row(i))
+                    .map(&compute_row)
                     .collect();
 
                 for (i, row) in rows.into_iter().enumerate() {

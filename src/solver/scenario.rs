@@ -43,7 +43,6 @@ use crate::solver::boundary::DomainBoundaries;
 /// # Ok(())
 /// # }
 /// ```
-
 pub struct Scenario {
     /// Physical model (equations)
     pub model: Box<dyn PhysicalModel>,

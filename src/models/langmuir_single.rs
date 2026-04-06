@@ -225,6 +225,7 @@ impl LangmuirSingle {
     /// );
     /// assert_eq!(model.spatial_points(), 100);
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         lambda: f64,
         langmuir_k: f64,

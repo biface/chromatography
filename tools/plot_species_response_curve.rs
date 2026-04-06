@@ -144,7 +144,7 @@ fn collect_solver_points(solver_dir: &Path, solver: Solver) -> anyhow::Result<Ve
         }
 
         let est = read_estimates(&estimates_path)?;
-        let ops = N_POINTS * n_species;
+        let _ops = N_POINTS * n_species;
 
         points.push(DataPoint {
             n_species,
