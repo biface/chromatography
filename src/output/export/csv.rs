@@ -34,17 +34,31 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
+//! ```rust
 //! use chrom_rs::output::export::csv::CsvExporter;
 //! use chrom_rs::output::export::Exporter;
+//! use chrom_rs::solver::SimulationResult;
+//! use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
 //!
 //! let exporter = CsvExporter::default();
 //!
+//! // Create a dummy result for demonstration
+//! let state = PhysicalState::new(
+//!     PhysicalQuantity::Concentration,
+//!     PhysicalData::Scalar(0.0)
+//! );
+//! let result = SimulationResult::new(
+//!     vec![0.0, 1.0],
+//!     vec![state.clone(), state.clone()],
+//!     state
+//! );
+//!
 //! // All simulation points
-//! exporter.export_single(&result, None, "tfa.csv")?;
+//! let _ = exporter.export_single(&result, None, "/tmp/tfa.csv");
 //!
 //! // Reduced to 1000 points for a lighter file
-//! exporter.export_multi(&result, Some(1000), &["Ascorbic", "Erythorbic"], "acids.csv")?;
+//! // (In this example, we only have 2 points, so no reduction occurs)
+//! let _ = exporter.export_multi(&result, Some(1000), &["Ascorbic"], "/tmp/acids.csv");
 //! ```
 
 use std::fmt;
@@ -137,7 +151,9 @@ impl From<std::io::Error> for CsvError {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
+/// use chrom_rs::output::export::csv::{CsvConfig, CsvExporter};
+///
 /// // Comma separator (Anglo-Saxon style) with 4 decimal places
 /// let config = CsvConfig {
 ///     separator: ',',
@@ -181,7 +197,9 @@ impl Default for CsvConfig {
 ///
 /// # Creation
 ///
-/// ```rust,ignore
+/// ```rust
+/// use chrom_rs::output::export::csv::{CsvExporter, CsvConfig};
+///
 /// // Default configuration (separator ';', 6 decimal places)
 /// let exporter = CsvExporter::default();
 ///

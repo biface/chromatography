@@ -520,18 +520,31 @@ impl SimulationResult {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
-/// use chrom_rs::solver::{Solver, SolverConfiguration};
-/// // use chrom_rs::solver::euler::EulerSolver;
+/// ```rust
+/// use chrom_rs::solver::{Solver, SolverConfiguration, Scenario, DomainBoundaries, RK4Solver};
+/// # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use nalgebra::DVector;
+/// # struct MyModel;
+/// # impl PhysicalModel for MyModel {
+/// #     fn points(&self) -> usize { 1 }
+/// #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+/// #     fn setup_initial_state(&self) -> PhysicalState {
+/// #         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])))
+/// #     }
+/// #     fn name(&self) -> &str { "MyModel" }
+/// # }
 ///
 /// // Create solver
-/// // let solver = EulerSolver;
+/// let solver = RK4Solver::new();
 ///
 /// // Create configuration
-/// let config = SolverConfiguration::time_evolution(600.0, 10000);
+/// let config = SolverConfiguration::time_evolution(600.0, 1000);
 ///
 /// // Solve (scenario must be created first)
-/// // let result = solver.solve(&scenario, &config)?;
+/// # let model = Box::new(MyModel);
+/// # let boundaries = DomainBoundaries::temporal(model.setup_initial_state());
+/// # let scenario = Scenario::new(model, boundaries);
+/// let result = solver.solve(&scenario, &config);
 /// ```
 pub trait Solver {
     /// Solve the scenario with the given configuration
@@ -562,12 +575,11 @@ pub trait Solver {
     /// Used for logging and debugging.
     ///
     /// # Example
-    /// ```rust,ignore
-    /// use chrom_rs::solver::Solver;
-    /// // use chrom_rs::solver::euler::EulerSolver;
+    /// ```rust
+    /// use chrom_rs::solver::{Solver, RK4Solver};
     ///
-    /// // let solver = EulerSolver;
-    /// // assert_eq!(solver.name(), "Forward Euler");
+    /// let solver = RK4Solver::new();
+    /// assert_eq!(solver.name(), "Runge Kutta (RK4)");
     /// ```
     fn name(&self) -> &str;
 }

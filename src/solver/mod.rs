@@ -426,8 +426,10 @@ pub fn set_parallel_threshold(threshold: usize) {
 /// Only compiled in test builds.  Prevents one test from leaking a modified
 /// threshold value into the next.
 ///
-/// ```rust,ignore
-/// let _guard = crate::solver::ThresholdGuard::save(50);
+/// ```rust
+/// # use chrom_rs::solver::{parallel_threshold, set_parallel_threshold};
+/// # use chrom_rs::solver::ThresholdGuard;
+/// let _guard = ThresholdGuard::save(50);
 /// // threshold is now 50 …
 /// // … and is automatically restored when _guard is dropped.
 /// ```
@@ -497,10 +499,14 @@ use crate::physics::PhysicalState;
 ///
 /// # Example
 ///
-/// ```rust,ignore
-/// validate_state(&state, 42)?;  // Validates state at step 42
+/// ```rust
+/// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use chrom_rs::solver::validate_state;
+/// # let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(0.0));
+/// # let _ =
+/// validate_state(&state, 42);  // Validates state at step 42
 /// ```
-pub(crate) fn validate_state(state: &PhysicalState, step: usize) -> Result<(), String> {
+pub fn validate_state(state: &PhysicalState, step: usize) -> Result<(), String> {
     // Check each quantity in the state
     for (quantity, data) in &state.quantities {
         // Check for NaN values

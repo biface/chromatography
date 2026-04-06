@@ -22,34 +22,40 @@
 //!
 //! # Usage
 //!
-//! ```rust,ignore
+//! ```rust
 //! use chrom_rs::output::visualization::{
 //!     plot_chromatogram,
 //!     plot_chromatogram_multi,
-//!     plot_chromatogram_enveloppe,
+//!     plot_chromatogram_envelope,
 //! };
+//! use chrom_rs::solver::SimulationResult;
+//! use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+//! use nalgebra::{DVector, DMatrix};
 //!
+//! # let state_single = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![0.0, 0.0])));
+//! # let result_single = SimulationResult::new(vec![0.0, 1.0], vec![state_single.clone(), state_single.clone()], state_single);
+//! # let state_multi = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Matrix(DMatrix::from_element(2, 3, 0.0)));
+//! # let result_multi = SimulationResult::new(vec![0.0, 1.0], vec![state_multi.clone(), state_multi.clone()], state_multi);
 //! // Single-species (LangmuirSingle — Vector state)
-//! let result = solver.solve(&scenario, &config)?;
-//! plot_chromatogram(&result, 100, "tfa.png", None)?;
+//! let _ = plot_chromatogram(&result_single, 2, "/tmp/tfa.png", None);
 //!
 //! // Multi-species — cumulative detector signal (realistic chromatograph view)
-//! plot_chromatogram_multi(
-//!     &result,
-//!     100,
+//! let _ = plot_chromatogram_multi(
+//!     &result_multi,
+//!     2,
 //!     &["Ascorbic", "Erythorbic", "Citric"],
-//!     "acids_total.png",
+//!     "/tmp/acids_total.png",
 //!     None,
-//! )?;
+//! );
 //!
 //! // Multi-species — envelope view (analytical / diagnostic use)
-//! plot_chromatogram_enveloppe(
-//!     &result,
-//!     100,
+//! let _ = plot_chromatogram_envelope(
+//!     &result_multi,
+//!     2,
 //!     &["Ascorbic", "Erythorbic", "Citric"],
-//!     "acids_enveloppe.png",
+//!     "/tmp/acids_enveloppe.png",
 //!     None,
-//! )?;
+//! );
 //! ```
 
 use plotters::prelude::*;
@@ -173,11 +179,15 @@ fn extract_multi_species_outlet(
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
 /// use chrom_rs::output::visualization::plot_chromatogram;
+/// # use chrom_rs::solver::SimulationResult;
+/// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use nalgebra::DVector;
 ///
-/// let result = solver.solve(&scenario, &config)?;
-/// plot_chromatogram(&result, 100, "tfa.png", None)?;
+/// # let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![0.0, 0.0])));
+/// # let result = SimulationResult::new(vec![0.0, 1.0], vec![state.clone(), state.clone()], state);
+/// let _ = plot_chromatogram(&result, 2, "/tmp/tfa.png", None);
 /// ```
 pub fn plot_chromatogram(
     result: &SimulationResult,
@@ -248,17 +258,22 @@ pub fn plot_chromatogram(
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
 /// use chrom_rs::output::visualization::plot_chromatogram_multi;
+/// # use chrom_rs::solver::SimulationResult;
+/// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use nalgebra::DMatrix;
 ///
+/// # let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Matrix(DMatrix::from_element(2, 3, 0.0)));
+/// # let result = SimulationResult::new(vec![0.0, 1.0], vec![state.clone(), state.clone()], state);
 /// // Three-acid separation (LangmuirMulti, 3 species)
-/// plot_chromatogram_multi(
+/// let _ = plot_chromatogram_multi(
 ///     &result,
-///     100,
+///     2,
 ///     &["Ascorbic Acid", "Erythorbic Acid", "Citric Acid"],
-///     "acids_total.png",
+///     "/tmp/acids_total.png",
 ///     None,
-/// )?;
+/// );
 /// ```
 pub fn plot_chromatogram_multi(
     result: &SimulationResult,
@@ -349,17 +364,22 @@ pub fn plot_chromatogram_multi(
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
 /// use chrom_rs::output::visualization::plot_chromatogram_envelope;
+/// # use chrom_rs::solver::SimulationResult;
+/// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use nalgebra::DMatrix;
 ///
+/// # let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Matrix(DMatrix::from_element(2, 3, 0.0)));
+/// # let result = SimulationResult::new(vec![0.0, 1.0], vec![state.clone(), state.clone()], state);
 /// // Analytical view of a three-acid separation
-/// plot_chromatogram_envelope(
+/// let _ = plot_chromatogram_envelope(
 ///     &result,
-///     100,
+///     2,
 ///     &["Ascorbic Acid", "Erythorbic Acid", "Citric Acid"],
-///     "acids_enveloppe.png",
+///     "/tmp/acids_enveloppe.png",
 ///     None,
-/// )?;
+/// );
 /// ```
 pub fn plot_chromatogram_envelope(
     result: &SimulationResult,
@@ -425,14 +445,20 @@ pub fn plot_chromatogram_envelope(
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
 /// use chrom_rs::output::visualization::plot_chromatograms_comparison;
+/// # use chrom_rs::solver::SimulationResult;
+/// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use nalgebra::DVector;
 ///
+/// # let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![0.0, 0.0])));
+/// # let result_euler = SimulationResult::new(vec![0.0, 1.0], vec![state.clone(), state.clone()], state.clone());
+/// # let result_rk4 = SimulationResult::new(vec![0.0, 1.0], vec![state.clone(), state.clone()], state.clone());
 /// let datasets = vec![
-///     ("Euler", &result_euler, 100),
-///     ("RK4",   &result_rk4,   100),
+///     ("Euler", &result_euler, 2),
+///     ("RK4",   &result_rk4,   2),
 /// ];
-/// plot_chromatograms_comparison(datasets, "comparison.png", None)?;
+/// let _ = plot_chromatograms_comparison(datasets, "/tmp/comparison.png", None);
 /// ```
 pub fn plot_chromatograms_comparison(
     datasets: Vec<(&str, &SimulationResult, usize)>,

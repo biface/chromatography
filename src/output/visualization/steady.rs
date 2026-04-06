@@ -13,24 +13,30 @@
 //!
 //! # Usage
 //!
-//! ```rust,ignore
+//! ```rust
 //! use chrom_rs::output::visualization::{
 //!     plot_steady_state,
 //!     plot_steady_state_multi,
 //! };
+//! # use chrom_rs::solver::SimulationResult;
+//! # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+//! # use nalgebra::{DVector, DMatrix};
 //!
+//! # let state_single = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![0.0, 0.0])));
+//! # let result_single = SimulationResult::new(vec![0.0, 1.0], vec![state_single.clone(), state_single.clone()], state_single);
+//! # let state_multi = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Matrix(DMatrix::from_element(2, 3, 0.0)));
+//! # let result_multi = SimulationResult::new(vec![0.0, 1.0], vec![state_multi.clone(), state_multi.clone()], state_multi);
 //! // Single species (LangmuirSingle — Vector state)
-//! let result = solver.solve(&scenario, &config)?;
-//! plot_steady_state(&result, 0.25, "profile.png", None)?;
+//! let _ = plot_steady_state(&result_single, 0.25, "/tmp/profile.png", None);
 //!
 //! // Multi-species (LangmuirMulti — Matrix [n_points × n_species])
-//! plot_steady_state_multi(
-//!     &result,
+//! let _ = plot_steady_state_multi(
+//!     &result_multi,
 //!     0.25,
 //!     &["Ascorbic", "Erythorbic", "Citric"],
-//!     "multi_profile.png",
+//!     "/tmp/multi_profile.png",
 //!     None,
-//! )?;
+//! );
 //! ```
 
 use plotters::prelude::*;
@@ -59,8 +65,14 @@ use super::config::{PlotConfig, NO_TITLE};
 ///
 /// # Example
 ///
-/// ```rust,ignore
-/// plot_steady_state(&result, 0.25, "profile.png", None)?;
+/// ```rust
+/// # use chrom_rs::output::visualization::plot_steady_state;
+/// # use chrom_rs::solver::SimulationResult;
+/// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use nalgebra::DVector;
+/// # let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![0.0, 0.0])));
+/// # let result = SimulationResult::new(vec![0.0, 1.0], vec![state.clone(), state.clone()], state);
+/// let _ = plot_steady_state(&result, 0.25, "/tmp/profile.png", None);
 /// ```
 pub fn plot_steady_state(
     result: &SimulationResult,
@@ -192,12 +204,16 @@ where
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
+/// # use chrom_rs::output::visualization::plot_steady_state_comparison;
+/// # let z_grid = vec![0.0, 0.1, 0.2];
+/// # let c_initial = vec![1.0, 0.0, 0.0];
+/// # let c_final = vec![0.0, 0.0, 1.0];
 /// let profiles = vec![
-///     ("Initial", &z_grid, &c_initial),
-///     ("Final", &z_grid, &c_final),
+///     ("Initial", z_grid.as_slice(), c_initial.as_slice()),
+///     ("Final", z_grid.as_slice(), c_final.as_slice()),
 /// ];
-/// plot_steady_state_comparison(profiles, "comparison.png", None)?;
+/// let _ = plot_steady_state_comparison(profiles, "/tmp/comparison.png", None);
 /// ```
 pub fn plot_steady_state_comparison(
     profiles: Vec<(&str, &[f64], &[f64])>,
@@ -312,9 +328,15 @@ where
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
+/// # use chrom_rs::output::visualization::plot_profile_evolution;
+/// # use chrom_rs::solver::SimulationResult;
+/// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use nalgebra::DVector;
+/// # let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![0.0, 0.0])));
+/// # let result = SimulationResult::new(vec![0.0, 1.0], vec![state.clone(), state.clone()], state);
 /// // Show 5 profiles at different times
-/// plot_profile_evolution(&result, 0.25, 5, "evolution.png", None)?;
+/// let _ = plot_profile_evolution(&result, 0.25, 2, "/tmp/evolution.png", None);
 /// ```
 pub fn plot_profile_evolution(
     result: &SimulationResult,
@@ -388,16 +410,21 @@ pub fn plot_profile_evolution(
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
 /// use chrom_rs::output::visualization::plot_steady_state_multi;
+/// # use chrom_rs::solver::SimulationResult;
+/// # use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+/// # use nalgebra::DMatrix;
+/// # let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Matrix(DMatrix::from_element(2, 3, 0.0)));
+/// # let result = SimulationResult::new(vec![0.0, 1.0], vec![state.clone(), state.clone()], state);
 ///
-/// plot_steady_state_multi(
+/// let _ = plot_steady_state_multi(
 ///     &result,
 ///     0.25,
 ///     &["Ascorbic Acid", "Erythorbic Acid", "Citric Acid"],
-///     "acids_profile.png",
+///     "/tmp/acids_profile.png",
 ///     None,
-/// )?;
+/// );
 /// ```
 pub fn plot_steady_state_multi(
     result: &SimulationResult,

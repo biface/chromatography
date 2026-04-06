@@ -12,26 +12,31 @@
 //!
 //! ## Chromatogram (Temporal - Column Outlet vs Time)
 //!
-//! ```rust,ignore
+//! ```rust
 //! use chrom_rs::output::visualization::{plot_chromatogram, PlotConfig};
+//! use chrom_rs::solver::SimulationResult;
+//! use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
 //!
-//! let result = solver.solve(&scenario, &config)?;
-//!
+//! # let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(0.0));
+//! # let result = SimulationResult::new(vec![0.0, 1.0], vec![state.clone(), state.clone()], state);
 //! // Plot chromatogram with default config
-//! plot_chromatogram(&result, 100, "chromato.png", None)?;
+//! let _ = plot_chromatogram(&result, 100, "/tmp/chromato.png", None);
 //!
 //! // Or with custom config
-//! let mut config = PlotConfig::chromatogram();
-//! config.title = "TFA Elution".to_string();
-//! plot_chromatogram(&result, 100, "tfa.png", Some(&config))?;
+//! let mut config = PlotConfig::chromatogram("TFA Elution");
+//! let _ = plot_chromatogram(&result, 100, "/tmp/tfa.png", Some(&config));
 //! ```
 //!
 //! ## Steady-State (Spatial Profile at Final Time)
 //!
-//! ```rust,ignore
+//! ```rust
 //! use chrom_rs::output::visualization::plot_steady_state;
+//! use chrom_rs::solver::SimulationResult;
+//! use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
 //!
-//! plot_steady_state(&result, 0.25, "profile.png", None)?;
+//! # let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(0.0));
+//! # let result = SimulationResult::new(vec![0.0, 1.0], vec![state.clone(), state.clone()], state);
+//! let _ = plot_steady_state(&result, 0.25, "/tmp/profile.png", None);
 //! ```
 //!
 //! # When to Use Which Module
@@ -51,6 +56,6 @@ pub mod steady;
 
 pub use config::PlotConfig;
 
-pub use steady::{plot_steady_state, plot_steady_state_comparison, plot_profile_evolution};
+pub use steady::{plot_steady_state, plot_steady_state_comparison, plot_profile_evolution, plot_steady_state_multi};
 
-pub use chromatogram::{plot_chromatogram, plot_chromatograms_comparison, plot_chromatogram_multi};
+pub use chromatogram::{plot_chromatogram, plot_chromatograms_comparison, plot_chromatogram_multi, plot_chromatogram_envelope};

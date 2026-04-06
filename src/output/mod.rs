@@ -21,20 +21,30 @@
 //!
 //! ## Visualization
 //!
-//! ```rust,ignore
+//! ```rust
 //! use chrom_rs::output::visualization::{plot_chromatogram, PlotConfig};
+//! use chrom_rs::solver::SimulationResult;
+//! use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
 //!
+//! # let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(0.0));
+//! # let result = SimulationResult::new(vec![0.0, 1.0], vec![state.clone(), state.clone()], state);
 //! // Generate PNG plot
-//! plot_chromatogram(&time, &conc, "output.png", None)?;
+//! let _ = plot_chromatogram(&result, 100, "/tmp/output.png", None);
 //! ```
 //!
 //! ## CSV Export
 //!
-//! ```rust,ignore
-//! use chrom_rs::output::export::{export_chromatogram_csv, CsvConfig};
+//! ```rust
+//! use chrom_rs::output::export::{CsvExporter, CsvConfig, Exporter};
+//! use chrom_rs::solver::SimulationResult;
+//! use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
+//!
+//! # let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(0.0));
+//! # let result = SimulationResult::new(vec![0.0, 1.0], vec![state.clone(), state.clone()], state);
+//! let exporter = CsvExporter::default();
 //!
 //! // Export to CSV
-//! export_chromatogram_csv(&time, &conc, "data.csv", None)?;
+//! let _ = exporter.export_single(&result, None, "/tmp/data.csv");
 //! ```
 //!
 //! # Design Philosophy

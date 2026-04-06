@@ -22,7 +22,7 @@ use plotters::prelude::*;
 ///
 /// # Example: Single Species
 ///
-/// ```rust,ignore
+/// ```rust
 /// use chrom_rs::output::visualization::PlotConfig;
 /// use plotters::prelude::*;
 ///
@@ -35,7 +35,10 @@ use plotters::prelude::*;
 ///
 /// # Example: Multi-Species with Custom Colors
 ///
-/// ```rust,ignore
+/// ```rust
+/// use chrom_rs::output::visualization::PlotConfig;
+/// use plotters::prelude::*;
+///
 /// let mut config = PlotConfig::default();
 /// config.title = "Multi-Component Separation".to_string();
 /// config.species_colors = Some(vec![
@@ -126,7 +129,8 @@ impl<T: IntoOptionalTitle> IntoOptionalTitle for Option<T> {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
+/// # use chrom_rs::output::visualization::config::{PlotConfig, NO_TITLE};
 /// let config = PlotConfig::chromatogram(NO_TITLE);
 /// ```
 pub const NO_TITLE: Option<&str> = None;
@@ -142,10 +146,11 @@ impl PlotConfig {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
+    /// ```rust
+    /// # use chrom_rs::output::visualization::PlotConfig;
     /// // With custom title (no Some() needed!)
     /// let config = PlotConfig::chromatogram("TFA Elution");
-    /// let config = PlotConfig::chromatogram(format!("TFA: {}", method));
+    /// let config = PlotConfig::chromatogram(format!("TFA: {}", "RK4"));
     ///
     /// // With default title
     /// let config = PlotConfig::chromatogram(None::<&str>);
@@ -169,10 +174,11 @@ impl PlotConfig {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
+    /// ```rust
+    /// # use chrom_rs::output::visualization::PlotConfig;
     /// // With custom title (no Some() needed!)
     /// let config = PlotConfig::steady_state("Final Equilibrium");
-    /// let config = PlotConfig::steady_state(format!("Profile at t={}", time));
+    /// let config = PlotConfig::steady_state(format!("Profile at t={}", 0.25));
     ///
     /// // With default title
     /// let config = PlotConfig::steady_state(None::<&str>);
@@ -190,7 +196,8 @@ impl PlotConfig {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust
+    /// use chrom_rs::output::visualization::PlotConfig;
     /// use plotters::prelude::*;
     ///
     /// let config = PlotConfig::multi_species_colors(vec![RED, BLUE, GREEN]);

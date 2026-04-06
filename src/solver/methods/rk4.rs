@@ -67,13 +67,29 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
-//! use chrom_rs::solver::{RK4Solver, Solver, SolverConfiguration};
-//!
+//! ```rust
+//! use chrom_rs::solver::{RK4Solver, Solver, SolverConfiguration, Scenario, DomainBoundaries};
+//! # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+//! # use nalgebra::DVector;
+//! # struct MyModel;
+//! # impl PhysicalModel for MyModel {
+//! #     fn points(&self) -> usize { 1 }
+//! #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+//! #     fn setup_initial_state(&self) -> PhysicalState {
+//! #         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])))
+//! #     }
+//! #     fn name(&self) -> &str { "MyModel" }
+//! # }
+//! # fn main() -> Result<(), String> {
+//! # let model = Box::new(MyModel);
+//! # let boundaries = DomainBoundaries::temporal(model.setup_initial_state());
+//! # let scenario = Scenario::new(model, boundaries);
 //! let solver = RK4Solver::new();
 //! let config = SolverConfiguration::time_evolution(600.0, 1000);
 //!
-//! let result = solver.solve(&scenario, &config)?;
+//! let _ = solver.solve(&scenario, &config)?;
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::physics::PhysicalState;

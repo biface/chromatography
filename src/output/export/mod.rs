@@ -18,20 +18,33 @@
 //!
 //! # Usage example
 //!
-//! ```rust,ignore
+//! ```rust
 //! use chrom_rs::output::export::csv::CsvExporter;
 //! use chrom_rs::output::export::Exporter;
+//! use chrom_rs::solver::SimulationResult;
+//! use chrom_rs::physics::{PhysicalState, PhysicalQuantity, PhysicalData};
 //!
 //! let exporter = CsvExporter::default();
 //!
+//! // Create a dummy result for demonstration
+//! let state = PhysicalState::new(
+//!     PhysicalQuantity::Concentration,
+//!     PhysicalData::Scalar(0.0)
+//! );
+//! let result = SimulationResult::new(
+//!     vec![0.0, 1.0],
+//!     vec![state.clone(), state.clone()],
+//!     state
+//! );
+//!
 //! // Full export (all time steps)
-//! exporter.export_single(&result, None, "tfa.csv")?;
+//! exporter.export_single(&result, None, "/tmp/tfa.csv");
 //!
 //! // Downsampled export to 500 points
-//! exporter.export_single(&result, Some(500), "tfa_light.csv")?;
+//! exporter.export_single(&result, Some(500), "/tmp/tfa_light.csv");
 //!
 //! // Multi-species export with labels
-//! exporter.export_multi(&result, None, &["Ascorbic", "Erythorbic"], "acids.csv")?;
+//! exporter.export_multi(&result, None, &["Ascorbic", "Erythorbic"], "/tmp/acids.csv");
 //! ```
 
 pub mod csv;

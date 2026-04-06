@@ -68,7 +68,7 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
+//! ```rust
 //! use chrom_rs::models::{LangmuirSingle, TemporalInjection};
 //! use chrom_rs::physics::PhysicalModel;
 //! use chrom_rs::solver::{Scenario, SolverConfiguration, EulerSolver, Solver, DomainBoundaries};
