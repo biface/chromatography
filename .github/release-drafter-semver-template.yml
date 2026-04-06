@@ -1,5 +1,5 @@
 # =============================================================================
-# release-drafter-semver.yml — Release Drafter configuration for chrom-rs
+# release-drafter-semver-template.yml — Release Drafter configuration for chrom-rs
 # =============================================================================
 # Referenced by: .github/workflows/release-drafter.yml
 # Versioning scheme: SemVer vX.Y.Z
