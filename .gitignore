@@ -30,3 +30,6 @@ lcov.info
 # Fichiers temporaires
 *.tmp
 *.temp
+
+# En attente
+src/models/langmuir_single_simple.rs
