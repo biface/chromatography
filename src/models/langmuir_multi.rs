@@ -701,10 +701,8 @@ impl PhysicalModel for LangmuirMulti {
                 // Each call to compute_row(i) is independent: reads from c_matrix
                 // (shared immutable reference) and produces a Vec<f64> for row i.
                 // collect() gathers all rows in index order before assembly.
-                let rows: Vec<Vec<f64>> = (0..n_species)
-                    .into_par_iter()
-                    .map(&compute_row)
-                    .collect();
+                let rows: Vec<Vec<f64>> =
+                    (0..n_species).into_par_iter().map(&compute_row).collect();
 
                 for (i, row) in rows.into_iter().enumerate() {
                     for k in 0..n_species {

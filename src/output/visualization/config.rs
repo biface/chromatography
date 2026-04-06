@@ -216,9 +216,10 @@ impl PlotConfig {
     /// Uses custom colors if provided, otherwise falls back to default palette
     pub(crate) fn get_species_color(&self, species_index: usize) -> RGBColor {
         if let Some(ref colors) = self.species_colors
-            && species_index < colors.len() {
-                return colors[species_index];
-            }
+            && species_index < colors.len()
+        {
+            return colors[species_index];
+        }
 
         // Default palette
         let default_colors = vec![
