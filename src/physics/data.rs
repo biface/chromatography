@@ -29,6 +29,7 @@ use std::fmt;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 /// Physical data container supporting scalar to n-dimensional arrays
 ///
@@ -67,7 +68,7 @@ use rayon::prelude::*;
 /// // Matrix: 100 spatial points × 3 species
 /// let multi_species = PhysicalData::uniform_matrix(100, 3, 0.5);
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PhysicalData {
     /// Scalar value (0D) - 8 bytes
     ///
@@ -93,6 +94,7 @@ pub enum PhysicalData {
     /// - 2D spatial + species: A[x, y, species]
     /// - 3D spatial + species: A[x, y, z, species]
     /// - Time series + spatial: A[time, x, y]
+    #[serde(skip)]
     Array(ArrayD<f64>),
 }
 

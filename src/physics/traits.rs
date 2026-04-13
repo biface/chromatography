@@ -14,6 +14,7 @@
 //! - **Solver**: Numerical methods (Euler, RK4, etc.)
 
 use crate::physics::data::PhysicalData;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 
 // =================================================================================================
@@ -31,15 +32,15 @@ use std::collections::HashMap;
 /// ```rust
 /// use chrom_rs::physics::PhysicalQuantity;
 ///
-/// let viscosity = PhysicalQuantity::Custom("Viscosity");
-/// let diffusion = PhysicalQuantity::Custom("DiffusionCoefficient");
+/// let viscosity = PhysicalQuantity::Custom("Viscosity".to_string());
+/// let diffusion = PhysicalQuantity::Custom("DiffusionCoefficient".to_string());
 /// ```
 ///
 /// # Standard Quantities
 ///
 /// Common quantities are provided as enum variants for convenience
 /// and to avoid typos.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PhysicalQuantity {
     /// Concentration (mol/L or kg/m³)
     Concentration,
@@ -59,10 +60,10 @@ pub enum PhysicalQuantity {
     /// ```rust
     /// use chrom_rs::physics::PhysicalQuantity;
     ///
-    /// let k_langmuir = PhysicalQuantity::Custom("K_langmuir");
-    /// let retention_factor = PhysicalQuantity::Custom("RetentionFactor");
+    /// let k_langmuir = PhysicalQuantity::Custom("K_langmuir".to_string());
+    /// let retention_factor = PhysicalQuantity::Custom("RetentionFactor".to_string());
     /// ```
-    Custom(&'static str),
+    Custom(String),
 }
 
 impl std::fmt::Display for PhysicalQuantity {
@@ -74,6 +75,48 @@ impl std::fmt::Display for PhysicalQuantity {
             PhysicalQuantity::Velocity => write!(f, "Velocity"),
             PhysicalQuantity::Custom(name) => write!(f, "{}", name),
         }
+    }
+}
+
+// ==================== Manual Serialization Implementation ====================
+
+impl Serialize for PhysicalQuantity {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+// ==================== Manual Serialization Implementation ====================
+
+impl<'de> Deserialize<'de> for PhysicalQuantity {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct PhysicalQuantityVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for PhysicalQuantityVisitor {
+            type Value = PhysicalQuantity;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a string representing a PhysicalQuantity")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {
+                match value {
+                    "Concentration" => Ok(PhysicalQuantity::Concentration),
+                    "Temperature" => Ok(PhysicalQuantity::Temperature),
+                    "Pressure" => Ok(PhysicalQuantity::Pressure),
+                    "Velocity" => Ok(PhysicalQuantity::Velocity),
+                    other => Ok(PhysicalQuantity::Custom(other.to_string())),
+                }
+            }
+        }
+
+        deserializer.deserialize_str(PhysicalQuantityVisitor)
     }
 }
 
@@ -129,7 +172,7 @@ impl std::fmt::Display for PhysicalQuantity {
 ///     PhysicalData::uniform_vector(100, 1.0)
 /// );
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PhysicalState {
     /// Physical quantities stored as HashMap
     ///
@@ -670,8 +713,8 @@ mod tests {
 
     #[test]
     fn test_custom_physical_quantity_create() {
-        let viscosity = PhysicalQuantity::Custom("Viscosity");
-        let k_langmuir = PhysicalQuantity::Custom("K langmuir");
+        let viscosity = PhysicalQuantity::Custom("Viscosity".to_string());
+        let k_langmuir = PhysicalQuantity::Custom("K langmuir".to_string());
 
         assert_eq!(format!("{}", viscosity), "Viscosity");
         assert_eq!(format!("{}", k_langmuir), "K langmuir");
@@ -689,9 +732,9 @@ mod tests {
 
     #[test]
     fn test_custom_physical_quantity_equality2() {
-        let v1 = PhysicalQuantity::Custom("Viscosity");
-        let v2 = PhysicalQuantity::Custom("Viscosity");
-        let k = PhysicalQuantity::Custom("K langmuir");
+        let v1 = PhysicalQuantity::Custom("Viscosity".to_string());
+        let v2 = PhysicalQuantity::Custom("Viscosity".to_string());
+        let k = PhysicalQuantity::Custom("K langmuir".to_string());
 
         assert_ne!(v1, k);
         assert_ne!(v2, k);
@@ -702,10 +745,13 @@ mod tests {
     fn test_physical_quantity_as_hashmap_key() {
         use std::collections::HashMap;
         let mut map = HashMap::new();
-        map.insert(PhysicalQuantity::Custom("Viscosity"), 0.15);
+        map.insert(PhysicalQuantity::Custom("Viscosity".to_string()), 0.15);
         map.insert(PhysicalQuantity::Temperature, 350.0);
 
-        assert_eq!(map.get(&PhysicalQuantity::Custom("Viscosity")), Some(&0.15));
+        assert_eq!(
+            map.get(&PhysicalQuantity::Custom("Viscosity".to_string())),
+            Some(&0.15)
+        );
         assert_eq!(map.get(&PhysicalQuantity::Temperature), Some(&350.0));
     }
 
@@ -724,7 +770,7 @@ mod tests {
     #[test]
     fn test_physical_state_from_scalar() {
         let state = PhysicalState::new(
-            PhysicalQuantity::Custom("Viscosity"),
+            PhysicalQuantity::Custom("Viscosity".to_string()),
             PhysicalData::Scalar(0.15),
         );
 
@@ -772,7 +818,7 @@ mod tests {
     #[test]
     fn test_physical_state_from_matrix() {
         let state = PhysicalState::new(
-            PhysicalQuantity::Custom("Viscosity"),
+            PhysicalQuantity::Custom("Viscosity".to_string()),
             PhysicalData::Matrix(DMatrix::from_row_slice(
                 3,
                 3,
@@ -783,13 +829,13 @@ mod tests {
         assert_eq!(state.len(), 1);
         assert!(
             state
-                .get(PhysicalQuantity::Custom("Viscosity"))
+                .get(PhysicalQuantity::Custom("Viscosity".to_string()))
                 .unwrap()
                 .is_matrix()
         );
         assert_eq!(
             state
-                .get(PhysicalQuantity::Custom("Viscosity"))
+                .get(PhysicalQuantity::Custom("Viscosity".to_string()))
                 .unwrap()
                 .as_matrix()
                 .shape(),
