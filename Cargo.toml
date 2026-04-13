@@ -24,11 +24,13 @@ opt-level = 0
 
 [dependencies]
 dynamic-cli = "0.2.0"
-nalgebra = "0.34.2"
+nalgebra = { version = "0.34.2", features = ["serde-serialize"] }
 num = "0.4.3"
 serde = { version = "1.0.228", features = ["derive"] }
+typetag = "0.2"
 log = "0.4.29"
 serde_json = "1"
+serde_yaml = "0.9"
 anyhow = "1"
 
 # Export and visualization
