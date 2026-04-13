@@ -4,6 +4,7 @@
 //! ideal for validating numerical solver accuracy.
 
 use chrom_rs::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
+use serde::{Deserialize, Serialize};
 
 // =================================================================================================
 // Exponential Decay: dy/dt = -k*y
@@ -14,6 +15,7 @@ use chrom_rs::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalS
 /// Analytical solution: y(t) = y₀ * exp(-k*t)
 ///
 /// Useful for testing solver accuracy since we know the exact solution.
+#[derive(Serialize, Deserialize)]
 pub struct ExponentialDecay {
     pub points: usize,
     pub decay_rate: f64, // k in dy/dt = -k*y
@@ -67,6 +69,7 @@ impl PhysicalModel for ExponentialDecay {
 /// Analytical solution: y(t) = y₀ + c*t
 ///
 /// Euler is exact for this problem, RK4 should also be exact.
+#[derive(Serialize, Deserialize)]
 pub struct ConstantGrowth {
     pub points: usize,
     pub growth_rate: f64,

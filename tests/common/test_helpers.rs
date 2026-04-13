@@ -16,7 +16,7 @@ pub fn assert_states_close(
         PhysicalQuantity::Temperature,
         PhysicalQuantity::Pressure,
     ] {
-        if let (Some(data1), Some(data2)) = (state1.get(quantity), state2.get(quantity)) {
+        if let (Some(data1), Some(data2)) = (state1.get(quantity.clone()), state2.get(quantity)) {
             let vec1 = data1.as_vector();
             let vec2 = data2.as_vector();
 
@@ -46,7 +46,7 @@ pub fn compute_l2_error(state1: &PhysicalState, state2: &PhysicalState) -> f64 {
         PhysicalQuantity::Concentration,
         PhysicalQuantity::Temperature,
     ] {
-        if let (Some(data1), Some(data2)) = (state1.get(quantity), state2.get(quantity)) {
+        if let (Some(data1), Some(data2)) = (state1.get(quantity.clone()), state2.get(quantity)) {
             let vec1 = data1.as_vector();
             let vec2 = data2.as_vector();
 
