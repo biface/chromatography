@@ -1607,7 +1607,7 @@ mod tests {
 
     #[test]
     fn test_shape() {
-        assert_eq!(PhysicalData::Scalar(1.0).shape(), vec![]);
+        assert_eq!(PhysicalData::Scalar(1.0).shape(), Vec::<usize>::new());
         assert_eq!(PhysicalData::uniform_vector(10, 1.0).shape(), vec![10]);
         assert_eq!(
             PhysicalData::uniform_matrix(10, 3, 1.0).shape(),
