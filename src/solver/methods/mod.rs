@@ -47,9 +47,12 @@
 //! use chrom_rs::solver::{Scenario, DomainBoundaries, Solver, SolverConfiguration};
 //! use chrom_rs::physics::{ PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData };
 //! use nalgebra::DVector;
+//! use serde::{Deserialize, Serialize};
 //!
+//! #[derive(Deserialize, Serialize)]
 //! struct MyModel;
 //!
+//! #[typetag::serde]
 //! impl PhysicalModel for MyModel {
 //!      fn points(&self) -> usize { 1 }
 //!      fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }

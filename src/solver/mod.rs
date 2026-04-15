@@ -57,7 +57,10 @@
 //! ```rust
 //! # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
 //! # use chrom_rs::solver::{Scenario, DomainBoundaries, SolverConfiguration, Solver, EulerSolver};
+//! # use serde::{Deserialize, Serialize};
+//! # #[derive(Deserialize, Serialize)]
 //! # struct MyModel;
+//! # #[typetag::serde]
 //! # impl PhysicalModel for MyModel {
 //! #     fn points(&self) -> usize { 1 }
 //! #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
@@ -162,7 +165,10 @@
 //! # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
 //! # use chrom_rs::solver::{Scenario, DomainBoundaries};
 //! # use nalgebra::DVector;
+//! # use serde::{Deserialize, Serialize};
+//! # #[derive(Deserialize, Serialize)]
 //! # struct MyModel;
+//! # #[typetag::serde]
 //! # impl PhysicalModel for MyModel {
 //! #     fn points(&self) -> usize { 1 }
 //! #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
@@ -307,7 +313,10 @@
 //! ```rust
 //! # use chrom_rs::solver::{Solver, EulerSolver, Scenario, DomainBoundaries, SolverConfiguration};
 //! # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+//! # use serde::{Deserialize, Serialize};
+//! # #[derive(Deserialize, Serialize)]
 //! # struct MyModel;
+//! # #[typetag::serde]
 //! # impl PhysicalModel for MyModel {
 //! #     fn points(&self) -> usize { 1 }
 //! #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
