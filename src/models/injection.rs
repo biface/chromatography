@@ -27,6 +27,7 @@
 //! assert!(injection.evaluate(20.0) < 1e-3);    // After injection (nearly zero)
 //! ```
 
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// Temporal injection profile at column inlet
 ///
 /// Defines how C(z=0, t) varies with time.
@@ -38,6 +39,38 @@
 /// - **Rectangle**: Constant injection for a duration
 /// - **Custom**: User-defined temporal profile
 use std::sync::Arc;
+
+// ==================== Serialisation snapshot (internal) ====================
+
+/// Internal representation for serde serialisation of [`TemporalInjection`].
+///
+/// Mirrors all serialisable variants of [`TemporalInjection`].
+/// [`TemporalInjection::Custom`] is excluded — closures cannot be serialised.
+///
+/// The `type` field is used as a tag in the JSON/YAML output:
+/// ```json
+/// { "type": "Dirac", "time": 5.0, "amount": 0.1 }
+/// ```
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type")]
+enum TemporalInjectionSnapshot {
+    Dirac {
+        time: f64,
+        amount: f64,
+    },
+    Gaussian {
+        center: f64,
+        width: f64,
+        peak_concentration: f64,
+    },
+    Rectangle {
+        start: f64,
+        end: f64,
+        concentration: f64,
+    },
+    None,
+}
+
 pub enum TemporalInjection {
     /// Dirac delta injection at a single time point
     ///
@@ -192,6 +225,90 @@ impl std::fmt::Debug for TemporalInjection {
                 .finish(),
             Self::None => f.debug_struct("None").finish(),
         }
+    }
+}
+
+// ==================== Manual Serialize Implementation ====================
+
+/// Serialises [`TemporalInjection`] to JSON/YAML via [`TemporalInjectionSnapshot`].
+///
+/// # Errors
+///
+/// Returns a serialisation error if called on [`TemporalInjection::Custom`],
+/// which holds a closure that cannot be represented in a data format.
+impl Serialize for TemporalInjection {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let snapshot = match self {
+            Self::Dirac { time, amount } => TemporalInjectionSnapshot::Dirac {
+                time: *time,
+                amount: *amount,
+            },
+            Self::Gaussian {
+                center,
+                width,
+                peak_concentration,
+            } => TemporalInjectionSnapshot::Gaussian {
+                center: *center,
+                width: *width,
+                peak_concentration: *peak_concentration,
+            },
+            Self::Rectangle {
+                start,
+                end,
+                concentration,
+            } => TemporalInjectionSnapshot::Rectangle {
+                start: *start,
+                end: *end,
+                concentration: *concentration,
+            },
+            Self::None => TemporalInjectionSnapshot::None,
+            Self::Custom(_) => {
+                return Err(serde::ser::Error::custom(
+                    "Temporal Injection::Custom cannot be serialized",
+                ));
+            }
+        };
+        snapshot.serialize(serializer)
+    }
+}
+
+// ==================== Manual Deserialize Implementation ====================
+
+/// Deserializes [`TemporalInjection`] from JSON/YAML via [`TemporalInjectionSnapshot`].
+///
+/// [`TemporalInjection::Custom`] cannot be deserialized — it must be constructed
+/// programmatically via [`TemporalInjection::custom`].
+impl<'de> Deserialize<'de> for TemporalInjection {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let snapshot = match TemporalInjectionSnapshot::deserialize(deserializer)? {
+            TemporalInjectionSnapshot::Dirac { time, amount } => Self::Dirac { time, amount },
+            TemporalInjectionSnapshot::Gaussian {
+                center,
+                width,
+                peak_concentration,
+            } => Self::Gaussian {
+                center,
+                width,
+                peak_concentration,
+            },
+            TemporalInjectionSnapshot::Rectangle {
+                start,
+                end,
+                concentration,
+            } => Self::Rectangle {
+                start,
+                end,
+                concentration,
+            },
+            TemporalInjectionSnapshot::None => Self::None,
+        };
+        Ok(snapshot)
     }
 }
 
@@ -543,5 +660,86 @@ mod tests {
 
         assert_eq!(clone.evaluate(0.0), 0.0);
         assert_eq!(clone.evaluate(100.0), 0.0);
+    }
+
+    // ==================== Serde round-trip tests ====================
+
+    #[test]
+    fn test_serialize_dirac() {
+        let injection = TemporalInjection::dirac(5.0, 0.1);
+        let json = serde_json::to_string(&injection).unwrap();
+        assert!(json.contains("\"type\":\"Dirac\""));
+        assert!(json.contains("\"time\":5.0"));
+        assert!(json.contains("\"amount\":0.1"));
+    }
+
+    #[test]
+    fn test_serialize_gaussian() {
+        let injection = TemporalInjection::gaussian(10.0, 3.0, 0.1);
+        let json = serde_json::to_string(&injection).unwrap();
+        assert!(json.contains("\"type\":\"Gaussian\""));
+        assert!(json.contains("\"center\":10.0"));
+    }
+
+    #[test]
+    fn test_serialize_rectangle() {
+        let injection = TemporalInjection::rectangle(5.0, 15.0, 0.05);
+        let json = serde_json::to_string(&injection).unwrap();
+        assert!(json.contains("\"type\":\"Rectangle\""));
+        assert!(json.contains("\"start\":5.0"));
+        assert!(json.contains("\"end\":15.0"));
+    }
+
+    #[test]
+    fn test_serialize_none() {
+        let injection = TemporalInjection::none();
+        let json = serde_json::to_string(&injection).unwrap();
+        assert!(json.contains("\"type\":\"None\""));
+    }
+
+    #[test]
+    fn test_serialize_custom_fails() {
+        let injection = TemporalInjection::custom(|t| t);
+        assert!(serde_json::to_string(&injection).is_err());
+    }
+
+    #[test]
+    fn test_round_trip_dirac() {
+        let original = TemporalInjection::dirac(5.0, 0.1);
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: TemporalInjection = serde_json::from_str(&json).unwrap();
+        assert!((restored.evaluate(5.0) - original.evaluate(5.0)).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_round_trip_gaussian() {
+        let original = TemporalInjection::gaussian(10.0, 3.0, 0.1);
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: TemporalInjection = serde_json::from_str(&json).unwrap();
+        assert!((restored.evaluate(10.0) - original.evaluate(10.0)).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_round_trip_rectangle() {
+        let original = TemporalInjection::rectangle(5.0, 15.0, 0.05);
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: TemporalInjection = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.evaluate(10.0), original.evaluate(10.0));
+    }
+
+    #[test]
+    fn test_round_trip_none() {
+        let original = TemporalInjection::none();
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: TemporalInjection = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.evaluate(0.0), 0.0);
+    }
+
+    #[test]
+    fn test_round_trip_yaml() {
+        let original = TemporalInjection::dirac(5.0, 0.1);
+        let yaml = serde_yaml::to_string(&original).unwrap();
+        let restored: TemporalInjection = serde_yaml::from_str(&yaml).unwrap();
+        assert!((restored.evaluate(5.0) - original.evaluate(5.0)).abs() < 1e-10);
     }
 }
