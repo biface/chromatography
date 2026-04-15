@@ -12,9 +12,11 @@ use chrom_rs::{
     solver::{DomainBoundaries, EulerSolver, RK4Solver, Scenario, Solver, SolverConfiguration},
 };
 use nalgebra::DVector;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 
 /// Fisher-KPP diffusion-reaction model
+#[derive(Serialize, Deserialize)]
 struct FisherKPP {
     n_points: usize,
     length: f64,
@@ -47,6 +49,7 @@ impl FisherKPP {
     }
 }
 
+#[typetag::serde]
 impl PhysicalModel for FisherKPP {
     fn points(&self) -> usize {
         self.n_points

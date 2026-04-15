@@ -21,7 +21,10 @@ use crate::solver::boundary::DomainBoundaries;
 /// # use chrom_rs::solver::{Scenario, DomainBoundaries, EulerSolver, Solver, SolverConfiguration};
 /// # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
 /// # use nalgebra::DVector;
+/// # use serde::{Deserialize, Serialize};
+/// # #[derive(Deserialize, Serialize)]
 /// # struct MyModel;
+/// # #[typetag::serde]
 /// # impl PhysicalModel for MyModel {
 /// #     fn points(&self) -> usize { 1 }
 /// #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
@@ -104,8 +107,10 @@ mod tests {
     use super::*;
     use crate::physics::traits::{PhysicalModel, PhysicalState};
     use crate::solver::boundary::{DimensionBoundary, DomainBoundaries, TimeAxisConvention};
+    use serde::{Deserialize, Serialize};
 
     // Mocking a Physical model
+    #[derive(Deserialize, Serialize)]
     struct MockModel {
         content: Vec<PhysicalState>,
         model_name: String,
@@ -120,6 +125,7 @@ mod tests {
         }
     }
 
+    #[typetag::serde]
     impl PhysicalModel for MockModel {
         fn points(&self) -> usize {
             10

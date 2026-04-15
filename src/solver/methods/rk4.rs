@@ -71,7 +71,10 @@
 //! use chrom_rs::solver::{RK4Solver, Solver, SolverConfiguration, Scenario, DomainBoundaries};
 //! # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
 //! # use nalgebra::DVector;
+//! # use serde::{Deserialize, Serialize};
+//! # #[derive(Deserialize, Serialize)]
 //! # struct MyModel;
+//! # #[typetag::serde]
 //! # impl PhysicalModel for MyModel {
 //! #     fn points(&self) -> usize { 1 }
 //! #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
@@ -150,7 +153,10 @@ use crate::solver::{
 /// # use chrom_rs::solver::{RK4Solver, Solver, SolverConfiguration, Scenario, DomainBoundaries};
 /// # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
 /// # use nalgebra::DVector;
+/// # use serde::{Deserialize, Serialize};
+/// # #[derive(Deserialize, Serialize)]
 /// # struct MyModel;
+/// # #[typetag::serde]
 /// # impl PhysicalModel for MyModel {
 /// #     fn points(&self) -> usize { 1 }
 /// #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
@@ -354,6 +360,7 @@ mod tests {
     use super::*;
     use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
     use crate::solver::boundary::DomainBoundaries;
+    use serde::{Deserialize, Serialize};
 
     // ====== Mock Models for Testing ======
 
@@ -364,11 +371,13 @@ mod tests {
     /// Analytical solution: y(t) = y_0 * exp(-k * t)
     ///
     /// This is used to test numerical accuracy since we know the exact solution.
+    #[derive(Deserialize, Serialize)]
     struct ExponentialDecay {
         points: usize,
         decay_rate: f64, // k in dy/dt = -k*y
     }
 
+    #[typetag::serde]
     impl PhysicalModel for ExponentialDecay {
         fn points(&self) -> usize {
             self.points
@@ -402,11 +411,13 @@ mod tests {
     /// Mock model: constant growth dy/dt = c
     ///
     /// Analytical solution: y(t) = y_0 + c * t
+    #[derive(Deserialize, Serialize)]
     struct ConstantGrowth {
         points: usize,
         growth_rate: f64,
     }
 
+    #[typetag::serde]
     impl PhysicalModel for ConstantGrowth {
         fn points(&self) -> usize {
             self.points
@@ -437,11 +448,13 @@ mod tests {
     /// Rewritten as first-order system:
     ///   dy_1/dt = y_2         (velocity)
     ///   dy_2/dt = -omega^2·y_1     (acceleration)
+    #[derive(Deserialize, Serialize)]
     struct HarmonicOscillator {
         points: usize,
         omega: f64, // Angular frequency
     }
 
+    #[typetag::serde]
     impl PhysicalModel for HarmonicOscillator {
         fn points(&self) -> usize {
             self.points
@@ -823,10 +836,12 @@ mod tests {
 
     #[test]
     fn test_rk4_detects_nan() {
+        #[derive(Deserialize, Serialize)]
         struct NaNModel {
             points: usize,
         }
 
+        #[typetag::serde]
         impl PhysicalModel for NaNModel {
             fn points(&self) -> usize {
                 self.points
@@ -867,10 +882,12 @@ mod tests {
 
     #[test]
     fn test_rk4_detects_inf() {
+        #[derive(Deserialize, Serialize)]
         struct InfModel {
             points: usize,
         }
 
+        #[typetag::serde]
         impl PhysicalModel for InfModel {
             fn points(&self) -> usize {
                 self.points
@@ -941,10 +958,12 @@ mod tests {
 
     #[test]
     fn test_rk4_multi_quantity() {
+        #[derive(Deserialize, Serialize)]
         struct MultiQuantityModel {
             points: usize,
         }
 
+        #[typetag::serde]
         impl PhysicalModel for MultiQuantityModel {
             fn points(&self) -> usize {
                 self.points

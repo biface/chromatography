@@ -517,12 +517,15 @@ impl std::ops::Mul<f64> for PhysicalState {
 ///
 /// ```rust
 /// use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+/// use serde::{Deserialize, Serialize};
 ///
+/// #[derive(Deserialize, Serialize)]
 /// struct SimpleTransport {
 ///     points: usize,
 ///     velocity: f64,
 /// }
 ///
+/// #[typetag::serde]
 /// impl PhysicalModel for SimpleTransport {
 ///     fn points(&self) -> usize {
 ///         self.points
@@ -548,6 +551,7 @@ impl std::ops::Mul<f64> for PhysicalState {
 ///     }
 /// }
 /// ```
+#[typetag::serde]
 pub trait PhysicalModel: Send + Sync {
     /// Number of spatial points
     ///
@@ -556,7 +560,10 @@ pub trait PhysicalModel: Send + Sync {
     /// # Example
     /// ```rust
     /// # use chrom_rs::physics::PhysicalModel;
+    /// # use serde::{Deserialize, Serialize};
+    /// # #[derive(Deserialize, Serialize)]
     /// # struct MyModel { points: usize }
+    /// # #[typetag::serde]
     /// # impl PhysicalModel for MyModel {
     /// #   fn points(&self) -> usize { self.points }
     /// #   fn compute_physics(&self, state: &chrom_rs::physics::PhysicalState) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
@@ -608,8 +615,11 @@ pub trait PhysicalModel: Send + Sync {
     /// # Example
     /// ```rust
     /// use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+    /// use serde::{Deserialize, Serialize};
     ///
+    /// #[derive(Deserialize, Serialize)]
     /// struct MyModel;
+    /// #[typetag::serde]
     /// impl PhysicalModel for MyModel {
     ///     fn points(&self) -> usize { 100 }
     ///
@@ -650,7 +660,10 @@ pub trait PhysicalModel: Send + Sync {
     /// # Example
     /// ```rust
     /// # use chrom_rs::physics::PhysicalModel;
+    /// # use serde::{Deserialize, Serialize};
+    /// # #[derive(Deserialize, Serialize)]
     /// # struct Transport;
+    /// # #[typetag::serde]
     /// # impl PhysicalModel for Transport {
     /// #   fn points(&self) -> usize { 100 }
     /// #   fn compute_physics(&self, _: &chrom_rs::physics::PhysicalState) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
@@ -670,7 +683,10 @@ pub trait PhysicalModel: Send + Sync {
     /// # Example
     /// ```rust
     /// # use chrom_rs::physics::PhysicalModel;
+    /// # use serde::{Deserialize, Serialize};
+    /// # #[derive(Deserialize, Serialize)]
     /// # struct MyModel;
+    /// # #[typetag::serde]
     /// # impl PhysicalModel for MyModel {
     /// #   fn points(&self) -> usize { 100 }
     /// #   fn compute_physics(&self, _: &chrom_rs::physics::PhysicalState) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }

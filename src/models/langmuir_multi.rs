@@ -79,6 +79,7 @@
 //! ```
 
 use nalgebra::{DMatrix, DVector};
+use serde::{Deserialize, Serialize};
 
 use crate::models::injection::TemporalInjection;
 use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
@@ -126,7 +127,7 @@ use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalStat
 /// );
 /// assert!(malic.validate().is_ok());
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpeciesParams {
     /// Species name (used for plot legends and CSV headers)
     pub name: String,
@@ -276,7 +277,7 @@ impl SpeciesParams {
 /// model.add_species(third_species).unwrap();   // Jacobian: 2×2 → 3×3
 /// model.add_species(fourth_species).unwrap();    // Jacobian: 3×3 → 4×4
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub struct LangmuirMulti {
     /// Chemical species (at least 1, extensible via \[`add_species`\](Self::add_species))
@@ -538,6 +539,7 @@ impl LangmuirMulti {
 // PhysicalModel implementation
 // =================================================================================================
 
+#[typetag::serde]
 impl PhysicalModel for LangmuirMulti {
     /// Returns the number of spatial discretization points (row dimension of the state matrix)
     fn points(&self) -> usize {

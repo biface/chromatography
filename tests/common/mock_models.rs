@@ -32,6 +32,7 @@ impl ExponentialDecay {
     }
 }
 
+#[typetag::serde]
 impl PhysicalModel for ExponentialDecay {
     fn points(&self) -> usize {
         self.points
@@ -89,6 +90,7 @@ impl ConstantGrowth {
     }
 }
 
+#[typetag::serde]
 impl PhysicalModel for ConstantGrowth {
     fn points(&self) -> usize {
         self.points
@@ -121,6 +123,7 @@ impl PhysicalModel for ConstantGrowth {
 /// Linear transport model (simplified)
 ///
 /// This is a placeholder for more complex transport models.
+#[derive(Serialize, Deserialize)]
 pub struct LinearTransport {
     pub points: usize,
     pub velocity: f64,
@@ -132,6 +135,7 @@ impl LinearTransport {
     }
 }
 
+#[typetag::serde]
 impl PhysicalModel for LinearTransport {
     fn points(&self) -> usize {
         self.points

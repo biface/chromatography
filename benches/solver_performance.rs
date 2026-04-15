@@ -64,9 +64,9 @@ use chrom_rs::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalS
 use chrom_rs::solver::{DomainBoundaries, Scenario, Solver, SolverConfiguration};
 use chrom_rs::solver::{EulerSolver, RK4Solver};
 use criterion::{BenchmarkId, Criterion, SamplingMode, criterion_group, criterion_main};
+use serde::{Deserialize, Serialize};
 use std::hint::black_box;
 use std::time::Duration;
-
 // =================================================================================================
 // Simple Model for Benchmarking
 // =================================================================================================
@@ -92,10 +92,12 @@ use std::time::Duration;
 ///
 /// This is a **stiff problem** for k > 1, but k=0.1 is mild,
 /// making it suitable for testing basic solver performance.
+#[derive(Deserialize, Serialize)]
 struct SimpleModel {
     points: usize,
 }
 
+#[typetag::serde]
 impl PhysicalModel for SimpleModel {
     fn points(&self) -> usize {
         self.points

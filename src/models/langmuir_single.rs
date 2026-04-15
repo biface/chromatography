@@ -99,6 +99,7 @@
 use crate::models::TemporalInjection;
 use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
 use nalgebra::DVector;
+use serde::{Deserialize, Serialize};
 
 // =================================================================================================
 // LangmuirSingle
@@ -144,7 +145,7 @@ use nalgebra::DVector;
 /// assert_eq!(model.length(), 0.25);
 /// assert_eq!(model.spatial_points(), 100);
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LangmuirSingle {
     // ── Isotherm parameters ───────────────────────────────────────────────────
     /// Linear retention term $\lambda$ **\[dimensionless\]**, must be $\geq 0$
@@ -324,6 +325,7 @@ impl LangmuirSingle {
 // PhysicalModel implementation
 // =================================================================================================
 
+#[typetag::serde]
 impl PhysicalModel for LangmuirSingle {
     /// Returns the number of spatial discretisation points $N_z$
     fn points(&self) -> usize {

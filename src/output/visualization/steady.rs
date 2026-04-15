@@ -587,16 +587,18 @@ mod tests {
     use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
     use crate::solver::{DomainBoundaries, EulerSolver, Scenario, Solver, SolverConfiguration};
     use nalgebra::{DMatrix, DVector};
-
+    use serde::{Deserialize, Serialize};
     // ─────────────────────────────────────────────────────────────────────────
     // Test models
     // ─────────────────────────────────────────────────────────────────────────
 
     /// Single-species model: Gaussian initial profile with uniform decay
+    #[derive(Deserialize, Serialize)]
     struct SingleModel {
         n_points: usize,
     }
 
+    #[typetag::serde]
     impl PhysicalModel for SingleModel {
         fn points(&self) -> usize {
             self.n_points
@@ -627,11 +629,13 @@ mod tests {
     }
 
     /// Multi-species model: n_species columns with species-dependent amplitudes
+    #[derive(Deserialize, Serialize)]
     struct MultiModel {
         n_points: usize,
         n_species: usize,
     }
 
+    #[typetag::serde]
     impl PhysicalModel for MultiModel {
         fn points(&self) -> usize {
             self.n_points
