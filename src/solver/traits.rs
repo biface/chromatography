@@ -16,6 +16,7 @@
 
 use crate::physics::traits::PhysicalState;
 use crate::solver::scenario::Scenario;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, string::ToString};
 
 // ============================================================================
@@ -58,7 +59,7 @@ use std::{collections::HashMap, string::ToString};
 /// };
 /// ```
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub enum SolverType {
     /// Time evolution solution (ODE/PDE integration)
     ///
@@ -254,7 +255,7 @@ impl SolverType {
 ///     }
 /// );
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SolverConfiguration {
     /// Type of solver and its paraméters
     pub solver_type: SolverType,
@@ -403,7 +404,7 @@ impl SolverConfiguration {
 ///     final_state,
 /// );
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SimulationResult {
     // Time points at which the solution was computed
     ///
