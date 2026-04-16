@@ -13,10 +13,16 @@ Versioning: [SemVer](https://semver.org/)
 - GitHub Actions workflows: CI (fmt, clippy, test, doc), coverage (cargo-llvm-cov + Codecov), mirror (GitLab), release-drafter (SemVer)
 - GitHub issue templates: bug, feature, maintenance, decision
 - Release-drafter SemVer configuration (`release-drafter-semver-template.yml`)
+- Serialize/Deserialize on all core types: `PhysicalQuantity`, `PhysicalData`, `PhysicalState`,
+  `TemporalInjection`, `Scenario`, `DomainBoundaries`, `SolverType`, `SolverConfiguration`, `SimulationResult`
+- `#[typetag::serde]` on `PhysicalModel` trait and all implementors
+- `ndarray/serde` feature activated — `PhysicalData::Array` fully serializable
+- `typetag = "0.2"`, `serde_yaml = "0.9"` added to dependencies
 
 ### Changed
 - Upgrade `dynamic-cli` dependency from `0.1.1` to `0.2.0`
-- Upgrade `nalgebra` dependency from `0.33` to `0.34`
+- Upgrade `nalgebra` dependency from `0.33` to `0.34.2` with `serde-serialize` feature
+- `PhysicalQuantity::Custom(&'static str)` → `Custom(String)`, `Copy` removed
 - Fix rustdoc redirect in CI: `dynamic_cli/index.html` → `chrom_rs/index.html`
 - Enable and fix all doc-tests across `models/`, `solver/`, and `output/` modules — remove `ignore` attribute, align examples with current public API
 - Add `libfontconfig1-dev` system dependency in CI jobs (required by `plotters`)
