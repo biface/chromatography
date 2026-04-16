@@ -94,7 +94,6 @@ pub enum PhysicalData {
     /// - 2D spatial + species: A[x, y, species]
     /// - 3D spatial + species: A[x, y, z, species]
     /// - Time series + spatial: A[time, x, y]
-
     Array(ArrayD<f64>),
 }
 
