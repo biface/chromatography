@@ -3,6 +3,7 @@
 //! A scenario combines a physical model with boundary conditions.
 use crate::physics::traits::PhysicalModel;
 use crate::solver::boundary::DomainBoundaries;
+use serde::{Deserialize, Serialize};
 
 /// Simulation scenario
 ///
@@ -46,6 +47,7 @@ use crate::solver::boundary::DomainBoundaries;
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Deserialize, Serialize)]
 pub struct Scenario {
     /// Physical model (equations)
     pub model: Box<dyn PhysicalModel>,
