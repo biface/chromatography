@@ -48,13 +48,14 @@
 //! ```
 
 pub mod csv;
+pub mod json;
 
 // Re-export the most commonly used types at the module level so users can write:
 //   use chrom_rs::output::export::{CsvExporter, CsvConfig, CsvError};
 // instead of the full sub-module path.
-pub use csv::{CsvConfig, CsvError, CsvExporter};
-
 use crate::solver::SimulationResult;
+pub use csv::{CsvConfig, CsvError, CsvExporter};
+pub use json::{JsonError, from_json, to_json};
 
 /// Abstraction trait for all export formats.
 ///

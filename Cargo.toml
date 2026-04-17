@@ -29,7 +29,7 @@ num = "0.4.3"
 serde = { version = "1.0.228", features = ["derive"] }
 typetag = "0.2"
 log = "0.4.29"
-serde_json = "1"
+serde_json = "1.0"
 serde_yaml = "0.9"
 anyhow = "1"
 
@@ -39,7 +39,7 @@ plotters = "0.3"
 
 # Parallelism (optional)
 rayon = { version = "1.11", optional = true }
-ndarray = "0.17.2"
+ndarray = { version = "0.17.2", features = ["serde"] }
 
 [dev-dependencies]
 approx = "0.5.1"

@@ -11,6 +11,7 @@
 //! This allows arbitrary dimensional problems without artificial limits.
 
 use crate::physics::PhysicalState;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 // =================================================================================================
@@ -38,7 +39,7 @@ use std::fmt;
 /// // ODE: temporal only
 /// let boundaries = DomainBoundaries::temporal(initial_state);
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DomainBoundaries {
     /// Boundaries for each dimension
     pub dimensions: Vec<DimensionBoundary>,
@@ -343,7 +344,7 @@ impl Default for DomainBoundaries {
 ///
 /// - 1 state: temporal dimension (initial condition)
 /// - 2 states: spatial dimension (left, right boundaries)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DimensionBoundary {
     /// Dimension name
     pub name: String,
@@ -399,7 +400,7 @@ impl DimensionBoundary {
 // =================================================================================================
 
 /// Convention for identifying registration of time variable
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub enum TimeAxisConvention {
     /// No time dimension (steady-state)
     None,

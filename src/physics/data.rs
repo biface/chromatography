@@ -94,7 +94,6 @@ pub enum PhysicalData {
     /// - 2D spatial + species: A[x, y, species]
     /// - 3D spatial + species: A[x, y, z, species]
     /// - Time series + spatial: A[time, x, y]
-    #[serde(skip)]
     Array(ArrayD<f64>),
 }
 
@@ -1607,7 +1606,7 @@ mod tests {
 
     #[test]
     fn test_shape() {
-        assert_eq!(PhysicalData::Scalar(1.0).shape(), vec![]);
+        assert_eq!(PhysicalData::Scalar(1.0).shape(), Vec::<usize>::new());
         assert_eq!(PhysicalData::uniform_vector(10, 1.0).shape(), vec![10]);
         assert_eq!(
             PhysicalData::uniform_matrix(10, 3, 1.0).shape(),

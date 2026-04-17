@@ -24,8 +24,11 @@
 //!
 //! ```rust
 //! use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+//! use serde::{Deserialize, Serialize};
 //!
+//! # #[derive(Deserialize, Serialize)]
 //! # struct MyModel;
+//! # #[typetag::serde]
 //! # impl PhysicalModel for MyModel {
 //! #     fn points(&self) -> usize { 1 }
 //! #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
@@ -52,11 +55,14 @@
 //!
 //! ```rust
 //! use chrom_rs::physics::{PhysicalModel, PhysicalState};
+//! use serde::{Deserialize, Serialize};
 //!
+//! #[derive(Deserialize, Serialize)]
 //! struct MyCustomModel {
 //!     // Model parameters
 //! }
 //!
+//! #[typetag::serde]
 //! impl PhysicalModel for MyCustomModel {
 //!     fn points(&self) -> usize {
 //!         // Return number of spatial points
@@ -93,4 +99,7 @@ pub mod traits;
 
 // re-export commonly used types for convenience
 pub use data::PhysicalData;
-pub use traits::{PhysicalModel, PhysicalQuantity, PhysicalState};
+pub use traits::{
+    ExportError, Exportable, PhysicalModel, PhysicalQuantity, PhysicalState, outlet_data,
+    sample_indices,
+};

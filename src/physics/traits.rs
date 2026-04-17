@@ -15,6 +15,7 @@
 
 use crate::physics::data::PhysicalData;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 
 // =================================================================================================
@@ -517,12 +518,15 @@ impl std::ops::Mul<f64> for PhysicalState {
 ///
 /// ```rust
 /// use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+/// use serde::{Deserialize, Serialize};
 ///
+/// #[derive(Deserialize, Serialize)]
 /// struct SimpleTransport {
 ///     points: usize,
 ///     velocity: f64,
 /// }
 ///
+/// #[typetag::serde]
 /// impl PhysicalModel for SimpleTransport {
 ///     fn points(&self) -> usize {
 ///         self.points
@@ -548,6 +552,7 @@ impl std::ops::Mul<f64> for PhysicalState {
 ///     }
 /// }
 /// ```
+#[typetag::serde]
 pub trait PhysicalModel: Send + Sync {
     /// Number of spatial points
     ///
@@ -556,7 +561,10 @@ pub trait PhysicalModel: Send + Sync {
     /// # Example
     /// ```rust
     /// # use chrom_rs::physics::PhysicalModel;
+    /// # use serde::{Deserialize, Serialize};
+    /// # #[derive(Deserialize, Serialize)]
     /// # struct MyModel { points: usize }
+    /// # #[typetag::serde]
     /// # impl PhysicalModel for MyModel {
     /// #   fn points(&self) -> usize { self.points }
     /// #   fn compute_physics(&self, state: &chrom_rs::physics::PhysicalState) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
@@ -608,8 +616,11 @@ pub trait PhysicalModel: Send + Sync {
     /// # Example
     /// ```rust
     /// use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
+    /// use serde::{Deserialize, Serialize};
     ///
+    /// #[derive(Deserialize, Serialize)]
     /// struct MyModel;
+    /// #[typetag::serde]
     /// impl PhysicalModel for MyModel {
     ///     fn points(&self) -> usize { 100 }
     ///
@@ -650,7 +661,10 @@ pub trait PhysicalModel: Send + Sync {
     /// # Example
     /// ```rust
     /// # use chrom_rs::physics::PhysicalModel;
+    /// # use serde::{Deserialize, Serialize};
+    /// # #[derive(Deserialize, Serialize)]
     /// # struct Transport;
+    /// # #[typetag::serde]
     /// # impl PhysicalModel for Transport {
     /// #   fn points(&self) -> usize { 100 }
     /// #   fn compute_physics(&self, _: &chrom_rs::physics::PhysicalState) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
@@ -670,7 +684,10 @@ pub trait PhysicalModel: Send + Sync {
     /// # Example
     /// ```rust
     /// # use chrom_rs::physics::PhysicalModel;
+    /// # use serde::{Deserialize, Serialize};
+    /// # #[derive(Deserialize, Serialize)]
     /// # struct MyModel;
+    /// # #[typetag::serde]
     /// # impl PhysicalModel for MyModel {
     /// #   fn points(&self) -> usize { 100 }
     /// #   fn compute_physics(&self, _: &chrom_rs::physics::PhysicalState) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
@@ -683,6 +700,270 @@ pub trait PhysicalModel: Send + Sync {
     /// ```
     fn description(&self) -> Option<&str> {
         None
+    }
+}
+
+// =============================================================================
+// ExportError
+// =============================================================================
+
+/// Errors that can occur during export mapping.
+///
+/// Returned by [`Exportable::from_map`] when the provided map does not
+/// contain the expected keys or holds values of the wrong type.
+///
+/// # Example
+///
+/// ```rust
+/// use chrom_rs::physics::ExportError;
+///
+/// let err = ExportError::MissingKey("metadata".into());
+/// assert_eq!(err.to_string(), "export map: missing key 'metadata'");
+/// ```
+#[derive(Debug)]
+pub enum ExportError {
+    /// A required key is absent from the map.
+    MissingKey(String),
+
+    /// A key is present but its value has an unexpected type or format.
+    InvalidValue { key: String, reason: String },
+
+    /// The number of species in the map does not match the model.
+    SpeciesCountMismatch { expected: usize, got: usize },
+}
+
+impl std::fmt::Display for ExportError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExportError::MissingKey(k) => {
+                write!(f, "export map: missing key '{k}'")
+            }
+            ExportError::InvalidValue { key, reason } => {
+                write!(f, "export map: invalid value for '{key}': {reason}")
+            }
+            ExportError::SpeciesCountMismatch { expected, got } => {
+                write!(f, "export map: expected {expected} species, got {got}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ExportError {}
+
+// =============================================================================
+// Exportable trait
+// =============================================================================
+
+/// Opt-in mapping layer between a physical model and a generic JSON map.
+///
+/// # Design
+///
+/// [`Exportable`] is independent of [`PhysicalModel`]. A model that needs
+/// structured JSON output implements this trait; models that do not require
+/// export are unaffected.
+///
+/// The trait defines the **mapping layer** only. File I/O lives in
+/// [`crate::output::export::json`] and operates on the map without any
+/// knowledge of physical models.
+///
+/// The signature of [`to_map`](Exportable::to_map) takes the components of
+/// `SimulationResult` explicitly rather than `&SimulationResult` itself.
+/// This avoids a circular dependency:
+/// `solver` already imports `physics`, so `physics` cannot import `solver`.
+///
+/// # Object safety
+///
+/// [`to_map`](Exportable::to_map) is **object-safe** — callable via
+/// `Box<dyn Exportable>`.
+///
+/// [`from_map`](Exportable::from_map) is **not object-safe** (`Self: Sized`).
+/// It is intended for concrete types only, typically in the CLI layer.
+///
+/// # JSON layout convention (DD-010)
+///
+/// ```json
+/// {
+///   "metadata": {
+///     "solver":    "RK4",
+///     "model":     "LangmuirMulti",
+///     "timestamp": "1744800000"
+///   },
+///   "data": {
+///     "time_points": [0.0, 0.06, "..."],
+///     "profiles": {
+///       "species_0": { "name": "Malic",  "Concentration": ["..."] },
+///       "species_1": { "name": "Citric", "Concentration": ["..."] },
+///       "global":    { "Temperature":    ["..."] }
+///     }
+///   }
+/// }
+/// ```
+///
+/// Dispatch rule driven by [`PhysicalData`] shape:
+/// - `Matrix [n_points × n_species]` → `"species_N"` blocks
+/// - `Scalar` or `Vector [n_points]`  → `"global"` block
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use chrom_rs::physics::{Exportable, ExportError, PhysicalState};
+/// use serde_json::{Map, Value};
+/// use std::collections::HashMap;
+///
+/// struct TrivialModel;
+///
+/// impl Exportable for TrivialModel {
+///     fn to_map(
+///         &self,
+///         time_points: &[f64],
+///         _trajectory: &[PhysicalState],
+///         _metadata: &HashMap<String, String>,
+///     ) -> Map<String, Value> {
+///         let mut map = Map::new();
+///         let tp: Vec<Value> = time_points.iter().map(|&t| Value::from(t)).collect();
+///         map.insert("time_points".into(), Value::Array(tp));
+///         map
+///     }
+///
+///     fn from_map(map: Map<String, Value>) -> Result<Self, ExportError>
+///     where
+///         Self: Sized,
+///     {
+///         let _ = map;
+///         Ok(TrivialModel)
+///     }
+/// }
+/// ```
+pub trait Exportable {
+    /// Builds a JSON map from the simulation data.
+    ///
+    /// Receives the three components of `SimulationResult` directly to avoid
+    /// a `physics → solver` circular dependency.
+    ///
+    /// # Arguments
+    ///
+    /// * `time_points` — time grid produced by the solver
+    /// * `trajectory`  — sequence of physical states over time
+    /// * `metadata`    — key/value pairs written by the solver (solver name, dt, …)
+    fn to_map(
+        &self,
+        time_points: &[f64],
+        trajectory: &[PhysicalState],
+        metadata: &HashMap<String, String>,
+    ) -> Map<String, Value>;
+
+    /// Reconstructs a model instance from a previously exported map.
+    ///
+    /// Not object-safe (`Self: Sized`) — call on concrete types only.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExportError`] if required keys are absent or have incompatible
+    /// types.
+    fn from_map(map: Map<String, Value>) -> Result<Self, ExportError>
+    where
+        Self: Sized;
+}
+
+// =============================================================================
+// Shared helpers — available to all Exportable implementors
+// =============================================================================
+
+/// Extracts outlet data for any physical quantity from a trajectory state at index `idx`.
+///
+/// The "outlet" is the last spatial point (column exit), consistent with
+/// the upwind spatial discretisation used by all Langmuir models.
+///
+/// This function is generic over [`PhysicalQuantity`]: pass
+/// `PhysicalQuantity::Concentration` for concentration profiles,
+/// `PhysicalQuantity::Temperature` for temperature profiles, etc.
+/// This allows `to_map` implementations to populate both `"species_N"` blocks
+/// and the `"global"` block without duplicating logic.
+///
+/// | [`PhysicalData`] variant | Return value |
+/// |---|---|
+/// | `Scalar(c)` | `vec![c]` — single global value |
+/// | `Vector(v)` | `vec![v[last]]` — last spatial point |
+/// | `Matrix(m)` | last row of `m`, one entry per species column |
+///
+/// Returns an empty `Vec` when `idx` is out of bounds or the state contains
+/// no entry for the requested quantity.
+///
+/// # Example
+///
+/// ```rust
+/// use chrom_rs::physics::{
+///     outlet_data, PhysicalState, PhysicalQuantity, PhysicalData,
+/// };
+/// use nalgebra::DVector;
+///
+/// let state = PhysicalState::new(
+///     PhysicalQuantity::Concentration,
+///     PhysicalData::Vector(DVector::from_vec(vec![0.0, 0.5, 1.0])),
+/// );
+/// let trajectory = vec![state];
+///
+/// // Concentration at outlet (last spatial point)
+/// let outlet = outlet_data(PhysicalQuantity::Concentration, &trajectory, 0);
+/// assert_eq!(outlet, vec![1.0]);
+///
+/// // Unknown quantity → empty Vec
+/// let empty = outlet_data(PhysicalQuantity::Temperature, &trajectory, 0);
+/// assert!(empty.is_empty());
+/// ```
+pub fn outlet_data(
+    quantity: PhysicalQuantity,
+    trajectory: &[PhysicalState],
+    idx: usize,
+) -> Vec<f64> {
+    let state = match trajectory.get(idx) {
+        Some(s) => s,
+        None => return vec![],
+    };
+
+    match state.get(quantity) {
+        Some(PhysicalData::Scalar(c)) => vec![*c],
+        Some(PhysicalData::Vector(v)) => v.iter().next_back().copied().into_iter().collect(),
+        Some(PhysicalData::Matrix(m)) if m.nrows() > 0 => {
+            let last = m.nrows() - 1;
+            (0..m.ncols()).map(|s| m[(last, s)]).collect()
+        }
+        _ => vec![],
+    }
+}
+
+/// Uniformly samples `n` indices from `0..total`, always including first and last.
+///
+/// Guarantees the trailing edge of a chromatographic peak is never truncated.
+///
+/// | `n` | Behaviour |
+/// |---|---|
+/// | `None` | All indices `0..total` |
+/// | `Some(0)` or `Some(n ≥ total)` | All indices |
+/// | `Some(1)` | `[0]` only |
+/// | `Some(n)` | `n` evenly spaced; last index always `total - 1` |
+///
+/// # Example
+///
+/// ```rust
+/// use chrom_rs::physics::sample_indices;
+///
+/// // Formula: (i * 99) / 4 with integer division → [0, 24, 49, 74, 99]
+/// assert_eq!(sample_indices(100, Some(5)), vec![0, 24, 49, 74, 99]);
+/// assert_eq!(sample_indices(4, None), vec![0, 1, 2, 3]);
+/// ```
+pub fn sample_indices(total: usize, n: Option<usize>) -> Vec<usize> {
+    match n {
+        None | Some(0) => (0..total).collect(),
+        Some(n) if n >= total => (0..total).collect(),
+        Some(1) => vec![0],
+        Some(n) => {
+            let mut indices: Vec<usize> = (0..n).map(|i| (i * (total - 1)) / (n - 1)).collect();
+            if let Some(last) = indices.last_mut() {
+                *last = total - 1;
+            }
+            indices
+        }
     }
 }
 
@@ -1088,5 +1369,76 @@ mod tests {
 
         let temp = scaled.get(PhysicalQuantity::Temperature).unwrap();
         assert_eq!(temp.as_scalar(), 150.0);
+    }
+    // =============================================================================
+    // Exportable helpers — tests
+    // =============================================================================
+
+    #[test]
+    fn test_outlet_data_scalar() {
+        let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(3.14));
+        assert_eq!(
+            super::outlet_data(PhysicalQuantity::Concentration, &[state], 0),
+            vec![3.14]
+        );
+    }
+
+    #[test]
+    fn test_outlet_data_vector_last_point() {
+        let state = PhysicalState::new(
+            PhysicalQuantity::Concentration,
+            PhysicalData::Vector(nalgebra::DVector::from_vec(vec![0.0, 0.5, 1.0])),
+        );
+        let outlet = super::outlet_data(PhysicalQuantity::Concentration, &[state], 0);
+        assert!((outlet[0] - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_outlet_data_out_of_bounds() {
+        let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(1.0));
+        assert!(super::outlet_data(PhysicalQuantity::Concentration, &[state], 99).is_empty());
+    }
+
+    #[test]
+    fn test_outlet_data_unknown_quantity() {
+        let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(1.0));
+        // Temperature not present → empty Vec
+        assert!(super::outlet_data(PhysicalQuantity::Temperature, &[state], 0).is_empty());
+    }
+
+    #[test]
+    fn test_sample_indices_full() {
+        assert_eq!(super::sample_indices(4, None), vec![0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn test_sample_indices_five_from_hundred() {
+        // Formula: (i * 99) / 4 with integer division → [0, 24, 49, 74, 99]
+        assert_eq!(super::sample_indices(100, Some(5)), vec![0, 24, 49, 74, 99]);
+    }
+
+    #[test]
+    fn test_sample_indices_single() {
+        assert_eq!(super::sample_indices(100, Some(1)), vec![0]);
+    }
+
+    #[test]
+    fn test_sample_indices_larger_than_total() {
+        assert_eq!(super::sample_indices(3, Some(10)), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn test_export_error_display_missing_key() {
+        let e = super::ExportError::MissingKey("metadata".into());
+        assert_eq!(e.to_string(), "export map: missing key 'metadata'");
+    }
+
+    #[test]
+    fn test_export_error_display_mismatch() {
+        let e = super::ExportError::SpeciesCountMismatch {
+            expected: 2,
+            got: 1,
+        };
+        assert_eq!(e.to_string(), "export map: expected 2 species, got 1");
     }
 }

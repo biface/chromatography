@@ -50,7 +50,10 @@
 //! # use chrom_rs::solver::{EulerSolver, Solver, SolverConfiguration, Scenario, DomainBoundaries};
 //! # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
 //! # use nalgebra::DVector;
+//! # use serde::{Deserialize, Serialize};
+//! # #[derive(Deserialize, Serialize)]
 //! # struct MyModel;
+//! # #[typetag::serde]
 //! # impl PhysicalModel for MyModel {
 //! #     fn points(&self) -> usize { 1 }
 //! #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
@@ -118,7 +121,10 @@ use crate::solver::{Scenario, SimulationResult, Solver, SolverConfiguration, Sol
 /// # use chrom_rs::solver::{EulerSolver, Solver, Scenario, DomainBoundaries, SolverConfiguration};
 /// # use chrom_rs::physics::{PhysicalModel, PhysicalState, PhysicalQuantity, PhysicalData};
 /// # use nalgebra::DVector;
+/// # use serde::{Deserialize, Serialize};
+/// # #[derive(Deserialize, Serialize)]
 /// # struct MyModel;
+/// # #[typetag::serde]
 /// # impl PhysicalModel for MyModel {
 /// #     fn points(&self) -> usize { 1 }
 /// #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
@@ -296,6 +302,7 @@ mod tests {
     use super::*;
     use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
     use crate::solver::boundary::DomainBoundaries;
+    use serde::{Deserialize, Serialize};
 
     // ====== Mock Models for Testing ======
 
@@ -304,11 +311,13 @@ mod tests {
     /// Analytical solution: y(t) = y_0 * exp(-k * t)
     ///
     /// This is used to test numerical accuracy since we know the exact solution.
+    #[derive(Deserialize, Serialize)]
     struct ExponentialDecay {
         points: usize,
         decay_rate: f64, // k in dy/dt = -k*y
     }
 
+    #[typetag::serde]
     impl PhysicalModel for ExponentialDecay {
         fn points(&self) -> usize {
             self.points
@@ -342,11 +351,13 @@ mod tests {
     /// Mock model: constant growth dy/dt = c
     ///
     /// Analytical solution: y(t) = y_0 + c * t
+    #[derive(Deserialize, Serialize)]
     struct ConstantGrowth {
         points: usize,
         growth_rate: f64,
     }
 
+    #[typetag::serde]
     impl PhysicalModel for ConstantGrowth {
         fn points(&self) -> usize {
             self.points
@@ -738,10 +749,13 @@ mod tests {
     #[test]
     fn test_euler_detects_nan() {
         // Create a model that produces NaN
+
+        #[derive(Deserialize, Serialize)]
         struct NaNModel {
             points: usize,
         }
 
+        #[typetag::serde]
         impl PhysicalModel for NaNModel {
             fn points(&self) -> usize {
                 self.points
@@ -785,10 +799,12 @@ mod tests {
     #[test]
     fn test_euler_detects_inf() {
         // Create a model that produces Inf
+        #[derive(Deserialize, Serialize)]
         struct InfModel {
             points: usize,
         }
 
+        #[typetag::serde]
         impl PhysicalModel for InfModel {
             fn points(&self) -> usize {
                 self.points
@@ -865,10 +881,12 @@ mod tests {
     fn test_euler_multiple_quantity() {
         // Simulation with two different PhysicalQuantity
 
+        #[derive(Deserialize, Serialize)]
         struct MultiQuantityModel {
             points: usize,
         }
 
+        #[typetag::serde]
         impl PhysicalModel for MultiQuantityModel {
             fn points(&self) -> usize {
                 self.points
