@@ -99,4 +99,7 @@ pub mod traits;
 
 // re-export commonly used types for convenience
 pub use data::PhysicalData;
-pub use traits::{PhysicalModel, PhysicalQuantity, PhysicalState};
+pub use traits::{
+    ExportError, Exportable, PhysicalModel, PhysicalQuantity, PhysicalState, outlet_data,
+    sample_indices,
+};
