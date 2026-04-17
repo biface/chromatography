@@ -280,6 +280,26 @@ impl LangmuirSingle {
         &self.injection
     }
 
+    /// Replaces the injection profile at the column inlet ($z = 0$).
+    ///
+    /// Called by the config loader after deserialising `scenario.yml` (DD-015).
+    /// The model parameters (λ, K̃, N, geometry) are unchanged.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use chrom_rs::models::{LangmuirSingle, TemporalInjection};
+    ///
+    /// let mut model = LangmuirSingle::new(
+    ///     1.2, 0.4, 2.0, 0.4, 0.001, 0.25, 100,
+    ///     TemporalInjection::none(),
+    /// );
+    /// model.set_injection(TemporalInjection::dirac(5.0, 0.1));
+    /// ```
+    pub fn set_injection(&mut self, injection: TemporalInjection) {
+        self.injection = injection;
+    }
+
     /// Returns the number of spatial discretisation points $N_z$
     pub fn spatial_points(&self) -> usize {
         self.nz
@@ -741,6 +761,48 @@ mod tests {
     fn test_invalid_points() {
         let injection = TemporalInjection::none();
         LangmuirSingle::new(1.2, 0.4, 2.0, 0.4, 0.001, 0.25, 1, injection);
+    }
+
+    // ── set_injection ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_set_injection_replaces_profile() {
+        let mut model = LangmuirSingle::new(
+            1.2,
+            0.4,
+            2.0,
+            0.4,
+            0.001,
+            0.25,
+            100,
+            TemporalInjection::none(),
+        );
+        // Before: none — evaluates to 0 at any time
+        assert!((model.injection().evaluate(5.0)).abs() < 1e-15);
+
+        model.set_injection(TemporalInjection::dirac(5.0, 0.1));
+
+        // After: Dirac at t=5 — non-zero at peak
+        assert!(model.injection().evaluate(5.0) > 0.0);
+    }
+
+    #[test]
+    fn test_set_injection_does_not_alter_physical_params() {
+        let mut model = LangmuirSingle::new(
+            1.2,
+            0.4,
+            2.0,
+            0.4,
+            0.001,
+            0.25,
+            100,
+            TemporalInjection::none(),
+        );
+        model.set_injection(TemporalInjection::gaussian(10.0, 3.0, 0.1));
+
+        // Physical parameters must be unchanged after set_injection
+        assert_eq!(model.spatial_points(), 100);
+        assert!((model.length() - 0.25).abs() < 1e-15);
     }
 
     // ── Exportable ────────────────────────────────────────────────────────────
