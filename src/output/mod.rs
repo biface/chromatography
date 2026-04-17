@@ -75,4 +75,4 @@ pub use visualization::{
     plot_profile_evolution, plot_steady_state, plot_steady_state_comparison,
 };
 
-pub use export::{CsvConfig, CsvError, CsvExporter, from_json, to_json, JsonError};
+pub use export::{CsvConfig, CsvError, CsvExporter, JsonError, from_json, to_json};
