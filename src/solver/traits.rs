@@ -257,12 +257,32 @@ impl SolverType {
 /// ```
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SolverConfiguration {
-    /// Type of solver and its paraméters
+    /// Type of solver and its parameters
     pub solver_type: SolverType,
+
+    /// Trajectory sampling interval for JSON export (DD-010 / DD-015).
+    ///
+    /// - `None` — full trajectory is retained (default).
+    /// - `Some(n)` — only every `n`-th state is kept; the final state is
+    ///   always included regardless of the value.
+    ///
+    /// Passed to [`sample_indices`](crate::physics::sample_indices) in the
+    /// CLI layer. Has no effect on the numerical integration itself.
+    ///
+    /// # YAML / JSON
+    ///
+    /// ```yaml
+    /// step: null   # full trajectory
+    /// step: 10     # every 10th step
+    /// ```
+    #[serde(default)]
+    pub step: Option<usize>,
 }
 
 impl SolverConfiguration {
     /// Create a new configuration with a given solver type
+    ///
+    /// `step` defaults to `None` — full trajectory retained.
     ///
     /// # Example
     /// ```rust
@@ -274,9 +294,31 @@ impl SolverConfiguration {
     ///         time_steps: 1000,
     ///     }
     /// );
+    /// assert!(config.step.is_none());
     /// ```
     pub fn new(solver_type: SolverType) -> Self {
-        Self { solver_type }
+        Self {
+            solver_type,
+            step: None,
+        }
+    }
+
+    /// Enables trajectory subsampling — keeps every `n`-th state.
+    ///
+    /// The final state is always present in the output regardless of `n`.
+    /// Used by the CLI layer when `step` is set in `solver.yml` (DD-015).
+    ///
+    /// # Example
+    /// ```rust
+    /// use chrom_rs::solver::SolverConfiguration;
+    ///
+    /// let config = SolverConfiguration::time_evolution(600.0, 10000)
+    ///     .with_step(50);
+    /// assert_eq!(config.step, Some(50));
+    /// ```
+    pub fn with_step(mut self, n: usize) -> Self {
+        self.step = Some(n);
+        self
     }
 
     /// Create a time evolution configuration
@@ -606,6 +648,7 @@ pub trait Solver {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json;
 
     // ==================== SolverType Tests ====================
 
@@ -695,6 +738,89 @@ mod tests {
 
         let invalid = SolverConfiguration::time_evolution(-1.0, 1000);
         assert!(invalid.validate().is_err());
+    }
+
+    // ── step field ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_step_defaults_to_none_on_all_factories() {
+        // Every constructor path must leave step = None unless explicitly set.
+        assert!(
+            SolverConfiguration::time_evolution(10.0, 1000)
+                .step
+                .is_none()
+        );
+        assert!(SolverConfiguration::iterative(1e-6, 100).step.is_none());
+        assert!(SolverConfiguration::analytical(5.0).step.is_none());
+        assert!(
+            SolverConfiguration::spatial_discretization(100, 1000)
+                .step
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn test_with_step_sets_value() {
+        let config = SolverConfiguration::time_evolution(600.0, 10000).with_step(50);
+        assert_eq!(config.step, Some(50));
+    }
+
+    #[test]
+    fn test_with_step_preserves_solver_type() {
+        let config = SolverConfiguration::time_evolution(600.0, 10000).with_step(50);
+        assert!(matches!(
+            config.solver_type,
+            SolverType::TimeEvolution { .. }
+        ));
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_with_step_zero_accepted() {
+        // step=0 is treated as "full trajectory" by sample_indices — not an error.
+        let config = SolverConfiguration::time_evolution(10.0, 1000).with_step(0);
+        assert_eq!(config.step, Some(0));
+    }
+
+    #[test]
+    fn test_step_serde_default_when_field_absent() {
+        // A JSON payload without the "step" key must deserialize to step = None.
+        let json = r#"{"solver_type":{"TimeEvolution":{"total_time":10.0,"time_steps":1000}}}"#;
+        let config: SolverConfiguration =
+            serde_json::from_str(json).expect("deserialisation must succeed when step is absent");
+        assert!(config.step.is_none(), "step must default to None");
+    }
+
+    #[test]
+    fn test_step_serde_null() {
+        // Explicit null (YAML: `step: null`) must also deserialize to None.
+        let json = r#"{"solver_type":{"TimeEvolution":{"total_time":10.0,"time_steps":1000}},"step":null}"#;
+        let config: SolverConfiguration =
+            serde_json::from_str(json).expect("deserialisation must succeed for step: null");
+        assert!(config.step.is_none(), "step: null must yield None");
+    }
+
+    #[test]
+    fn test_step_serde_with_value() {
+        // A concrete value must round-trip correctly.
+        let json =
+            r#"{"solver_type":{"TimeEvolution":{"total_time":10.0,"time_steps":1000}},"step":10}"#;
+        let config: SolverConfiguration =
+            serde_json::from_str(json).expect("deserialisation must succeed for step: 10");
+        assert_eq!(config.step, Some(10));
+    }
+
+    #[test]
+    fn test_step_serde_round_trip() {
+        let original = SolverConfiguration::time_evolution(600.0, 10000).with_step(25);
+        let serialised = serde_json::to_string(&original).expect("serialisation must succeed");
+        let restored: SolverConfiguration =
+            serde_json::from_str(&serialised).expect("deserialisation must succeed");
+        assert_eq!(restored.step, Some(25));
+        assert!(matches!(
+            restored.solver_type,
+            SolverType::TimeEvolution { .. }
+        ));
     }
 
     // ==================== SimulationResult Tests ====================
