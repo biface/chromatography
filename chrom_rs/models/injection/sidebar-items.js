@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["TemporalInjection"]};
+window.SIDEBAR_ITEMS = {"enum":["TemporalInjection","TemporalInjectionSnapshot"]};

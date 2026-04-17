@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["PhysicalQuantity"],"struct":["PhysicalState"],"trait":["PhysicalModel"]};
+window.SIDEBAR_ITEMS = {"enum":["ExportError","PhysicalQuantity"],"fn":["outlet_data","sample_indices"],"struct":["PhysicalState"],"trait":["Exportable","PhysicalModel"]};

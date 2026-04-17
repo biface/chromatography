@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["csv"],"trait":["Exporter"]};
+window.SIDEBAR_ITEMS = {"mod":["csv","json"],"trait":["Exporter"]};
