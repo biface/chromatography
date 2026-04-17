@@ -449,6 +449,63 @@ impl LangmuirMulti {
         Ok(())
     }
 
+    /// Applies the same injection profile to **all** species.
+    ///
+    /// Used by the config loader when `scenario.yml` defines only a
+    /// `default_injection` with no per-species override (DD-015).
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use chrom_rs::models::{LangmuirMulti, SpeciesParams, TemporalInjection};
+    ///
+    /// let sp = SpeciesParams::new("A", 1.0, 0.5, 1, TemporalInjection::none());
+    /// let mut model = LangmuirMulti::new(vec![sp], 100, 0.4, 0.001, 0.25).unwrap();
+    ///
+    /// model.set_injection_all(TemporalInjection::dirac(5.0, 0.1));
+    /// ```
+    pub fn set_injection_all(&mut self, injection: TemporalInjection) {
+        for sp in &mut self.species {
+            sp.injection = injection.clone();
+        }
+    }
+
+    /// Replaces the injection profile for a single species identified by name.
+    ///
+    /// Used by the config loader when `scenario.yml` lists per-species overrides
+    /// in the `injections` array (DD-015). Species not listed keep the profile
+    /// set by [`set_injection_all`](Self::set_injection_all).
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if no species with the given name exists in the model.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use chrom_rs::models::{LangmuirMulti, SpeciesParams, TemporalInjection};
+    ///
+    /// let sp_a = SpeciesParams::new("A", 1.0, 0.5, 1, TemporalInjection::none());
+    /// let sp_b = SpeciesParams::new("B", 1.0, 2.0, 1, TemporalInjection::none());
+    /// let mut model = LangmuirMulti::new(vec![sp_a, sp_b], 100, 0.4, 0.001, 0.25).unwrap();
+    ///
+    /// model.set_injection_all(TemporalInjection::dirac(5.0, 0.1));
+    /// model.set_injection_for("B", TemporalInjection::gaussian(10.0, 3.0, 0.05)).unwrap();
+    /// ```
+    pub fn set_injection_for(
+        &mut self,
+        species: &str,
+        injection: TemporalInjection,
+    ) -> Result<(), String> {
+        match self.species.iter_mut().find(|sp| sp.name == species) {
+            Some(sp) => {
+                sp.injection = injection;
+                Ok(())
+            }
+            None => Err(format!("Species '{species}' not found in model")),
+        }
+    }
+
     /// Returns the current number of species in the model
     /// Returns the current number of chemical species in the model.
     ///
@@ -1496,6 +1553,85 @@ mod tests {
     #[test]
     fn test_description_is_some() {
         assert!(single_model().description().is_some());
+    }
+
+    // ── set_injection_all / set_injection_for ─────────────────────────────────
+
+    #[test]
+    fn test_set_injection_all_applies_to_every_species() {
+        let mut model = two_species_model();
+        model.set_injection_all(TemporalInjection::dirac(5.0, 0.1));
+
+        // Both species must return a non-zero value at t=5
+        for sp in model.species_params() {
+            assert!(
+                sp.injection.evaluate(5.0) > 0.0,
+                "Species '{}' must have non-zero injection at peak",
+                sp.name
+            );
+        }
+    }
+
+    #[test]
+    fn test_set_injection_all_overwrites_previous_profile() {
+        let mut model = two_species_model();
+        // First: set all to gaussian
+        model.set_injection_all(TemporalInjection::gaussian(10.0, 3.0, 0.1));
+        // Then overwrite with none
+        model.set_injection_all(TemporalInjection::none());
+
+        for sp in model.species_params() {
+            assert!(
+                sp.injection.evaluate(10.0).abs() < 1e-15,
+                "Species '{}' injection must be none after overwrite",
+                sp.name
+            );
+        }
+    }
+
+    #[test]
+    fn test_set_injection_for_targets_single_species() {
+        let mut model = two_species_model();
+        model.set_injection_all(TemporalInjection::none());
+        model
+            .set_injection_for("B", TemporalInjection::dirac(5.0, 0.1))
+            .unwrap();
+
+        // A must stay none
+        let sp_a = model
+            .species_params()
+            .iter()
+            .find(|s| s.name == "A")
+            .unwrap();
+        assert!(sp_a.injection.evaluate(5.0).abs() < 1e-15);
+
+        // B must be non-zero
+        let sp_b = model
+            .species_params()
+            .iter()
+            .find(|s| s.name == "B")
+            .unwrap();
+        assert!(sp_b.injection.evaluate(5.0) > 0.0);
+    }
+
+    #[test]
+    fn test_set_injection_for_unknown_species_returns_err() {
+        let mut model = single_model();
+        let result = model.set_injection_for("Unknown", TemporalInjection::none());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Unknown"));
+    }
+
+    #[test]
+    fn test_set_injection_for_does_not_alter_physical_params() {
+        let mut model = two_species_model();
+        model
+            .set_injection_for("A", TemporalInjection::gaussian(10.0, 3.0, 0.1))
+            .unwrap();
+
+        assert_eq!(model.n_species(), 2);
+        assert_eq!(model.spatial_points(), 100);
+        assert!((model.porosity() - 0.4).abs() < 1e-15);
     }
 
     // ── Exportable ────────────────────────────────────────────────────────────
