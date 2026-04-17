@@ -18,6 +18,13 @@ Versioning: [SemVer](https://semver.org/)
 - `#[typetag::serde]` on `PhysicalModel` trait and all implementors
 - `ndarray/serde` feature activated — `PhysicalData::Array` fully serializable
 - `typetag = "0.2"`, `serde_yaml = "0.9"` added to dependencies
+- `Exportable` trait (`physics/traits.rs`): `to_map` / `from_map` mapping layer between physical models and JSON — no circular dependency (option A signature)
+- `ExportError`: `MissingKey`, `InvalidValue`, `SpeciesCountMismatch`
+- `outlet_data(quantity, trajectory, idx)`: generic outlet extractor for any `PhysicalQuantity`
+- `sample_indices(total, n)`: uniform downsampling helper, first and last points always included
+- `Exportable` implemented on `LangmuirSingle` and `LangmuirMulti` — named species blocks (`species_N` + `"name"` key), `global` extension point for scalar/vector quantities
+- `output/export/json.rs`: `to_json` / `from_json` — pure I/O layer, `Map<String, Value>` only, no model knowledge
+- `serde_json = "1.0"` added to dependencies
 
 ### Changed
 - Upgrade `dynamic-cli` dependency from `0.1.1` to `0.2.0`
@@ -26,6 +33,7 @@ Versioning: [SemVer](https://semver.org/)
 - Fix rustdoc redirect in CI: `dynamic_cli/index.html` → `chrom_rs/index.html`
 - Enable and fix all doc-tests across `models/`, `solver/`, and `output/` modules — remove `ignore` attribute, align examples with current public API
 - Add `libfontconfig1-dev` system dependency in CI jobs (required by `plotters`)
+- `LangmuirMulti`: add public accessors `porosity`, `velocity`, `column_length`, `spatial_points`, `species_params`
 
 ### Removed
 - Untrack `langmuir_single_simple.rs` (out of scope, kept locally)
