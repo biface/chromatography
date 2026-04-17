@@ -450,22 +450,50 @@ impl LangmuirMulti {
     }
 
     /// Returns the current number of species in the model
+    /// Returns the current number of chemical species in the model.
+    ///
+    /// Grows by one on each successful call to [`add_species`](Self::add_species).
     pub fn n_species(&self) -> usize {
         self.species.len()
     }
 
+    /// Returns the extra-granular porosity $\varepsilon$ **\[dimensionless\]**.
+    ///
+    /// Defined at construction; constant over the simulation lifetime.
+    /// Used to derive $F_e = (1-\varepsilon)/\varepsilon$ and $u_e = u/\varepsilon$.
     pub fn porosity(&self) -> f64 {
         self.porosity
     }
+
+    /// Returns the superficial velocity $u$ **\[m/s\]**.
+    ///
+    /// The interstitial velocity $u_e = u / \varepsilon$ is precomputed and stored
+    /// separately; this accessor returns the raw constructor argument.
     pub fn velocity(&self) -> f64 {
         self.velocity
     }
+
+    /// Returns the column length $L$ **\[m\]**.
+    ///
+    /// The spatial step $\Delta z = L / N_z$ is precomputed at construction.
     pub fn column_length(&self) -> f64 {
         self.column_length
     }
+
+    /// Returns the number of spatial discretisation points $N_z$.
+    ///
+    /// Matches the number of rows in the concentration state matrix
+    /// `[n_points × n_species]`. Must be $\geq 2$ (enforced by the constructor).
     pub fn spatial_points(&self) -> usize {
         self.n_points
     }
+
+    /// Returns all species parameter sets in insertion order.
+    ///
+    /// The slice index matches the column index of the state matrix
+    /// `[n_points × n_species]` — same order as [`species_names`](Self::species_names).
+    /// Use this accessor when full parameter detail is needed; prefer
+    /// [`species_names`](Self::species_names) for display purposes only.
     pub fn species_params(&self) -> &[SpeciesParams] {
         &self.species
     }
@@ -563,6 +591,10 @@ impl LangmuirMulti {
 #[typetag::serde]
 impl PhysicalModel for LangmuirMulti {
     /// Returns the number of spatial discretization points (row dimension of the state matrix)
+    /// Returns the total number of state variables — `n_points × n_species`.
+    ///
+    /// This is the flattened size of the concentration matrix, used by the
+    /// solver to determine step sizes and parallelism thresholds.
     fn points(&self) -> usize {
         self.n_points
     }
@@ -776,10 +808,19 @@ impl PhysicalModel for LangmuirMulti {
         )
     }
 
+    /// Returns the human-readable model identifier.
+    ///
+    /// Used as the `"model"` key in the JSON export map (DD-010) and in
+    /// simulation result metadata.
     fn name(&self) -> &str {
         "Langmuir Multi-Species"
     }
 
+    /// Returns a brief description of the model's physical assumptions.
+    ///
+    /// Documents the competitive Langmuir isotherm, the upwind spatial scheme,
+    /// and the matrix Jacobian inversion at the heart of the multi-species
+    /// transport computation.
     fn description(&self) -> Option<&str> {
         Some(
             "Competitive Langmuir adsorption model for n species \
@@ -1455,5 +1496,143 @@ mod tests {
     #[test]
     fn test_description_is_some() {
         assert!(single_model().description().is_some());
+    }
+
+    // ── Exportable ────────────────────────────────────────────────────────────
+
+    /// Builds a minimal trajectory (3 steps, all-zero concentrations) suitable
+    /// for exercising `to_map` without running a full simulation.
+    fn make_trajectory(model: &LangmuirMulti) -> (Vec<f64>, Vec<PhysicalState>) {
+        let state = model.setup_initial_state();
+        let time_points = vec![0.0, 0.5, 1.0];
+        let trajectory = vec![state.clone(), state.clone(), state.clone()];
+        (time_points, trajectory)
+    }
+
+    #[test]
+    fn test_to_map_species_blocks() {
+        let model = two_species_model();
+        let (tp, traj) = make_trajectory(&model);
+        let map = model.to_map(&tp, &traj, &HashMap::new());
+
+        let profiles = &map["data"]["profiles"];
+        assert!(
+            profiles.get("species_0").is_some(),
+            "species_0 block missing"
+        );
+        assert!(
+            profiles.get("species_1").is_some(),
+            "species_1 block missing"
+        );
+
+        // name must be colocated with the concentration data (DD-010 invariant)
+        assert_eq!(profiles["species_0"]["name"].as_str().unwrap(), "A");
+        assert_eq!(profiles["species_1"]["name"].as_str().unwrap(), "B");
+
+        let conc0 = profiles["species_0"]["Concentration"].as_array().unwrap();
+        assert_eq!(
+            conc0.len(),
+            tp.len(),
+            "species_0 Concentration length mismatch"
+        );
+    }
+
+    #[test]
+    fn test_to_map_global_block_present_and_empty() {
+        // The global block is the extension point for future scalar/vector quantities.
+        // It must be present even when all data is in species_N blocks (Matrix dispatch).
+        let model = single_model();
+        let (tp, traj) = make_trajectory(&model);
+        let map = model.to_map(&tp, &traj, &HashMap::new());
+
+        let profiles = map["data"]["profiles"].as_object().unwrap();
+        assert!(
+            profiles.contains_key("global"),
+            "global extension block missing"
+        );
+        assert!(
+            profiles["global"].as_object().unwrap().is_empty(),
+            "global block must be empty for Matrix data"
+        );
+    }
+
+    #[test]
+    fn test_to_map_metadata_species_array() {
+        let model = two_species_model();
+        let (tp, traj) = make_trajectory(&model);
+        let map = model.to_map(&tp, &traj, &HashMap::new());
+
+        let meta = map["metadata"].as_object().unwrap();
+        assert_eq!(meta["n_species"].as_u64().unwrap(), 2);
+
+        let species_arr = meta["species"].as_array().unwrap();
+        assert_eq!(species_arr.len(), 2, "species array length mismatch");
+        assert_eq!(species_arr[0]["name"].as_str().unwrap(), "A");
+        assert_eq!(species_arr[1]["name"].as_str().unwrap(), "B");
+        assert!((species_arr[0]["lambda"].as_f64().unwrap() - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_from_map_round_trip() {
+        let original = two_species_model();
+        let (tp, traj) = make_trajectory(&original);
+        let map = original.to_map(&tp, &traj, &HashMap::new());
+
+        let reconstructed = LangmuirMulti::from_map(map).expect("from_map must succeed");
+
+        assert_eq!(reconstructed.n_species(), original.n_species());
+        assert_eq!(reconstructed.spatial_points(), original.spatial_points());
+        assert!((reconstructed.porosity() - original.porosity()).abs() < 1e-12);
+        assert!((reconstructed.velocity() - original.velocity()).abs() < 1e-12);
+        assert!((reconstructed.column_length() - original.column_length()).abs() < 1e-12);
+
+        // Species names must survive the round-trip (order preserved)
+        assert_eq!(reconstructed.species_names(), original.species_names());
+    }
+
+    #[test]
+    fn test_from_map_species_count_mismatch() {
+        use serde_json::json;
+        let map = json!({
+            "metadata": {
+                "nz": 100, "porosity": 0.4, "velocity": 0.001, "length": 0.25,
+                "species": []
+            }
+        })
+        .as_object()
+        .cloned()
+        .unwrap();
+
+        assert!(
+            matches!(
+                LangmuirMulti::from_map(map),
+                Err(ExportError::SpeciesCountMismatch { .. })
+            ),
+            "Empty species array must yield SpeciesCountMismatch"
+        );
+    }
+
+    #[test]
+    fn test_from_map_missing_key() {
+        use serde_json::json;
+
+        // "porosity" absent — all other required keys present
+        let map = json!({
+            "metadata": {
+                "nz": 100, "velocity": 0.001, "length": 0.25,
+                "species": [{"name": "A", "lambda": 1.0, "langmuir_k": 0.5, "port_number": 1}]
+            }
+        })
+        .as_object()
+        .cloned()
+        .unwrap();
+
+        assert!(
+            matches!(
+                LangmuirMulti::from_map(map),
+                Err(ExportError::MissingKey(_))
+            ),
+            "Missing 'porosity' must yield MissingKey"
+        );
     }
 }

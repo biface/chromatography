@@ -742,4 +742,138 @@ mod tests {
         let injection = TemporalInjection::none();
         LangmuirSingle::new(1.2, 0.4, 2.0, 0.4, 0.001, 0.25, 1, injection);
     }
+
+    // ── Exportable ────────────────────────────────────────────────────────────
+
+    /// Builds a minimal trajectory (3 steps, all-zero concentrations) suitable
+    /// for exercising `to_map` without running a full simulation.
+    fn make_trajectory(model: &LangmuirSingle) -> (Vec<f64>, Vec<PhysicalState>) {
+        let state = model.setup_initial_state();
+        let time_points = vec![0.0, 0.5, 1.0];
+        let trajectory = vec![state.clone(), state.clone(), state.clone()];
+        (time_points, trajectory)
+    }
+
+    #[test]
+    fn test_to_map_metadata_keys() {
+        let model = create_langmuir_single();
+        let (tp, traj) = make_trajectory(&model);
+        let map = model.to_map(&tp, &traj, &HashMap::new());
+
+        let meta = map["metadata"].as_object().unwrap();
+        for key in &[
+            "model",
+            "lambda",
+            "langmuir_k",
+            "port_number",
+            "length",
+            "nz",
+            "fe",
+            "ue",
+        ] {
+            assert!(meta.contains_key(*key), "Missing metadata key: {key}");
+        }
+        assert!((meta["lambda"].as_f64().unwrap() - 1.2).abs() < 1e-12);
+        assert!((meta["langmuir_k"].as_f64().unwrap() - 0.4).abs() < 1e-12);
+        assert_eq!(meta["nz"].as_u64().unwrap(), 100);
+    }
+
+    #[test]
+    fn test_to_map_data_structure() {
+        let model = create_langmuir_single();
+        let (tp, traj) = make_trajectory(&model);
+        let map = model.to_map(&tp, &traj, &HashMap::new());
+
+        let data = map["data"].as_object().unwrap();
+        assert!(
+            data.contains_key("time_points"),
+            "time_points block missing"
+        );
+        assert!(data.contains_key("profiles"), "profiles block missing");
+
+        let profiles = data["profiles"].as_object().unwrap();
+        assert!(
+            profiles.contains_key("species_0"),
+            "species_0 block missing"
+        );
+
+        let conc = profiles["species_0"]["Concentration"].as_array().unwrap();
+        assert_eq!(
+            conc.len(),
+            tp.len(),
+            "Concentration length must match time_points"
+        );
+    }
+
+    #[test]
+    fn test_to_map_solver_metadata_merged_but_not_overriding() {
+        let model = create_langmuir_single();
+        let (tp, traj) = make_trajectory(&model);
+
+        let mut solver_meta = HashMap::new();
+        solver_meta.insert("solver".to_string(), "RK4".to_string());
+        // "lambda" already set by the model — model value must win
+        solver_meta.insert("lambda".to_string(), "999.0".to_string());
+
+        let map = model.to_map(&tp, &traj, &solver_meta);
+        let meta = map["metadata"].as_object().unwrap();
+
+        assert_eq!(
+            meta["solver"].as_str().unwrap(),
+            "RK4",
+            "solver key must be merged"
+        );
+        assert!(
+            (meta["lambda"].as_f64().unwrap() - 1.2).abs() < 1e-12,
+            "model lambda must take precedence over solver metadata"
+        );
+    }
+
+    #[test]
+    fn test_from_map_round_trip() {
+        let original = create_langmuir_single();
+        let (tp, traj) = make_trajectory(&original);
+        let map = original.to_map(&tp, &traj, &HashMap::new());
+
+        let reconstructed = LangmuirSingle::from_map(map).expect("from_map must succeed");
+
+        assert_eq!(reconstructed.spatial_points(), original.spatial_points());
+        assert!((reconstructed.length() - original.length()).abs() < 1e-12);
+
+        // Second pass: derived quantities (fe, ue) must survive the back-computation
+        // porosity = 1/(1+fe), velocity = ue × ε
+        let map2 = reconstructed.to_map(&tp, &traj, &HashMap::new());
+        let meta2 = map2["metadata"].as_object().unwrap();
+        assert!((meta2["lambda"].as_f64().unwrap() - 1.2).abs() < 1e-12);
+        assert!((meta2["langmuir_k"].as_f64().unwrap() - 0.4).abs() < 1e-12);
+        assert!((meta2["fe"].as_f64().unwrap() - 1.5).abs() < 1e-9);
+        assert!((meta2["ue"].as_f64().unwrap() - 0.0025).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_from_map_missing_key() {
+        use serde_json::json;
+
+        // Metadata block present but "lambda" absent
+        let partial = json!({"metadata": {"langmuir_k": 0.4}})
+            .as_object()
+            .cloned()
+            .unwrap();
+        assert!(
+            matches!(
+                LangmuirSingle::from_map(partial),
+                Err(ExportError::MissingKey(_))
+            ),
+            "Missing 'lambda' must yield MissingKey"
+        );
+
+        // No metadata block at all
+        assert!(
+            matches!(
+                LangmuirSingle::from_map(serde_json::Map::new()),
+                Err(ExportError::MissingKey(_))
+            ),
+            "Absent metadata block must yield MissingKey"
+        );
+    }
 }
