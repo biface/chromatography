@@ -97,9 +97,14 @@
 //! ```
 
 use crate::models::TemporalInjection;
-use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
+use crate::physics::{
+    ExportError, Exportable, PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState,
+    outlet_data, sample_indices,
+};
 use nalgebra::DVector;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value, json};
+use std::collections::HashMap;
 
 // =================================================================================================
 // LangmuirSingle
@@ -440,6 +445,172 @@ impl PhysicalModel for LangmuirSingle {
             "Using Langmuir isotherm with time varying inlet BC. \
         Read from Physical State metadata.",
         )
+    }
+}
+
+impl Exportable for LangmuirSingle {
+    /// Builds the export map for a single-species Langmuir simulation.
+    ///
+    /// # JSON layout
+    ///
+    /// ```json
+    /// {
+    ///   "metadata": {
+    ///     "model":       "Langmuir single specie with temporal injection",
+    ///     "lambda":      1.2,
+    ///     "langmuir_k":  0.4,
+    ///     "port_number": 2.0,
+    ///     "length":      0.25,
+    ///     "nz":          100,
+    ///     "fe":          1.5,
+    ///     "ue":          0.0025,
+    ///     "solver":      "Runge-Kutta 4",
+    ///     "dt":          "0.06"
+    ///   },
+    ///   "data": {
+    ///     "time_points": [0.0, 0.06, "..."],
+    ///     "profiles": {
+    ///       "species_0": { "Concentration": [0.0, 1.2e-4, "..."] }
+    ///     }
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// No `"name"` key appears under `"species_0"` — `LangmuirSingle` models
+    /// a single anonymous species by design.
+    ///
+    /// Solver metadata (`solver`, `dt`, `total time`, …) is merged from the
+    /// `metadata` argument. Model parameters take precedence on key collision.
+    fn to_map(
+        &self,
+        time_points: &[f64],
+        trajectory: &[crate::physics::PhysicalState],
+        metadata: &HashMap<String, String>,
+    ) -> Map<String, Value> {
+        let mut root = Map::new();
+
+        // ── metadata ──────────────────────────────────────────────────────────
+        let mut meta: Map<String, Value> = [
+            ("model", Value::String(self.name().into())),
+            ("lambda", Value::from(self.lambda)),
+            ("langmuir_k", Value::from(self.langmuir_k)),
+            ("port_number", Value::from(self.port_number)),
+            ("length", Value::from(self.length)),
+            ("nz", Value::from(self.nz as u64)),
+            ("fe", Value::from(self.fe)),
+            ("ue", Value::from(self.ue)),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect();
+
+        // Merge solver metadata — model keys take precedence
+        for (k, v) in metadata {
+            meta.entry(k.clone())
+                .or_insert_with(|| Value::String(v.clone()));
+        }
+
+        root.insert("metadata".into(), Value::Object(meta));
+
+        // ── data ──────────────────────────────────────────────────────────────
+        let indices = sample_indices(time_points.len(), None);
+
+        let tp_values: Vec<Value> = indices
+            .iter()
+            .map(|&i| Value::from(time_points[i]))
+            .collect();
+
+        let concentrations: Vec<Value> = indices
+            .iter()
+            .map(|&i| {
+                let c = outlet_data(PhysicalQuantity::Concentration, trajectory, i);
+                Value::from(*c.first().unwrap_or(&0.0))
+            })
+            .collect();
+
+        root.insert(
+            "data".into(),
+            json!({
+                "time_points": tp_values,
+                "profiles": {
+                    "species_0": { "Concentration": concentrations }
+                }
+            }),
+        );
+
+        root
+    }
+
+    /// Reconstructs a `LangmuirSingle` configuration from an export map.
+    ///
+    /// # Required keys in `metadata`
+    ///
+    /// | Key | Type | Description |
+    /// |---|---|---|
+    /// | `lambda` | `f64` | Linear retention term |
+    /// | `langmuir_k` | `f64` | Langmuir equilibrium constant |
+    /// | `port_number` | `f64` | Adsorption capacity |
+    /// | `length` | `f64` | Column length (m) |
+    /// | `nz` | `u64` | Number of spatial points |
+    /// | `fe` | `f64` | Phase ratio — back-computes porosity as `1 / (1 + fe)` |
+    /// | `ue` | `f64` | Interstitial velocity — back-computes velocity as `ue × ε` |
+    ///
+    /// The injection profile is not serialised. It defaults to
+    /// [`TemporalInjection::none`] and must be overridden by the caller if needed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExportError::MissingKey`] if a required key is absent, or
+    /// [`ExportError::InvalidValue`] if a value has the wrong type.
+    fn from_map(map: Map<String, Value>) -> Result<Self, ExportError>
+    where
+        Self: Sized,
+    {
+        let meta = map
+            .get("metadata")
+            .and_then(|v| v.as_object())
+            .ok_or_else(|| ExportError::MissingKey("metadata".into()))?;
+
+        macro_rules! get_f64 {
+            ($key:expr) => {
+                meta.get($key)
+                    .and_then(|v| v.as_f64())
+                    .ok_or_else(|| ExportError::MissingKey($key.into()))?
+            };
+        }
+        macro_rules! get_usize {
+            ($key:expr) => {
+                meta.get($key)
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as usize)
+                    .ok_or_else(|| ExportError::MissingKey($key.into()))?
+            };
+        }
+
+        let lambda = get_f64!("lambda");
+        let langmuir_k = get_f64!("langmuir_k");
+        let port_number = get_f64!("port_number");
+        let length = get_f64!("length");
+        let fe = get_f64!("fe");
+        let ue = get_f64!("ue");
+        let nz = get_usize!("nz");
+
+        // Back-compute constructor arguments from derived quantities:
+        //   fe = (1 - ε) / ε  →  ε = 1 / (1 + fe)
+        //   ue = u / ε         →  u = ue × ε
+        let porosity = 1.0 / (1.0 + fe);
+        let velocity = ue * porosity;
+
+        Ok(LangmuirSingle::new(
+            lambda,
+            langmuir_k,
+            port_number,
+            porosity,
+            velocity,
+            length,
+            nz,
+            TemporalInjection::none(),
+        ))
     }
 }
 

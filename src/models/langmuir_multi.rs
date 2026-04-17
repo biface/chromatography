@@ -80,9 +80,14 @@
 
 use nalgebra::{DMatrix, DVector};
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value, json};
+use std::collections::HashMap;
 
 use crate::models::injection::TemporalInjection;
-use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
+use crate::physics::{
+    ExportError, Exportable, PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState,
+    outlet_data, sample_indices,
+};
 
 // =================================================================================================
 // SpeciesParams — Physical parameters of a chemical species
@@ -449,6 +454,22 @@ impl LangmuirMulti {
         self.species.len()
     }
 
+    pub fn porosity(&self) -> f64 {
+        self.porosity
+    }
+    pub fn velocity(&self) -> f64 {
+        self.velocity
+    }
+    pub fn column_length(&self) -> f64 {
+        self.column_length
+    }
+    pub fn spatial_points(&self) -> usize {
+        self.n_points
+    }
+    pub fn species_params(&self) -> &[SpeciesParams] {
+        &self.species
+    }
+
     /// Returns species names in insertion order
     ///
     /// The order matches column indices of the state matrix `[n_points × n_species]`.
@@ -764,6 +785,262 @@ impl PhysicalModel for LangmuirMulti {
             "Competitive Langmuir adsorption model for n species \
              with upwind spatial discretisation and matrix Jacobian inversion.",
         )
+    }
+}
+
+impl Exportable for LangmuirMulti {
+    /// Builds the export map for a multi-species Langmuir simulation.
+    ///
+    /// Each species is serialised as a named block under `"profiles"`.
+    /// The `"name"` key is colocated with the species data so that identity
+    /// and measurements travel together — preventing species permutation on
+    /// reload.
+    ///
+    /// # JSON layout
+    ///
+    /// ```json
+    /// {
+    ///   "metadata": {
+    ///     "model":     "Langmuir multi species with temporal injection",
+    ///     "n_species": 2,
+    ///     "nz":        150,
+    ///     "porosity":  0.4,
+    ///     "velocity":  0.001,
+    ///     "length":    0.25,
+    ///     "species": [
+    ///       { "name": "Malic",  "lambda": 1.0, "langmuir_k": 0.5, "port_number": 1 },
+    ///       { "name": "Citric", "lambda": 1.0, "langmuir_k": 2.0, "port_number": 1 }
+    ///     ]
+    ///   },
+    ///   "data": {
+    ///     "time_points": [0.0, 0.1, "..."],
+    ///     "profiles": {
+    ///       "species_0": { "name": "Malic",  "Concentration": ["..."] },
+    ///       "species_1": { "name": "Citric", "Concentration": ["..."] },
+    ///       "global":    {}
+    ///     }
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// The `"global"` block is included but empty by default — it is the
+    /// extension point for future scalar or vector quantities (temperature,
+    /// pressure, etc.) that are not species-specific.
+    ///
+    /// # Dispatch rule
+    ///
+    /// `PhysicalData::Matrix [n_points × n_species]` → `"species_N"` blocks.
+    /// `PhysicalData::Scalar` or `Vector [n_points]`  → `"global"` block.
+    fn to_map(
+        &self,
+        time_points: &[f64],
+        trajectory: &[crate::physics::PhysicalState],
+        metadata: &HashMap<String, String>,
+    ) -> Map<String, Value> {
+        let mut root = Map::new();
+
+        // ── metadata ──────────────────────────────────────────────────────────
+        let species_meta: Vec<Value> = self
+            .species_params()
+            .iter()
+            .map(|s| {
+                json!({
+                    "name":        s.name,
+                    "lambda":      s.lambda,
+                    "langmuir_k":  s.langmuir_k,
+                    "port_number": s.port_number,
+                })
+            })
+            .collect();
+
+        let mut meta: Map<String, Value> = [
+            ("model", Value::String(self.name().into())),
+            ("n_species", Value::from(self.n_species() as u64)),
+            ("nz", Value::from(self.spatial_points() as u64)),
+            ("porosity", Value::from(self.porosity())),
+            ("velocity", Value::from(self.velocity())),
+            ("length", Value::from(self.column_length())),
+            ("species", Value::Array(species_meta)),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect();
+
+        // Merge solver metadata — model keys take precedence
+        for (k, v) in metadata {
+            meta.entry(k.clone())
+                .or_insert_with(|| Value::String(v.clone()));
+        }
+
+        root.insert("metadata".into(), Value::Object(meta));
+
+        // ── data ──────────────────────────────────────────────────────────────
+        let indices = sample_indices(time_points.len(), None);
+
+        let tp_values: Vec<Value> = indices
+            .iter()
+            .map(|&i| Value::from(time_points[i]))
+            .collect();
+
+        let names = self.species_names();
+        let n = names.len();
+
+        // Build one concentration Vec per species across all sampled steps
+        let mut per_species: Vec<Vec<Value>> = vec![Vec::with_capacity(indices.len()); n];
+        for &i in &indices {
+            let outlet = outlet_data(PhysicalQuantity::Concentration, trajectory, i);
+            for (s, col) in per_species.iter_mut().enumerate() {
+                col.push(Value::from(*outlet.get(s).unwrap_or(&0.0)));
+            }
+        }
+
+        let mut profiles = Map::new();
+        for (s, conc_vals) in per_species.into_iter().enumerate() {
+            let mut block = Map::new();
+            block.insert("name".into(), Value::String(names[s].to_string()));
+            block.insert("Concentration".into(), Value::Array(conc_vals));
+            profiles.insert(format!("species_{s}"), Value::Object(block));
+        }
+        // Extension point for future scalar/vector quantities
+        profiles.insert("global".into(), Value::Object(Map::new()));
+
+        root.insert(
+            "data".into(),
+            json!({
+                "time_points": tp_values,
+                "profiles":    profiles,
+            }),
+        );
+
+        root
+    }
+
+    /// Reconstructs a `LangmuirMulti` configuration from an export map.
+    ///
+    /// # Required keys in `metadata`
+    ///
+    /// | Key | Type | Description |
+    /// |---|---|---|
+    /// | `nz` | `u64` | Number of spatial points |
+    /// | `porosity` | `f64` | Extra-granular porosity ε ∈ (0, 1) |
+    /// | `velocity` | `f64` | Superficial velocity (m/s) |
+    /// | `length` | `f64` | Column length (m) |
+    /// | `species` | array | Per-species parameters (see below) |
+    ///
+    /// Each entry in `metadata.species` must contain:
+    /// `name` (string), `lambda` (f64), `langmuir_k` (f64), `port_number` (u64).
+    ///
+    /// The injection profile is not serialised. It defaults to
+    /// [`TemporalInjection::none`] for each species and must be overridden
+    /// by the caller after reconstruction if needed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExportError::MissingKey`] if a required key is absent,
+    /// [`ExportError::InvalidValue`] if a value has the wrong type or model
+    /// construction fails, or [`ExportError::SpeciesCountMismatch`] if the
+    /// species list is empty.
+    fn from_map(map: Map<String, Value>) -> Result<Self, ExportError>
+    where
+        Self: Sized,
+    {
+        let meta = map
+            .get("metadata")
+            .and_then(|v| v.as_object())
+            .ok_or_else(|| ExportError::MissingKey("metadata".into()))?;
+
+        macro_rules! get_f64 {
+            ($key:expr) => {
+                meta.get($key)
+                    .and_then(|v| v.as_f64())
+                    .ok_or_else(|| ExportError::MissingKey($key.into()))?
+            };
+        }
+        macro_rules! get_usize {
+            ($key:expr) => {
+                meta.get($key)
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as usize)
+                    .ok_or_else(|| ExportError::MissingKey($key.into()))?
+            };
+        }
+
+        let nz = get_usize!("nz");
+        let porosity = get_f64!("porosity");
+        let velocity = get_f64!("velocity");
+        let length = get_f64!("length");
+
+        let species_arr = meta
+            .get("species")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| ExportError::MissingKey("metadata.species".into()))?;
+
+        if species_arr.is_empty() {
+            return Err(ExportError::SpeciesCountMismatch {
+                expected: 1,
+                got: 0,
+            });
+        }
+
+        let mut params: Vec<SpeciesParams> = Vec::with_capacity(species_arr.len());
+        for (i, s) in species_arr.iter().enumerate() {
+            let obj = s.as_object().ok_or_else(|| ExportError::InvalidValue {
+                key: format!("metadata.species[{i}]"),
+                reason: "expected object".into(),
+            })?;
+
+            macro_rules! field_f64 {
+                ($key:expr) => {
+                    obj.get($key).and_then(|v| v.as_f64()).ok_or_else(|| {
+                        ExportError::MissingKey(format!("metadata.species[{i}].{}", $key))
+                    })?
+                };
+            }
+            macro_rules! field_u32 {
+                ($key:expr) => {
+                    obj.get($key)
+                        .and_then(|v| v.as_u64())
+                        .map(|v| v as u32)
+                        .ok_or_else(|| {
+                            ExportError::MissingKey(format!("metadata.species[{i}].{}", $key))
+                        })?
+                };
+            }
+
+            let name = obj
+                .get("name")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| ExportError::MissingKey(format!("metadata.species[{i}].name")))?
+                .to_string();
+
+            params.push(SpeciesParams::new(
+                &name,
+                field_f64!("lambda"),
+                field_f64!("langmuir_k"),
+                field_u32!("port_number"),
+                TemporalInjection::none(),
+            ));
+        }
+
+        let first = params.remove(0);
+        let mut model =
+            LangmuirMulti::new(vec![first], nz, porosity, velocity, length).map_err(|e| {
+                ExportError::InvalidValue {
+                    key: "metadata".into(),
+                    reason: e,
+                }
+            })?;
+
+        for sp in params {
+            model
+                .add_species(sp)
+                .map_err(|e| ExportError::InvalidValue {
+                    key: "metadata.species".into(),
+                    reason: e,
+                })?;
+        }
+
+        Ok(model)
     }
 }
 
