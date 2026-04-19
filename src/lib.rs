@@ -74,6 +74,8 @@ pub mod solver;
 
 pub mod output;
 
+pub mod config;
+
 pub mod prelude {
     //! Convenient imports for common usage
     //!

@@ -61,7 +61,10 @@ impl fmt::Display for ConfigError {
         match self {
             ConfigError::Io(e) => write!(f, "config I/O error: {e}"),
             ConfigError::UnsupportedFormat(ext) => {
-                write!(f, "unsupported config format '{ext}' (use .yml, .yaml or .json)")
+                write!(
+                    f,
+                    "unsupported config format '{ext}' (use .yml, .yaml or .json)"
+                )
             }
             ConfigError::Parse(msg) => write!(f, "config parse error: {msg}"),
             ConfigError::Validation(msg) => write!(f, "config validation error: {msg}"),
@@ -129,8 +132,10 @@ pub(crate) fn load_from_file<T>(path: &str) -> Result<T, ConfigError>
 where
     T: serde::de::DeserializeOwned,
 {
+    // Check format first — returns UnsupportedFormat before any I/O attempt.
+    let format = format_from_path(path)?;
     let content = fs::read_to_string(path)?;
-    match format_from_path(path)? {
+    match format {
         Format::Yaml => {
             serde_yaml::from_str(&content).map_err(|e| ConfigError::Parse(e.to_string()))
         }
@@ -157,12 +162,18 @@ mod tests {
 
     #[test]
     fn test_format_yaml() {
-        assert_eq!(format_from_path("config/solver.yaml").unwrap(), Format::Yaml);
+        assert_eq!(
+            format_from_path("config/solver.yaml").unwrap(),
+            Format::Yaml
+        );
     }
 
     #[test]
     fn test_format_json() {
-        assert_eq!(format_from_path("results/model.json").unwrap(), Format::Json);
+        assert_eq!(
+            format_from_path("results/model.json").unwrap(),
+            Format::Json
+        );
     }
 
     #[test]
@@ -216,11 +227,14 @@ mod tests {
     fn test_load_from_file_yaml() {
         use std::io::Write;
         let mut f = tempfile::Builder::new().suffix(".yml").tempfile().unwrap();
-        writeln!(f, "solver_type: !TimeEvolution\n  total_time: 10.0\n  time_steps: 100").unwrap();
+        writeln!(
+            f,
+            "solver_type: !TimeEvolution\n  total_time: 10.0\n  time_steps: 100"
+        )
+        .unwrap();
 
         use crate::solver::SolverConfiguration;
-        let config: SolverConfiguration =
-            load_from_file(f.path().to_str().unwrap()).unwrap();
+        let config: SolverConfiguration = load_from_file(f.path().to_str().unwrap()).unwrap();
         assert!(config.validate().is_ok());
     }
 
@@ -235,8 +249,7 @@ mod tests {
         .unwrap();
 
         use crate::solver::SolverConfiguration;
-        let config: SolverConfiguration =
-            load_from_file(f.path().to_str().unwrap()).unwrap();
+        let config: SolverConfiguration = load_from_file(f.path().to_str().unwrap()).unwrap();
         assert!(config.validate().is_ok());
     }
 
@@ -255,8 +268,7 @@ mod tests {
         writeln!(f, "not: valid: yaml: at: all: [").unwrap();
 
         use crate::solver::SolverConfiguration;
-        let result: Result<SolverConfiguration, _> =
-            load_from_file(f.path().to_str().unwrap());
+        let result: Result<SolverConfiguration, _> = load_from_file(f.path().to_str().unwrap());
         assert!(matches!(result, Err(ConfigError::Parse(_))));
     }
 }
