@@ -1,4 +1,4 @@
-//! Loader for `model.yml` / `model.json` (DD-015).
+//! Loader for `model.yml` / `model.json`.
 //!
 //! `model.yml` describes the physical column and its parameters.
 //! The injection profile is intentionally absent (or set to `None`) here —

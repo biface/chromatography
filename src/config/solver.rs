@@ -1,4 +1,4 @@
-//! Loader for `solver.yml` / `solver.json` (DD-015).
+//! Loader for `solver.yml` / `solver.json`.
 //!
 //! `solver.yml` defines **how** to solve the scenario: numerical method,
 //! time discretisation, and optional trajectory subsampling.
@@ -48,7 +48,9 @@ struct SolverFile {
     /// Number of time steps $N_t$.
     time_steps: usize,
 
-    /// Trajectory subsampling interval (DD-010 / DD-015).
+    /// Trajectory subsampling interval.
+    ///
+    /// You can save the results of the calculations at each step in the JSON export.
     ///
     /// `null` or absent → full trajectory. `N` → every N-th step kept.
     #[serde(default)]

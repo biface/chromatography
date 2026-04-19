@@ -1,7 +1,7 @@
-//! Configuration file loading for `chrom-rs` (DD-015).
+//! Configuration file loading for `chrom-rs`.
 //!
 //! Provides three independent loaders — one per configuration file — that
-//! reflect the WHAT/HOW separation at the user level (DD-003):
+//! reflect the architecture separation between what and how at the user level :
 //!
 //! | Loader | File | Returns |
 //! |---|---|---|

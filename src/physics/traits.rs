@@ -705,7 +705,7 @@ pub trait PhysicalModel: Send + Sync {
     /// Sets the injection profile for a species or for all species at once.
     ///
     /// This is the single injection entry-point on the trait. The caller
-    /// (config loader, DD-015) never needs to know the concrete model type.
+    /// (config loader) never needs to know the concrete model type.
     ///
     /// - `species = None`  → applies to all species (or the sole species for
     ///   single-species models).
@@ -818,7 +818,7 @@ impl std::error::Error for ExportError {}
 /// [`from_map`](Exportable::from_map) is **not object-safe** (`Self: Sized`).
 /// It is intended for concrete types only, typically in the CLI layer.
 ///
-/// # JSON layout convention (DD-010)
+/// # JSON layout convention
 ///
 /// ```json
 /// {

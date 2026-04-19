@@ -1,4 +1,4 @@
-//! Loader for `scenario.yml` / `scenario.json` (DD-015).
+//! Loader for `scenario.yml` / `scenario.json`.
 //!
 //! `scenario.yml` defines the **boundary conditions** for a simulation run:
 //! the initial column state and the temporal injection profile(s). It is

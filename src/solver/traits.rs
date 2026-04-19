@@ -260,7 +260,7 @@ pub struct SolverConfiguration {
     /// Type of solver and its parameters
     pub solver_type: SolverType,
 
-    /// Trajectory sampling interval for JSON export (DD-010 / DD-015).
+    /// Trajectory sampling interval for JSON export.
     ///
     /// - `None` — full trajectory is retained (default).
     /// - `Some(n)` — only every `n`-th state is kept; the final state is
@@ -306,7 +306,7 @@ impl SolverConfiguration {
     /// Enables trajectory subsampling — keeps every `n`-th state.
     ///
     /// The final state is always present in the output regardless of `n`.
-    /// Used by the CLI layer when `step` is set in `solver.yml` (DD-015).
+    /// Used by the CLI layer when `step` is set in `solver.yml`.
     ///
     /// # Example
     /// ```rust

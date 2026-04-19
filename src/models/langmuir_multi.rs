@@ -452,7 +452,7 @@ impl LangmuirMulti {
     /// Applies the same injection profile to **all** species.
     ///
     /// Used by the config loader when `scenario.yml` defines only a
-    /// `default_injection` with no per-species override (DD-015).
+    /// `default_injection` with no per-species override.
     ///
     /// # Example
     ///
@@ -473,7 +473,7 @@ impl LangmuirMulti {
     /// Replaces the injection profile for a single species identified by name.
     ///
     /// Used by the config loader when `scenario.yml` lists per-species overrides
-    /// in the `injections` array (DD-015). Species not listed keep the profile
+    /// in the `injections` array. Species not listed keep the profile
     /// set by [`set_injection_all`](Self::set_injection_all).
     ///
     /// # Errors
@@ -867,7 +867,7 @@ impl PhysicalModel for LangmuirMulti {
 
     /// Returns the human-readable model identifier.
     ///
-    /// Used as the `"model"` key in the JSON export map (DD-010) and in
+    /// Used as the `"model"` key in the JSON export map and in
     /// simulation result metadata.
     fn name(&self) -> &str {
         "Langmuir Multi-Species"
@@ -1683,7 +1683,7 @@ mod tests {
             "species_1 block missing"
         );
 
-        // name must be colocated with the concentration data (DD-010 invariant)
+        // name must be colocated with the concentration data
         assert_eq!(profiles["species_0"]["name"].as_str().unwrap(), "A");
         assert_eq!(profiles["species_1"]["name"].as_str().unwrap(), "B");
 

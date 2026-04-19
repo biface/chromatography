@@ -282,7 +282,7 @@ impl LangmuirSingle {
 
     /// Replaces the injection profile at the column inlet ($z = 0$).
     ///
-    /// Called by the config loader after deserialising `scenario.yml` (DD-015).
+    /// Called by the config loader after deserializing `scenario.yml`.
     /// The model parameters (λ, K̃, N, geometry) are unchanged.
     ///
     /// # Example
@@ -300,7 +300,7 @@ impl LangmuirSingle {
         self.injection = injection;
     }
 
-    /// Returns the number of spatial discretisation points $N_z$
+    /// Returns the number of spatial discretization points $N_z$
     pub fn spatial_points(&self) -> usize {
         self.nz
     }
