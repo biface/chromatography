@@ -466,6 +466,19 @@ impl PhysicalModel for LangmuirSingle {
         Read from Physical State metadata.",
         )
     }
+
+    fn set_injections(
+        &mut self,
+        injections: &HashMap<Option<String>, TemporalInjection>,
+    ) -> Result<(), String> {
+        // Single-species: apply the default injection (None key) if present.
+        // Per-species keys are ignored — there is no named species to target.
+        let default_key: Option<String> = None;
+        if let Some(inj) = injections.get(&default_key) {
+            self.set_injection(inj.clone());
+        }
+        Ok(())
+    }
 }
 
 impl Exportable for LangmuirSingle {

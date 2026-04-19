@@ -884,6 +884,28 @@ impl PhysicalModel for LangmuirMulti {
              with upwind spatial discretisation and matrix Jacobian inversion.",
         )
     }
+
+    fn set_injections(
+        &mut self,
+        injections: &HashMap<Option<String>, TemporalInjection>,
+    ) -> Result<(), String> {
+        // Step 1 — apply the default injection to all species.
+        // This establishes the baseline before per-species overrides.
+        let default_key: Option<String> = None;
+        if let Some(inj) = injections.get(&default_key) {
+            self.set_injection_all(inj.clone());
+        }
+
+        // Step 2 — apply per-species overrides.
+        // Order within the HashMap is not guaranteed, but each named species
+        // is independent, so ordering does not matter.
+        for (key, inj) in injections {
+            if let Some(name) = key {
+                self.set_injection_for(name, inj.clone())?;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Exportable for LangmuirMulti {
