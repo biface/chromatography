@@ -112,10 +112,10 @@ component_management:
     # CSV : Export des résultats au format CSV
     # Décommenter quand le module sera implémenté
     # --------------------------------------------------------------------------
-    - component_id: csv
-      name: "CSV Export"
+    - component_id: export
+      name: "Export"
       paths:
-        - src/output/csv/**
+        - src/output/export/**
       statuses:
         - type: project
           target: 75%
