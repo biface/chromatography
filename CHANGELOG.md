@@ -33,6 +33,14 @@ Versioning: [SemVer](https://semver.org/)
 - `config/model.rs`: `load_model(path) -> Result<Box<dyn PhysicalModel>, ConfigError>` via typetag — injection left as `None`, applied by scenario loader
 - `config/scenario.rs`: `load_scenario(path, &mut dyn PhysicalModel) -> Result<DomainBoundaries, ConfigError>` — builds `HashMap<Option<String>, TemporalInjection>` from `default_injection` and `injections[]` YAML fields, calls `set_injections` once; `initial_condition: zero` supported in v0.2.0
 - `config/solver.rs`: `load_solver(path) -> Result<SolverConfig, ConfigError>` — `SolverConfig { config: SolverConfiguration, solver_name: String }`; validates `type` (RK4 / Euler), `total_time > 0`, `time_steps > 0`
+- `cli/` module (DD-001, #32): command-line interface via `dynamic-cli 0.2.0`
+  - `src/cli/commands.yml` — declarative command configuration, embedded at compile time via `include_str!`
+  - `src/cli/app.rs` — `ChromContext` (execution context with validated `--project-dir`), `ContextError`, `RunHandler`, `resolve_species_names`, `resolve_export_map`; `to_cli_err` bridges `anyhow::Error` to `ExecutionError::CommandFailed`
+  - `src/cli/mod.rs` — `build_app()` entry point; `load_yaml(COMMANDS_YML)` + `CliBuilder`
+  - Command surface: `chrom-rs run --model --scenario --solver [--project-dir] [--output-csv] [--output-plot] [--export-json]`
+  - `--project-dir` validation: rejects `..` components, checks read/write permissions via probe file
+  - Single/multi-species dispatch via root-key detection at load time — no modification of `PhysicalModel` trait
+- `src/main.rs` — delegates to `cli::build_app()` + `app.run()`, exits with code 1 on error
 
 ### Changed
 - Upgrade `dynamic-cli` dependency from `0.1.1` to `0.2.0`
