@@ -63,7 +63,7 @@
 //!
 //! - [`physics`]: Physical models (equations)
 //! - [`solver`]: Numerical solvers (methods)
-//! - `cli`: Command-line interface (optional)
+//! - [`cli`]: Command-line interface
 //! - [`output`]: Result visualization and export (publishing)
 
 // Core modules
@@ -75,6 +75,8 @@ pub mod solver;
 pub mod output;
 
 pub mod config;
+
+pub mod cli;
 
 pub mod prelude {
     //! Convenient imports for common usage
