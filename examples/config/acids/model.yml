@@ -1,0 +1,22 @@
+LangmuirMulti:
+  species:
+    - name: Ascorbic
+      lambda: 1.0
+      langmuir_k: 1.1
+      port_number: 2
+      injection:
+        type: None
+    - name: Erythorbic
+      lambda: 1.0
+      langmuir_k: 1.7
+      port_number: 2
+      injection:
+        type: None
+  n_points: 100
+  porosity: 0.4
+  velocity: 0.001
+  column_length: 0.25
+  dz: 0.0025
+  fe: 1.5
+  ue: 0.0025
+  stationary_fraction: 0.6

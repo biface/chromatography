@@ -5,11 +5,9 @@
 //! # Entry point
 //!
 //! ```rust,no_run
-//! fn main() {
-//!     chrom_rs::cli::build_app()
-//!         .expect("CLI initialisation failed")
-//!         .run();
-//! }
+//! chrom_rs::cli::build_app()
+//!     .expect("CLI initialisation failed")
+//!     .run();
 //! ```
 
 pub mod app;

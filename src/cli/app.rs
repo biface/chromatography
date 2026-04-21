@@ -423,6 +423,8 @@ impl CommandHandler for RunHandler {
             load_solver(solver_path_str).map_err(|e| to_cli_err(anyhow!("loading solver: {e}")))?;
 
         // ── 5. Build scenario and solve ──────────────────────────────────────
+        // Capture spatial point count before model is moved into Scenario.
+        let n_points = model.points();
         let scenario = Scenario::new(model, boundaries);
 
         let result = match solver_cfg.solver_name.as_str() {
@@ -471,16 +473,10 @@ impl CommandHandler for RunHandler {
             let plot_path = path_to_str(&plot_buf).map_err(to_cli_err)?;
             if is_multi {
                 let name_refs: Vec<&str> = species_names.iter().map(|s| s.as_str()).collect();
-                plot_chromatogram_multi(
-                    &result,
-                    result.time_points.len(),
-                    &name_refs,
-                    plot_path,
-                    None,
-                )
-                .map_err(|e| to_cli_err(anyhow!("plot: {e}")))?;
+                plot_chromatogram_multi(&result, n_points, &name_refs, plot_path, None)
+                    .map_err(|e| to_cli_err(anyhow!("plot: {e}")))?;
             } else {
-                plot_chromatogram(&result, result.time_points.len(), plot_path, None)
+                plot_chromatogram(&result, n_points, plot_path, None)
                     .map_err(|e| to_cli_err(anyhow!("plot: {e}")))?;
             }
             println!("Plot written → {plot_path}");

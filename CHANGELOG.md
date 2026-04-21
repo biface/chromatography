@@ -33,14 +33,25 @@ Versioning: [SemVer](https://semver.org/)
 - `config/model.rs`: `load_model(path) -> Result<Box<dyn PhysicalModel>, ConfigError>` via typetag — injection left as `None`, applied by scenario loader
 - `config/scenario.rs`: `load_scenario(path, &mut dyn PhysicalModel) -> Result<DomainBoundaries, ConfigError>` — builds `HashMap<Option<String>, TemporalInjection>` from `default_injection` and `injections[]` YAML fields, calls `set_injections` once; `initial_condition: zero` supported in v0.2.0
 - `config/solver.rs`: `load_solver(path) -> Result<SolverConfig, ConfigError>` — `SolverConfig { config: SolverConfiguration, solver_name: String }`; validates `type` (RK4 / Euler), `total_time > 0`, `time_steps > 0`
-- `cli/` module (DD-001, #32): command-line interface via `dynamic-cli 0.2.0`
-  - `src/cli/commands.yml` — declarative command configuration, embedded at compile time via `include_str!`
-  - `src/cli/app.rs` — `ChromContext` (execution context with validated `--project-dir`), `ContextError`, `RunHandler`, `resolve_species_names`, `resolve_export_map`; `to_cli_err` bridges `anyhow::Error` to `ExecutionError::CommandFailed`
-  - `src/cli/mod.rs` — `build_app()` entry point; `load_yaml(COMMANDS_YML)` + `CliBuilder`
-  - Command surface: `chrom-rs run --model --scenario --solver [--project-dir] [--output-csv] [--output-plot] [--export-json]`
-  - `--project-dir` validation: rejects `..` components, checks read/write permissions via probe file
-  - Single/multi-species dispatch via root-key detection at load time — no modification of `PhysicalModel` trait
-- `src/main.rs` — delegates to `cli::build_app()` + `app.run()`, exits with code 1 on error
+
+- `examples/tfa_from_config.rs` — reproduces `tfa.rs` via config files; results
+  numerically identical to direct-API variant (DD-015 validation)
+- `examples/acids_from_config.rs` — reproduces `acids_multi.rs` via config files;
+  solo phase derives `LangmuirSingle` instances from `LangmuirMulti` parameters in
+  `model.yml` — no per-species model file needed
+- `examples/config/tfa/` — `model.yml`, `scenario_dirac.yml`, `scenario_gaussian.yml`,
+  `solver_rk4.yml`, `solver_euler.yml`
+- `examples/config/acids/` — `model.yml`, `scenario_gaussian.yml`, `solver_rk4.yml`,
+  `solver_euler.yml`
+- `tests/cli_integration.rs` — end-to-end integration tests for `RunHandler::execute`
+  using `examples/config/` fixtures; covers `read_model_file`, `peek_root_key`,
+  `deserialise_inner`, `resolve_species_names`, `resolve_export_map`, CSV/plot/JSON
+  dispatch for both single-species (TFA) and multi-species (acids competitive) cases
+
+### Fixed
+- `cli/app.rs`: use `model.points()` (spatial points) instead of
+  `result.time_points.len()` in `plot_chromatogram` / `plot_chromatogram_multi` —
+  prevents matrix index out of bounds when trajectory length ≠ spatial grid size
 
 ### Changed
 - Upgrade `dynamic-cli` dependency from `0.1.1` to `0.2.0`

@@ -64,8 +64,16 @@ name = "tfa_single"
 path = "examples/tfa.rs"
 
 [[example]]
+name = "tfa_from_config"
+path = "examples/tfa_from_config.rs"
+
+[[example]]
 name = "acids_multi"
 path = "examples/acids_multi.rs"
+
+[[example]]
+name = "acids_from_config"
+path = "examples/acids_from_config.rs"
 
 [[example]]
 name = "high_load"

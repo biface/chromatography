@@ -1,0 +1,5 @@
+initial_condition: zero
+default_injection:
+  type: Dirac
+  time: 5.0
+  amount: 0.1
