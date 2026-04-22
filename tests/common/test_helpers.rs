@@ -5,6 +5,7 @@ use chrom_rs::physics::{PhysicalQuantity, PhysicalState};
 use chrom_rs::solver::{DomainBoundaries, Scenario};
 
 /// Assert that two physical states are close (within tolerance)
+#[allow(dead_code)]
 pub fn assert_states_close(
     state1: &PhysicalState,
     state2: &PhysicalState,
@@ -38,6 +39,7 @@ pub fn assert_states_close(
 }
 
 /// Compute L2 norm error between two states
+#[allow(dead_code)]
 pub fn compute_l2_error(state1: &PhysicalState, state2: &PhysicalState) -> f64 {
     let mut sum_squared_diff = 0.0;
     let mut count = 0;
@@ -65,6 +67,7 @@ pub fn compute_l2_error(state1: &PhysicalState, state2: &PhysicalState) -> f64 {
 }
 
 /// Create a simple scenario for testing
+#[allow(dead_code)]
 pub fn create_simple_scenario(model: Box<dyn PhysicalModel>) -> Scenario {
     let initial = model.setup_initial_state();
     let boundaries = DomainBoundaries::temporal(initial);
@@ -83,6 +86,7 @@ pub fn relative_error(actual: f64, expected: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused)]
     use chrom_rs::physics::PhysicalData;
 
     #[test]

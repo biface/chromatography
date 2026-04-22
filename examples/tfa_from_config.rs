@@ -29,7 +29,7 @@
 use chrom_rs::{
     config::{model::load_model, scenario::load_scenario, solver::load_solver},
     output::{PlotConfig, plot_chromatogram},
-    physics::{PhysicalModel, PhysicalQuantity},
+    physics::PhysicalQuantity,
     solver::{EulerSolver, RK4Solver, Scenario, SimulationResult, Solver},
 };
 

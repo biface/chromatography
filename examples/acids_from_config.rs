@@ -185,7 +185,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut solo_runs: Vec<SoloRun> = Vec::new();
 
     for sp in species {
-        for (solver_name, solver_path, solver) in &solver_defs {
+        for (solver_name, solver_path, _solver) in &solver_defs {
             print!("  {} × {solver_name} … ", sp.name);
             std::io::Write::flush(&mut std::io::stdout())?;
 

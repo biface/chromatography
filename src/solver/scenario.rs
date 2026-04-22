@@ -223,6 +223,7 @@ mod tests {
     }
 
     /// advanced custom scenario
+    #[allow(dead_code)]
     fn create_custom_scenario(
         name: &str,
         dimensions: Vec<DimensionBoundary>,
