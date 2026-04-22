@@ -7,7 +7,11 @@ Versioning: [SemVer](https://semver.org/)
 
 ---
 
-## [Unreleased] — v0.2.0 · Application Layer
+## [Unreleased]
+
+---
+
+## [0.2.0] — 2026-04-22
 
 ### Added
 - GitHub Actions workflows: CI (fmt, clippy, test, doc), coverage (cargo-llvm-cov + Codecov), mirror (GitLab), release-drafter (SemVer)
@@ -18,51 +22,41 @@ Versioning: [SemVer](https://semver.org/)
 - `#[typetag::serde]` on `PhysicalModel` trait and all implementors
 - `ndarray/serde` feature activated — `PhysicalData::Array` fully serializable
 - `typetag = "0.2"`, `serde_yaml = "0.9"` added to dependencies
-- `Exportable` trait (`physics/traits.rs`): `to_map` / `from_map` mapping layer between physical models and JSON — no circular dependency (option A signature)
+- `Exportable` trait (`physics/traits.rs`): `to_map` / `from_map` mapping layer between physical models and JSON
 - `ExportError`: `MissingKey`, `InvalidValue`, `SpeciesCountMismatch`
 - `outlet_data(quantity, trajectory, idx)`: generic outlet extractor for any `PhysicalQuantity`
 - `sample_indices(total, n)`: uniform downsampling helper, first and last points always included
-- `Exportable` implemented on `LangmuirSingle` and `LangmuirMulti` — named species blocks (`species_N` + `"name"` key), `global` extension point for scalar/vector quantities
+- `Exportable` implemented on `LangmuirSingle` and `LangmuirMulti` — named species blocks, `global` extension point
 - `output/export/json.rs`: `to_json` / `from_json` — pure I/O layer, `Map<String, Value>` only, no model knowledge
 - `serde_json = "1.0"` added to dependencies
-- `step: Option<usize>` field on `SolverConfiguration` with `#[serde(default)]` — trajectory subsampling for JSON export (DD-010 / DD-015); builder `with_step(n) -> Self`
-- `set_injection(&mut self, TemporalInjection)` on `LangmuirSingle` — replaces injection profile post-deserialisation
-- `set_injection_all(&mut self, TemporalInjection)` and `set_injection_for(&mut self, &str, TemporalInjection) -> Result<(), String>` on `LangmuirMulti`
-- `PhysicalModel::set_injections(&mut self, &HashMap<Option<String>, TemporalInjection>) -> Result<(), String>` — single generic injection entry-point on the trait: `None` key = default for all unlisted species, `Some(name)` key = per-species override; default no-op for models without injection
-- `config/` module (DD-015): `ConfigError` (Io / UnsupportedFormat / Parse / Validation), `Format` enum, `load_from_file<T>` generic helper (format check precedes file I/O)
-- `config/model.rs`: `load_model(path) -> Result<Box<dyn PhysicalModel>, ConfigError>` via typetag — injection left as `None`, applied by scenario loader
-- `config/scenario.rs`: `load_scenario(path, &mut dyn PhysicalModel) -> Result<DomainBoundaries, ConfigError>` — builds `HashMap<Option<String>, TemporalInjection>` from `default_injection` and `injections[]` YAML fields, calls `set_injections` once; `initial_condition: zero` supported in v0.2.0
-- `config/solver.rs`: `load_solver(path) -> Result<SolverConfig, ConfigError>` — `SolverConfig { config: SolverConfiguration, solver_name: String }`; validates `type` (RK4 / Euler), `total_time > 0`, `time_steps > 0`
-
-- `examples/tfa_from_config.rs` — reproduces `tfa.rs` via config files; results
-  numerically identical to direct-API variant (DD-015 validation)
-- `examples/acids_from_config.rs` — reproduces `acids_multi.rs` via config files;
-  solo phase derives `LangmuirSingle` instances from `LangmuirMulti` parameters in
-  `model.yml` — no per-species model file needed
-- `examples/config/tfa/` — `model.yml`, `scenario_dirac.yml`, `scenario_gaussian.yml`,
-  `solver_rk4.yml`, `solver_euler.yml`
-- `examples/config/acids/` — `model.yml`, `scenario_gaussian.yml`, `solver_rk4.yml`,
-  `solver_euler.yml`
-- `tests/cli_integration.rs` — end-to-end integration tests for `RunHandler::execute`
-  using `examples/config/` fixtures; covers `read_model_file`, `peek_root_key`,
-  `deserialise_inner`, `resolve_species_names`, `resolve_export_map`, CSV/plot/JSON
-  dispatch for both single-species (TFA) and multi-species (acids competitive) cases
+- `step: Option<usize>` field on `SolverConfiguration` — trajectory subsampling for JSON export; builder `with_step(n) -> Self`
+- `set_injection(&mut self, TemporalInjection)` on `LangmuirSingle`
+- `set_injection_all` and `set_injection_for` on `LangmuirMulti`
+- `PhysicalModel::set_injections` — single generic injection entry-point on the trait
+- `config/` module: `ConfigError`, `Format`, `load_from_file<T>` generic helper
+- `config/model.rs`: `load_model(path) -> Result<Box<dyn PhysicalModel>, ConfigError>`
+- `config/scenario.rs`: `load_scenario(path, &mut dyn PhysicalModel) -> Result<DomainBoundaries, ConfigError>`
+- `config/solver.rs`: `load_solver(path) -> Result<SolverConfig, ConfigError>`
+- `cli/` module: `ChromContext` (validated `--project-dir`), `RunHandler` (full simulation pipeline), `build_app()`
+- Command surface: `chrom-rs run --model --scenario --solver [--project-dir] [--output-csv] [--output-plot] [--export-json]`
+- `examples/tfa_from_config.rs` — reproduces `tfa.rs` via config files; results numerically identical
+- `examples/acids_from_config.rs` — reproduces `acids_multi.rs`; solo phase derives `LangmuirSingle` from `LangmuirMulti` parameters
+- `examples/config/tfa/` — `model.yml`, `scenario_dirac.yml`, `scenario_gaussian.yml`, `solver_rk4.yml`, `solver_euler.yml`
+- `examples/config/acids/` — `model.yml`, `scenario_gaussian.yml`, `solver_rk4.yml`, `solver_euler.yml`
+- `tests/cli_integration.rs` — 8 end-to-end tests for `RunHandler::execute` (single-species, multi-species, CSV/plot/JSON, error paths)
 
 ### Fixed
-- `cli/app.rs`: use `model.points()` (spatial points) instead of
-  `result.time_points.len()` in `plot_chromatogram` / `plot_chromatogram_multi` —
-  prevents matrix index out of bounds when trajectory length ≠ spatial grid size
+- `cli/app.rs`: use `model.points()` instead of `result.time_points.len()` in `plot_chromatogram` / `plot_chromatogram_multi` — prevents matrix index out of bounds
 
 ### Changed
-- Upgrade `dynamic-cli` dependency from `0.1.1` to `0.2.0`
-- Upgrade `nalgebra` dependency from `0.33` to `0.34.2` with `serde-serialize` feature
+- Upgrade `dynamic-cli` from `0.1.1` to `0.2.0`
+- Upgrade `nalgebra` from `0.33` to `0.34.2` with `serde-serialize` feature
 - `PhysicalQuantity::Custom(&'static str)` → `Custom(String)`, `Copy` removed
 - Fix rustdoc redirect in CI: `dynamic_cli/index.html` → `chrom_rs/index.html`
-- Enable and fix all doc-tests across `models/`, `solver/`, and `output/` modules — remove `ignore` attribute, align examples with current public API
+- Enable and fix all doc-tests across `models/`, `solver/`, and `output/` modules
 - Add `libfontconfig1-dev` system dependency in CI jobs (required by `plotters`)
-- `LangmuirMulti`: add public accessors `porosity`, `velocity`, `column_length`, `spatial_points`, `species_params` — with full rustdoc (physical symbol, unit, relation to precomputed quantities)
-- `LangmuirMulti` `PhysicalModel` impl methods (`points`, `name`, `description`) documented
-- `LangmuirSingle` and `LangmuirMulti`: Exportable `to_map` / `from_map` round-trip tests added (closes #34)
+- `LangmuirMulti`: add public accessors `porosity`, `velocity`, `column_length`, `spatial_points`, `species_params`
+- `LangmuirSingle` and `LangmuirMulti`: `Exportable` `to_map` / `from_map` round-trip tests added
 
 ---
 

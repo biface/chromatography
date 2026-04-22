@@ -1,9 +1,15 @@
 [package]
 name = "chrom-rs"
-version = "0.1.0"
-edition = "2024"
+version = "0.2.0"
+edition = "2021"
+description = "Liquid chromatography simulator — Langmuir isotherms, numerical solvers (Euler, RK4), CLI and config-file interface"
+license = "Apache-2.0"
+repository = "https://github.com/biface/chromatography"
+readme = "README.md"
+keywords = ["chromatography", "simulation", "langmuir", "numerical", "chemistry"]
+categories = ["science", "mathematics", "algorithms"]
 exclude = [
-    "examples/*",
+    "tools/*",
     "benches/*",
     "tests/integration/*",
 ]
@@ -13,14 +19,12 @@ default = ["parallel"]
 parallel = ["rayon"]
 beyond_physical_limits = []
 
-
 [package.metadata.coverage]
 min-coverage = 80
 
 [profile.coverage]
 inherits = "test"
 opt-level = 0
-
 
 [dependencies]
 dynamic-cli = "0.2.0"
