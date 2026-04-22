@@ -28,7 +28,7 @@ always guaranteeing that the <strong>first and last</strong> points
 are included (important to capture the end of the chromatographic peak)</li>
 </ul>
 <h2 id="implementing-this-trait"><a class="doc-anchor" href="#implementing-this-trait">§</a>Implementing this trait</h2>
-<p>A new format must implement [<code>export_single</code>] and [<code>export_multi</code>].
+<p>A new format must implement <code>export_single</code> and <code>export_multi</code>.
 Formats that do not distinguish between the two cases can delegate one to the other.</p>
 </div></details><h2 id="required-associated-types" class="section-header">Required Associated Types<a href="#required-associated-types" class="anchor">§</a></h2><div class="methods"><details class="toggle" open><summary><section id="associatedtype.Error" class="method"><a class="src rightside" href="../../../src/chrom_rs/output/export/mod.rs.html#81">Source</a><h4 class="code-header">type <a href="#associatedtype.Error" class="associatedtype">Error</a>: <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/error/trait.Error.html" title="trait core::error::Error">Error</a></h4></section></summary><div class="docblock"><p>Error type specific to this export format.</p>
 </div></details></div><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.export_single" class="method"><a class="src rightside" href="../../../src/chrom_rs/output/export/mod.rs.html#92-97">Source</a><h4 class="code-header">fn <a href="#tymethod.export_single" class="fn">export_single</a>(

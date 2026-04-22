@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["COMMANDS_YML","RUN_HANDLER_NAME"],"fn":["build_app"],"mod":["app"]};

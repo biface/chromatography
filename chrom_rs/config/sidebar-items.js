@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ConfigError","Format"],"fn":["format_from_path","load_from_file"],"mod":["model","scenario","solver"]};

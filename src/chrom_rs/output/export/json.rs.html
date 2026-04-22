@@ -27,7 +27,7 @@
 <a href=#27 id=27 data-nosnippet>27</a>//! # Example
 <a href=#28 id=28 data-nosnippet>28</a>//!
 <a href=#29 id=29 data-nosnippet>29</a>//! ```rust,no_run
-<a href=#30 id=30 data-nosnippet>30</a>//! use chrom_rs::output::export::json::{to_json, from_json};
+<a href=#30 id=30 data-nosnippet>30</a>//! use chrom_rs::output::export::{to_json, from_json};
 <a href=#31 id=31 data-nosnippet>31</a>//! use serde_json::{Map, Value, json};
 <a href=#32 id=32 data-nosnippet>32</a>//!
 <a href=#33 id=33 data-nosnippet>33</a>//! // Produced by model.to_map(...) in the CLI layer
@@ -104,7 +104,7 @@
 <a href=#104 id=104 data-nosnippet>104</a></span><span class="doccomment">/// Writes a JSON map to a file (pretty-printed).
 <a href=#105 id=105 data-nosnippet>105</a>///
 <a href=#106 id=106 data-nosnippet>106</a>/// The map is typically produced by
-<a href=#107 id=107 data-nosnippet>107</a>/// [`Exportable::to_map`](crate::physics::export::Exportable::to_map).
+<a href=#107 id=107 data-nosnippet>107</a>/// [`Exportable::to_map`](crate::physics::Exportable::to_map).
 <a href=#108 id=108 data-nosnippet>108</a>///
 <a href=#109 id=109 data-nosnippet>109</a>/// # Errors
 <a href=#110 id=110 data-nosnippet>110</a>///
@@ -115,7 +115,7 @@
 <a href=#115 id=115 data-nosnippet>115</a>/// # Example
 <a href=#116 id=116 data-nosnippet>116</a>///
 <a href=#117 id=117 data-nosnippet>117</a>/// ```rust,no_run
-<a href=#118 id=118 data-nosnippet>118</a>/// use chrom_rs::output::export::json::to_json;
+<a href=#118 id=118 data-nosnippet>118</a>/// use chrom_rs::output::export::to_json;
 <a href=#119 id=119 data-nosnippet>119</a>/// use serde_json::{Map, Value};
 <a href=#120 id=120 data-nosnippet>120</a>///
 <a href=#121 id=121 data-nosnippet>121</a>/// let mut map = Map::new();
@@ -132,7 +132,7 @@
 <a href=#132 id=132 data-nosnippet>132</a><span class="doccomment">/// Reads a JSON file and returns its content as a generic map.
 <a href=#133 id=133 data-nosnippet>133</a>///
 <a href=#134 id=134 data-nosnippet>134</a>/// The map can then be passed to
-<a href=#135 id=135 data-nosnippet>135</a>/// [`Exportable::from_map`](crate::physics::export::Exportable::from_map)
+<a href=#135 id=135 data-nosnippet>135</a>/// [`Exportable::from_map`](crate::physics::Exportable::from_map)
 <a href=#136 id=136 data-nosnippet>136</a>/// to reconstruct a physical model.
 <a href=#137 id=137 data-nosnippet>137</a>///
 <a href=#138 id=138 data-nosnippet>138</a>/// # Errors
@@ -144,7 +144,7 @@
 <a href=#144 id=144 data-nosnippet>144</a>/// # Example
 <a href=#145 id=145 data-nosnippet>145</a>///
 <a href=#146 id=146 data-nosnippet>146</a>/// ```rust,no_run
-<a href=#147 id=147 data-nosnippet>147</a>/// use chrom_rs::output::export::json::from_json;
+<a href=#147 id=147 data-nosnippet>147</a>/// use chrom_rs::output::export::from_json;
 <a href=#148 id=148 data-nosnippet>148</a>///
 <a href=#149 id=149 data-nosnippet>149</a>/// let map = from_json("/tmp/result.json");
 <a href=#150 id=150 data-nosnippet>150</a>/// ```
@@ -195,29 +195,26 @@
 <a href=#195 id=195 data-nosnippet>195</a>        to_json(<span class="kw-2">&amp;</span>original, path).expect(<span class="string">"write"</span>);
 <a href=#196 id=196 data-nosnippet>196</a>        <span class="kw">let </span>loaded = from_json(path).expect(<span class="string">"read"</span>);
 <a href=#197 id=197 data-nosnippet>197</a>
-<a href=#198 id=198 data-nosnippet>198</a>        <span class="comment">// metadata.solver must survive the round-trip
-<a href=#199 id=199 data-nosnippet>199</a>        </span><span class="kw">let </span>solver = loaded[<span class="string">"metadata"</span>][<span class="string">"solver"</span>].as_str().unwrap();
-<a href=#200 id=200 data-nosnippet>200</a>        <span class="macro">assert_eq!</span>(solver, <span class="string">"RK4"</span>);
-<a href=#201 id=201 data-nosnippet>201</a>
-<a href=#202 id=202 data-nosnippet>202</a>        <span class="comment">// time_points must survive
-<a href=#203 id=203 data-nosnippet>203</a>        </span><span class="kw">let </span>tp = loaded[<span class="string">"data"</span>][<span class="string">"time_points"</span>].as_array().unwrap();
-<a href=#204 id=204 data-nosnippet>204</a>        <span class="macro">assert_eq!</span>(tp.len(), <span class="number">3</span>);
-<a href=#205 id=205 data-nosnippet>205</a>        <span class="macro">assert!</span>((tp[<span class="number">1</span>].as_f64().unwrap() - <span class="number">1.0</span>).abs() &lt; <span class="number">1e-12</span>);
-<a href=#206 id=206 data-nosnippet>206</a>    }
-<a href=#207 id=207 data-nosnippet>207</a>
-<a href=#208 id=208 data-nosnippet>208</a>    <span class="attr">#[test]
-<a href=#209 id=209 data-nosnippet>209</a>    </span><span class="kw">fn </span>test_from_json_missing_file() {
-<a href=#210 id=210 data-nosnippet>210</a>        <span class="kw">let </span>result = from_json(<span class="string">"/tmp/does_not_exist_chrom_rs.json"</span>);
-<a href=#211 id=211 data-nosnippet>211</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, <span class="prelude-val">Err</span>(JsonError::Io(<span class="kw">_</span>))));
-<a href=#212 id=212 data-nosnippet>212</a>    }
-<a href=#213 id=213 data-nosnippet>213</a>
-<a href=#214 id=214 data-nosnippet>214</a>    <span class="attr">#[test]
-<a href=#215 id=215 data-nosnippet>215</a>    </span><span class="kw">fn </span>test_from_json_not_object() {
-<a href=#216 id=216 data-nosnippet>216</a>        <span class="comment">// Write a JSON array — not a top-level object
-<a href=#217 id=217 data-nosnippet>217</a>        </span><span class="kw">let </span>path = <span class="string">"/tmp/chrom_rs_test_array.json"</span>;
-<a href=#218 id=218 data-nosnippet>218</a>        std::fs::write(path, <span class="string">"[1, 2, 3]"</span>).unwrap();
-<a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">let </span>result = from_json(path);
-<a href=#220 id=220 data-nosnippet>220</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, <span class="prelude-val">Err</span>(JsonError::Serialization(<span class="kw">_</span>))));
-<a href=#221 id=221 data-nosnippet>221</a>    }
-<a href=#222 id=222 data-nosnippet>222</a>}
+<a href=#198 id=198 data-nosnippet>198</a>        <span class="kw">let </span>solver = loaded[<span class="string">"metadata"</span>][<span class="string">"solver"</span>].as_str().unwrap();
+<a href=#199 id=199 data-nosnippet>199</a>        <span class="macro">assert_eq!</span>(solver, <span class="string">"RK4"</span>);
+<a href=#200 id=200 data-nosnippet>200</a>
+<a href=#201 id=201 data-nosnippet>201</a>        <span class="kw">let </span>tp = loaded[<span class="string">"data"</span>][<span class="string">"time_points"</span>].as_array().unwrap();
+<a href=#202 id=202 data-nosnippet>202</a>        <span class="macro">assert_eq!</span>(tp.len(), <span class="number">3</span>);
+<a href=#203 id=203 data-nosnippet>203</a>        <span class="macro">assert!</span>((tp[<span class="number">1</span>].as_f64().unwrap() - <span class="number">1.0</span>).abs() &lt; <span class="number">1e-12</span>);
+<a href=#204 id=204 data-nosnippet>204</a>    }
+<a href=#205 id=205 data-nosnippet>205</a>
+<a href=#206 id=206 data-nosnippet>206</a>    <span class="attr">#[test]
+<a href=#207 id=207 data-nosnippet>207</a>    </span><span class="kw">fn </span>test_from_json_missing_file() {
+<a href=#208 id=208 data-nosnippet>208</a>        <span class="kw">let </span>result = from_json(<span class="string">"/tmp/does_not_exist_chrom_rs.json"</span>);
+<a href=#209 id=209 data-nosnippet>209</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, <span class="prelude-val">Err</span>(JsonError::Io(<span class="kw">_</span>))));
+<a href=#210 id=210 data-nosnippet>210</a>    }
+<a href=#211 id=211 data-nosnippet>211</a>
+<a href=#212 id=212 data-nosnippet>212</a>    <span class="attr">#[test]
+<a href=#213 id=213 data-nosnippet>213</a>    </span><span class="kw">fn </span>test_from_json_not_object() {
+<a href=#214 id=214 data-nosnippet>214</a>        <span class="kw">let </span>path = <span class="string">"/tmp/chrom_rs_test_array.json"</span>;
+<a href=#215 id=215 data-nosnippet>215</a>        std::fs::write(path, <span class="string">"[1, 2, 3]"</span>).unwrap();
+<a href=#216 id=216 data-nosnippet>216</a>        <span class="kw">let </span>result = from_json(path);
+<a href=#217 id=217 data-nosnippet>217</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, <span class="prelude-val">Err</span>(JsonError::Serialization(<span class="kw">_</span>))));
+<a href=#218 id=218 data-nosnippet>218</a>    }
+<a href=#219 id=219 data-nosnippet>219</a>}
 </code></pre></div></section></main></body></html>

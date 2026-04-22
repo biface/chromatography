@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["models","output","physics","prelude","solver"]};
+window.SIDEBAR_ITEMS = {"mod":["cli","config","models","output","physics","prelude","solver"]};
