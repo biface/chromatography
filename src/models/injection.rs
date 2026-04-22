@@ -71,6 +71,24 @@ enum TemporalInjectionSnapshot {
     None,
 }
 
+/// Temporal injection profile at the column inlet ($z = 0$).
+///
+/// Defines how the inlet concentration $C(t, z=0)$ varies over time.
+/// The solver evaluates the profile at each time step and applies it as
+/// a boundary condition.
+///
+/// All variants except [`TemporalInjection::Custom`] are serialisable and
+/// can be specified in `scenario.yml`.
+///
+/// # Choosing a profile
+///
+/// | Variant | Use case |
+/// |---------|----------|
+/// | [`Dirac`](TemporalInjection::Dirac) | Instantaneous pulse (sharp injection) |
+/// | [`Gaussian`](TemporalInjection::Gaussian) | Smooth finite-width pulse |
+/// | [`Rectangle`](TemporalInjection::Rectangle) | Constant-concentration step injection |
+/// | [`Custom`](TemporalInjection::Custom) | Arbitrary closure (not serialisable) |
+/// | [`None`](TemporalInjection::None) | No injection (zero inlet concentration) |
 pub enum TemporalInjection {
     /// Dirac delta injection at a single time point
     ///
@@ -230,7 +248,7 @@ impl std::fmt::Debug for TemporalInjection {
 
 // ==================== Manual Serialize Implementation ====================
 
-/// Serialises [`TemporalInjection`] to JSON/YAML via [`TemporalInjectionSnapshot`].
+/// Serialises [`TemporalInjection`] to JSON/YAML via an internal snapshot type.
 ///
 /// # Errors
 ///
@@ -277,7 +295,7 @@ impl Serialize for TemporalInjection {
 
 // ==================== Manual Deserialize Implementation ====================
 
-/// Deserializes [`TemporalInjection`] from JSON/YAML via [`TemporalInjectionSnapshot`].
+/// Deserializes [`TemporalInjection`] from JSON/YAML via an internal snapshot type.
 ///
 /// [`TemporalInjection::Custom`] cannot be deserialized — it must be constructed
 /// programmatically via [`TemporalInjection::custom`].

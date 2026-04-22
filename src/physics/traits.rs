@@ -701,6 +701,45 @@ pub trait PhysicalModel: Send + Sync {
     fn description(&self) -> Option<&str> {
         None
     }
+
+    /// Sets the injection profile for a species or for all species at once.
+    ///
+    /// This is the single injection entry-point on the trait. The caller
+    /// (config loader) never needs to know the concrete model type.
+    ///
+    /// - `species = None`  → applies to all species (or the sole species for
+    ///   single-species models).
+    /// - `species = Some(name)` → targets one named species; models that do
+    ///   not support named species may treat this as a no-op or return `Err`.
+    ///
+    /// The default implementation is a no-op (`Ok(())`). Models that use
+    /// temporal injection override this method and dispatch internally.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if `species` names a species that does not exist in the
+    /// model.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use chrom_rs::physics::PhysicalModel;
+    /// use chrom_rs::models::TemporalInjection;
+    /// use std::collections::HashMap;
+    ///
+    /// fn apply(model: &mut dyn PhysicalModel) {
+    ///     let mut map = HashMap::new();
+    ///     map.insert(None, TemporalInjection::dirac(5.0, 0.1));
+    ///     map.insert(Some("B".to_string()), TemporalInjection::none());
+    ///     model.set_injections(&map).unwrap();
+    /// }
+    /// ```
+    fn set_injections(
+        &mut self,
+        _injections: &HashMap<Option<String>, crate::models::TemporalInjection>,
+    ) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 // =============================================================================
@@ -779,7 +818,7 @@ impl std::error::Error for ExportError {}
 /// [`from_map`](Exportable::from_map) is **not object-safe** (`Self: Sized`).
 /// It is intended for concrete types only, typically in the CLI layer.
 ///
-/// # JSON layout convention (DD-010)
+/// # JSON layout convention
 ///
 /// ```json
 /// {
@@ -872,7 +911,7 @@ pub trait Exportable {
 /// Extracts outlet data for any physical quantity from a trajectory state at index `idx`.
 ///
 /// The "outlet" is the last spatial point (column exit), consistent with
-/// the upwind spatial discretisation used by all Langmuir models.
+/// the upwind spatial discretization used by all Langmuir models.
 ///
 /// This function is generic over [`PhysicalQuantity`]: pass
 /// `PhysicalQuantity::Concentration` for concentration profiles,
@@ -936,7 +975,7 @@ pub fn outlet_data(
 ///
 /// Guarantees the trailing edge of a chromatographic peak is never truncated.
 ///
-/// | `n` | Behaviour |
+/// | `n` | Behavior |
 /// |---|---|
 /// | `None` | All indices `0..total` |
 /// | `Some(0)` or `Some(n ≥ total)` | All indices |
@@ -1378,7 +1417,7 @@ mod tests {
     fn test_outlet_data_scalar() {
         let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(3.14));
         assert_eq!(
-            super::outlet_data(PhysicalQuantity::Concentration, &[state], 0),
+            outlet_data(PhysicalQuantity::Concentration, &[state], 0),
             vec![3.14]
         );
     }
@@ -1389,53 +1428,53 @@ mod tests {
             PhysicalQuantity::Concentration,
             PhysicalData::Vector(nalgebra::DVector::from_vec(vec![0.0, 0.5, 1.0])),
         );
-        let outlet = super::outlet_data(PhysicalQuantity::Concentration, &[state], 0);
+        let outlet = outlet_data(PhysicalQuantity::Concentration, &[state], 0);
         assert!((outlet[0] - 1.0).abs() < 1e-12);
     }
 
     #[test]
     fn test_outlet_data_out_of_bounds() {
         let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(1.0));
-        assert!(super::outlet_data(PhysicalQuantity::Concentration, &[state], 99).is_empty());
+        assert!(outlet_data(PhysicalQuantity::Concentration, &[state], 99).is_empty());
     }
 
     #[test]
     fn test_outlet_data_unknown_quantity() {
         let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(1.0));
         // Temperature not present → empty Vec
-        assert!(super::outlet_data(PhysicalQuantity::Temperature, &[state], 0).is_empty());
+        assert!(outlet_data(PhysicalQuantity::Temperature, &[state], 0).is_empty());
     }
 
     #[test]
     fn test_sample_indices_full() {
-        assert_eq!(super::sample_indices(4, None), vec![0, 1, 2, 3]);
+        assert_eq!(sample_indices(4, None), vec![0, 1, 2, 3]);
     }
 
     #[test]
     fn test_sample_indices_five_from_hundred() {
         // Formula: (i * 99) / 4 with integer division → [0, 24, 49, 74, 99]
-        assert_eq!(super::sample_indices(100, Some(5)), vec![0, 24, 49, 74, 99]);
+        assert_eq!(sample_indices(100, Some(5)), vec![0, 24, 49, 74, 99]);
     }
 
     #[test]
     fn test_sample_indices_single() {
-        assert_eq!(super::sample_indices(100, Some(1)), vec![0]);
+        assert_eq!(sample_indices(100, Some(1)), vec![0]);
     }
 
     #[test]
     fn test_sample_indices_larger_than_total() {
-        assert_eq!(super::sample_indices(3, Some(10)), vec![0, 1, 2]);
+        assert_eq!(sample_indices(3, Some(10)), vec![0, 1, 2]);
     }
 
     #[test]
     fn test_export_error_display_missing_key() {
-        let e = super::ExportError::MissingKey("metadata".into());
+        let e = ExportError::MissingKey("metadata".into());
         assert_eq!(e.to_string(), "export map: missing key 'metadata'");
     }
 
     #[test]
     fn test_export_error_display_mismatch() {
-        let e = super::ExportError::SpeciesCountMismatch {
+        let e = ExportError::SpeciesCountMismatch {
             expected: 2,
             got: 1,
         };

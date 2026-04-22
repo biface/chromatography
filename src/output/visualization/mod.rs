@@ -52,6 +52,7 @@
 
 pub mod chromatogram;
 pub mod config;
+/// Spatial concentration profile plots (steady-state and evolution over time).
 pub mod steady;
 
 pub use config::PlotConfig;

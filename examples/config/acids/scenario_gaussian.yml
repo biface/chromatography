@@ -1,0 +1,6 @@
+initial_condition: zero
+default_injection:
+  type: Gaussian
+  center: 10.0
+  width: 3.0
+  peak_concentration: 0.1

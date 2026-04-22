@@ -1,0 +1,79 @@
+metadata:
+  version: "0.2.0"
+  prompt: "chrom-rs"
+  prompt_suffix: " > "
+
+commands:
+  - name: run
+    aliases:
+      - simulate
+    description: "Run a chromatography simulation from three configuration files."
+    required: true
+    arguments: []
+    options:
+      - name: project-dir
+        short: "d"
+        long: project-dir
+        option_type: path
+        required: false
+        default: "."
+        description: "Root directory for all file names (no '..' allowed)."
+        choices: []
+
+      - name: model
+        short: "m"
+        long: model
+        option_type: string
+        required: true
+        default: ~
+        description: "Model configuration file (e.g. model.yml)."
+        choices: []
+
+      - name: scenario
+        short: "s"
+        long: scenario
+        option_type: string
+        required: true
+        default: ~
+        description: "Scenario configuration file (e.g. scenario.yml)."
+        choices: []
+
+      - name: solver
+        short: "S"
+        long: solver
+        option_type: string
+        required: true
+        default: ~
+        description: "Solver configuration file (e.g. solver.yml)."
+        choices: []
+
+      - name: output-csv
+        short: ~
+        long: output-csv
+        option_type: path
+        required: false
+        default: ~
+        description: "Write simulation results to a CSV file."
+        choices: []
+
+      - name: output-plot
+        short: ~
+        long: output-plot
+        option_type: path
+        required: false
+        default: ~
+        description: "Save chromatogram plot to a PNG or SVG file."
+        choices: []
+
+      - name: export-json
+        short: ~
+        long: export-json
+        option_type: path
+        required: false
+        default: ~
+        description: "Export full simulation result to a JSON file."
+        choices: []
+
+    implementation: run_handler
+
+global_options: []

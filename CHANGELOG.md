@@ -25,6 +25,33 @@ Versioning: [SemVer](https://semver.org/)
 - `Exportable` implemented on `LangmuirSingle` and `LangmuirMulti` — named species blocks (`species_N` + `"name"` key), `global` extension point for scalar/vector quantities
 - `output/export/json.rs`: `to_json` / `from_json` — pure I/O layer, `Map<String, Value>` only, no model knowledge
 - `serde_json = "1.0"` added to dependencies
+- `step: Option<usize>` field on `SolverConfiguration` with `#[serde(default)]` — trajectory subsampling for JSON export (DD-010 / DD-015); builder `with_step(n) -> Self`
+- `set_injection(&mut self, TemporalInjection)` on `LangmuirSingle` — replaces injection profile post-deserialisation
+- `set_injection_all(&mut self, TemporalInjection)` and `set_injection_for(&mut self, &str, TemporalInjection) -> Result<(), String>` on `LangmuirMulti`
+- `PhysicalModel::set_injections(&mut self, &HashMap<Option<String>, TemporalInjection>) -> Result<(), String>` — single generic injection entry-point on the trait: `None` key = default for all unlisted species, `Some(name)` key = per-species override; default no-op for models without injection
+- `config/` module (DD-015): `ConfigError` (Io / UnsupportedFormat / Parse / Validation), `Format` enum, `load_from_file<T>` generic helper (format check precedes file I/O)
+- `config/model.rs`: `load_model(path) -> Result<Box<dyn PhysicalModel>, ConfigError>` via typetag — injection left as `None`, applied by scenario loader
+- `config/scenario.rs`: `load_scenario(path, &mut dyn PhysicalModel) -> Result<DomainBoundaries, ConfigError>` — builds `HashMap<Option<String>, TemporalInjection>` from `default_injection` and `injections[]` YAML fields, calls `set_injections` once; `initial_condition: zero` supported in v0.2.0
+- `config/solver.rs`: `load_solver(path) -> Result<SolverConfig, ConfigError>` — `SolverConfig { config: SolverConfiguration, solver_name: String }`; validates `type` (RK4 / Euler), `total_time > 0`, `time_steps > 0`
+
+- `examples/tfa_from_config.rs` — reproduces `tfa.rs` via config files; results
+  numerically identical to direct-API variant (DD-015 validation)
+- `examples/acids_from_config.rs` — reproduces `acids_multi.rs` via config files;
+  solo phase derives `LangmuirSingle` instances from `LangmuirMulti` parameters in
+  `model.yml` — no per-species model file needed
+- `examples/config/tfa/` — `model.yml`, `scenario_dirac.yml`, `scenario_gaussian.yml`,
+  `solver_rk4.yml`, `solver_euler.yml`
+- `examples/config/acids/` — `model.yml`, `scenario_gaussian.yml`, `solver_rk4.yml`,
+  `solver_euler.yml`
+- `tests/cli_integration.rs` — end-to-end integration tests for `RunHandler::execute`
+  using `examples/config/` fixtures; covers `read_model_file`, `peek_root_key`,
+  `deserialise_inner`, `resolve_species_names`, `resolve_export_map`, CSV/plot/JSON
+  dispatch for both single-species (TFA) and multi-species (acids competitive) cases
+
+### Fixed
+- `cli/app.rs`: use `model.points()` (spatial points) instead of
+  `result.time_points.len()` in `plot_chromatogram` / `plot_chromatogram_multi` —
+  prevents matrix index out of bounds when trajectory length ≠ spatial grid size
 
 ### Changed
 - Upgrade `dynamic-cli` dependency from `0.1.1` to `0.2.0`
@@ -33,10 +60,9 @@ Versioning: [SemVer](https://semver.org/)
 - Fix rustdoc redirect in CI: `dynamic_cli/index.html` → `chrom_rs/index.html`
 - Enable and fix all doc-tests across `models/`, `solver/`, and `output/` modules — remove `ignore` attribute, align examples with current public API
 - Add `libfontconfig1-dev` system dependency in CI jobs (required by `plotters`)
-- `LangmuirMulti`: add public accessors `porosity`, `velocity`, `column_length`, `spatial_points`, `species_params`
-
-### Removed
-- Untrack `langmuir_single_simple.rs` (out of scope, kept locally)
+- `LangmuirMulti`: add public accessors `porosity`, `velocity`, `column_length`, `spatial_points`, `species_params` — with full rustdoc (physical symbol, unit, relation to precomputed quantities)
+- `LangmuirMulti` `PhysicalModel` impl methods (`points`, `name`, `description`) documented
+- `LangmuirSingle` and `LangmuirMulti`: Exportable `to_map` / `from_map` round-trip tests added (closes #34)
 
 ---
 

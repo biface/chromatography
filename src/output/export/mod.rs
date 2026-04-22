@@ -74,7 +74,7 @@ pub use json::{JsonError, from_json, to_json};
 ///
 /// # Implementing this trait
 ///
-/// A new format must implement [`export_single`] and [`export_multi`].
+/// A new format must implement `export_single` and `export_multi`.
 /// Formats that do not distinguish between the two cases can delegate one to the other.
 pub trait Exporter {
     /// Error type specific to this export format.

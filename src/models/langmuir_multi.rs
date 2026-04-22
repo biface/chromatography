@@ -449,23 +449,108 @@ impl LangmuirMulti {
         Ok(())
     }
 
+    /// Applies the same injection profile to **all** species.
+    ///
+    /// Used by the config loader when `scenario.yml` defines only a
+    /// `default_injection` with no per-species override.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use chrom_rs::models::{LangmuirMulti, SpeciesParams, TemporalInjection};
+    ///
+    /// let sp = SpeciesParams::new("A", 1.0, 0.5, 1, TemporalInjection::none());
+    /// let mut model = LangmuirMulti::new(vec![sp], 100, 0.4, 0.001, 0.25).unwrap();
+    ///
+    /// model.set_injection_all(TemporalInjection::dirac(5.0, 0.1));
+    /// ```
+    pub fn set_injection_all(&mut self, injection: TemporalInjection) {
+        for sp in &mut self.species {
+            sp.injection = injection.clone();
+        }
+    }
+
+    /// Replaces the injection profile for a single species identified by name.
+    ///
+    /// Used by the config loader when `scenario.yml` lists per-species overrides
+    /// in the `injections` array. Species not listed keep the profile
+    /// set by [`set_injection_all`](Self::set_injection_all).
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if no species with the given name exists in the model.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use chrom_rs::models::{LangmuirMulti, SpeciesParams, TemporalInjection};
+    ///
+    /// let sp_a = SpeciesParams::new("A", 1.0, 0.5, 1, TemporalInjection::none());
+    /// let sp_b = SpeciesParams::new("B", 1.0, 2.0, 1, TemporalInjection::none());
+    /// let mut model = LangmuirMulti::new(vec![sp_a, sp_b], 100, 0.4, 0.001, 0.25).unwrap();
+    ///
+    /// model.set_injection_all(TemporalInjection::dirac(5.0, 0.1));
+    /// model.set_injection_for("B", TemporalInjection::gaussian(10.0, 3.0, 0.05)).unwrap();
+    /// ```
+    pub fn set_injection_for(
+        &mut self,
+        species: &str,
+        injection: TemporalInjection,
+    ) -> Result<(), String> {
+        match self.species.iter_mut().find(|sp| sp.name == species) {
+            Some(sp) => {
+                sp.injection = injection;
+                Ok(())
+            }
+            None => Err(format!("Species '{species}' not found in model")),
+        }
+    }
+
     /// Returns the current number of species in the model
+    /// Returns the current number of chemical species in the model.
+    ///
+    /// Grows by one on each successful call to [`add_species`](Self::add_species).
     pub fn n_species(&self) -> usize {
         self.species.len()
     }
 
+    /// Returns the extra-granular porosity $\varepsilon$ **\[dimensionless\]**.
+    ///
+    /// Defined at construction; constant over the simulation lifetime.
+    /// Used to derive $F_e = (1-\varepsilon)/\varepsilon$ and $u_e = u/\varepsilon$.
     pub fn porosity(&self) -> f64 {
         self.porosity
     }
+
+    /// Returns the superficial velocity $u$ **\[m/s\]**.
+    ///
+    /// The interstitial velocity $u_e = u / \varepsilon$ is precomputed and stored
+    /// separately; this accessor returns the raw constructor argument.
     pub fn velocity(&self) -> f64 {
         self.velocity
     }
+
+    /// Returns the column length $L$ **\[m\]**.
+    ///
+    /// The spatial step $\Delta z = L / N_z$ is precomputed at construction.
     pub fn column_length(&self) -> f64 {
         self.column_length
     }
+
+    /// Returns the number of spatial discretisation points $N_z$.
+    ///
+    /// Matches the number of rows in the concentration state matrix
+    /// `[n_points × n_species]`. Must be $\geq 2$ (enforced by the constructor).
     pub fn spatial_points(&self) -> usize {
         self.n_points
     }
+
+    /// Returns all species parameter sets in insertion order.
+    ///
+    /// The slice index matches the column index of the state matrix
+    /// `[n_points × n_species]` — same order as [`species_names`](Self::species_names).
+    /// Use this accessor when full parameter detail is needed; prefer
+    /// [`species_names`](Self::species_names) for display purposes only.
     pub fn species_params(&self) -> &[SpeciesParams] {
         &self.species
     }
@@ -563,6 +648,10 @@ impl LangmuirMulti {
 #[typetag::serde]
 impl PhysicalModel for LangmuirMulti {
     /// Returns the number of spatial discretization points (row dimension of the state matrix)
+    /// Returns the total number of state variables — `n_points × n_species`.
+    ///
+    /// This is the flattened size of the concentration matrix, used by the
+    /// solver to determine step sizes and parallelism thresholds.
     fn points(&self) -> usize {
         self.n_points
     }
@@ -776,15 +865,46 @@ impl PhysicalModel for LangmuirMulti {
         )
     }
 
+    /// Returns the human-readable model identifier.
+    ///
+    /// Used as the `"model"` key in the JSON export map and in
+    /// simulation result metadata.
     fn name(&self) -> &str {
         "Langmuir Multi-Species"
     }
 
+    /// Returns a brief description of the model's physical assumptions.
+    ///
+    /// Documents the competitive Langmuir isotherm, the upwind spatial scheme,
+    /// and the matrix Jacobian inversion at the heart of the multi-species
+    /// transport computation.
     fn description(&self) -> Option<&str> {
         Some(
             "Competitive Langmuir adsorption model for n species \
              with upwind spatial discretisation and matrix Jacobian inversion.",
         )
+    }
+
+    fn set_injections(
+        &mut self,
+        injections: &HashMap<Option<String>, TemporalInjection>,
+    ) -> Result<(), String> {
+        // Step 1 — apply the default injection to all species.
+        // This establishes the baseline before per-species overrides.
+        let default_key: Option<String> = None;
+        if let Some(inj) = injections.get(&default_key) {
+            self.set_injection_all(inj.clone());
+        }
+
+        // Step 2 — apply per-species overrides.
+        // Order within the HashMap is not guaranteed, but each named species
+        // is independent, so ordering does not matter.
+        for (key, inj) in injections {
+            if let Some(name) = key {
+                self.set_injection_for(name, inj.clone())?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -1455,5 +1575,222 @@ mod tests {
     #[test]
     fn test_description_is_some() {
         assert!(single_model().description().is_some());
+    }
+
+    // ── set_injection_all / set_injection_for ─────────────────────────────────
+
+    #[test]
+    fn test_set_injection_all_applies_to_every_species() {
+        let mut model = two_species_model();
+        model.set_injection_all(TemporalInjection::dirac(5.0, 0.1));
+
+        // Both species must return a non-zero value at t=5
+        for sp in model.species_params() {
+            assert!(
+                sp.injection.evaluate(5.0) > 0.0,
+                "Species '{}' must have non-zero injection at peak",
+                sp.name
+            );
+        }
+    }
+
+    #[test]
+    fn test_set_injection_all_overwrites_previous_profile() {
+        let mut model = two_species_model();
+        // First: set all to gaussian
+        model.set_injection_all(TemporalInjection::gaussian(10.0, 3.0, 0.1));
+        // Then overwrite with none
+        model.set_injection_all(TemporalInjection::none());
+
+        for sp in model.species_params() {
+            assert!(
+                sp.injection.evaluate(10.0).abs() < 1e-15,
+                "Species '{}' injection must be none after overwrite",
+                sp.name
+            );
+        }
+    }
+
+    #[test]
+    fn test_set_injection_for_targets_single_species() {
+        let mut model = two_species_model();
+        model.set_injection_all(TemporalInjection::none());
+        model
+            .set_injection_for("B", TemporalInjection::dirac(5.0, 0.1))
+            .unwrap();
+
+        // A must stay none
+        let sp_a = model
+            .species_params()
+            .iter()
+            .find(|s| s.name == "A")
+            .unwrap();
+        assert!(sp_a.injection.evaluate(5.0).abs() < 1e-15);
+
+        // B must be non-zero
+        let sp_b = model
+            .species_params()
+            .iter()
+            .find(|s| s.name == "B")
+            .unwrap();
+        assert!(sp_b.injection.evaluate(5.0) > 0.0);
+    }
+
+    #[test]
+    fn test_set_injection_for_unknown_species_returns_err() {
+        let mut model = single_model();
+        let result = model.set_injection_for("Unknown", TemporalInjection::none());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Unknown"));
+    }
+
+    #[test]
+    fn test_set_injection_for_does_not_alter_physical_params() {
+        let mut model = two_species_model();
+        model
+            .set_injection_for("A", TemporalInjection::gaussian(10.0, 3.0, 0.1))
+            .unwrap();
+
+        assert_eq!(model.n_species(), 2);
+        assert_eq!(model.spatial_points(), 100);
+        assert!((model.porosity() - 0.4).abs() < 1e-15);
+    }
+
+    // ── Exportable ────────────────────────────────────────────────────────────
+
+    /// Builds a minimal trajectory (3 steps, all-zero concentrations) suitable
+    /// for exercising `to_map` without running a full simulation.
+    fn make_trajectory(model: &LangmuirMulti) -> (Vec<f64>, Vec<PhysicalState>) {
+        let state = model.setup_initial_state();
+        let time_points = vec![0.0, 0.5, 1.0];
+        let trajectory = vec![state.clone(), state.clone(), state.clone()];
+        (time_points, trajectory)
+    }
+
+    #[test]
+    fn test_to_map_species_blocks() {
+        let model = two_species_model();
+        let (tp, traj) = make_trajectory(&model);
+        let map = model.to_map(&tp, &traj, &HashMap::new());
+
+        let profiles = &map["data"]["profiles"];
+        assert!(
+            profiles.get("species_0").is_some(),
+            "species_0 block missing"
+        );
+        assert!(
+            profiles.get("species_1").is_some(),
+            "species_1 block missing"
+        );
+
+        // name must be colocated with the concentration data
+        assert_eq!(profiles["species_0"]["name"].as_str().unwrap(), "A");
+        assert_eq!(profiles["species_1"]["name"].as_str().unwrap(), "B");
+
+        let conc0 = profiles["species_0"]["Concentration"].as_array().unwrap();
+        assert_eq!(
+            conc0.len(),
+            tp.len(),
+            "species_0 Concentration length mismatch"
+        );
+    }
+
+    #[test]
+    fn test_to_map_global_block_present_and_empty() {
+        // The global block is the extension point for future scalar/vector quantities.
+        // It must be present even when all data is in species_N blocks (Matrix dispatch).
+        let model = single_model();
+        let (tp, traj) = make_trajectory(&model);
+        let map = model.to_map(&tp, &traj, &HashMap::new());
+
+        let profiles = map["data"]["profiles"].as_object().unwrap();
+        assert!(
+            profiles.contains_key("global"),
+            "global extension block missing"
+        );
+        assert!(
+            profiles["global"].as_object().unwrap().is_empty(),
+            "global block must be empty for Matrix data"
+        );
+    }
+
+    #[test]
+    fn test_to_map_metadata_species_array() {
+        let model = two_species_model();
+        let (tp, traj) = make_trajectory(&model);
+        let map = model.to_map(&tp, &traj, &HashMap::new());
+
+        let meta = map["metadata"].as_object().unwrap();
+        assert_eq!(meta["n_species"].as_u64().unwrap(), 2);
+
+        let species_arr = meta["species"].as_array().unwrap();
+        assert_eq!(species_arr.len(), 2, "species array length mismatch");
+        assert_eq!(species_arr[0]["name"].as_str().unwrap(), "A");
+        assert_eq!(species_arr[1]["name"].as_str().unwrap(), "B");
+        assert!((species_arr[0]["lambda"].as_f64().unwrap() - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_from_map_round_trip() {
+        let original = two_species_model();
+        let (tp, traj) = make_trajectory(&original);
+        let map = original.to_map(&tp, &traj, &HashMap::new());
+
+        let reconstructed = LangmuirMulti::from_map(map).expect("from_map must succeed");
+
+        assert_eq!(reconstructed.n_species(), original.n_species());
+        assert_eq!(reconstructed.spatial_points(), original.spatial_points());
+        assert!((reconstructed.porosity() - original.porosity()).abs() < 1e-12);
+        assert!((reconstructed.velocity() - original.velocity()).abs() < 1e-12);
+        assert!((reconstructed.column_length() - original.column_length()).abs() < 1e-12);
+
+        // Species names must survive the round-trip (order preserved)
+        assert_eq!(reconstructed.species_names(), original.species_names());
+    }
+
+    #[test]
+    fn test_from_map_species_count_mismatch() {
+        use serde_json::json;
+        let map = json!({
+            "metadata": {
+                "nz": 100, "porosity": 0.4, "velocity": 0.001, "length": 0.25,
+                "species": []
+            }
+        })
+        .as_object()
+        .cloned()
+        .unwrap();
+
+        assert!(
+            matches!(
+                LangmuirMulti::from_map(map),
+                Err(ExportError::SpeciesCountMismatch { .. })
+            ),
+            "Empty species array must yield SpeciesCountMismatch"
+        );
+    }
+
+    #[test]
+    fn test_from_map_missing_key() {
+        use serde_json::json;
+
+        // "porosity" absent — all other required keys present
+        let map = json!({
+            "metadata": {
+                "nz": 100, "velocity": 0.001, "length": 0.25,
+                "species": [{"name": "A", "lambda": 1.0, "langmuir_k": 0.5, "port_number": 1}]
+            }
+        })
+        .as_object()
+        .cloned()
+        .unwrap();
+
+        assert!(
+            matches!(
+                LangmuirMulti::from_map(map),
+                Err(ExportError::MissingKey(_))
+            ),
+            "Missing 'porosity' must yield MissingKey"
+        );
     }
 }

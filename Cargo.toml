@@ -43,7 +43,7 @@ ndarray = { version = "0.17.2", features = ["serde"] }
 
 [dev-dependencies]
 approx = "0.5.1"
-cargo-llvm-cov = "0.7.1"
+cargo-llvm-cov = "0.8.5"
 criterion = { version = "0.8", features = ["html_reports", "plotters"] }
 tempfile = "3.25.0"
 rand = "0.10"
@@ -64,8 +64,16 @@ name = "tfa_single"
 path = "examples/tfa.rs"
 
 [[example]]
+name = "tfa_from_config"
+path = "examples/tfa_from_config.rs"
+
+[[example]]
 name = "acids_multi"
 path = "examples/acids_multi.rs"
+
+[[example]]
+name = "acids_from_config"
+path = "examples/acids_from_config.rs"
 
 [[example]]
 name = "high_load"

@@ -129,6 +129,7 @@ pub struct LinearTransport {
     pub velocity: f64,
 }
 
+#[allow(dead_code)]
 impl LinearTransport {
     pub fn new(points: usize, velocity: f64) -> Self {
         Self { points, velocity }
