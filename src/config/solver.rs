@@ -12,15 +12,17 @@
 //! step: null         # null = full trajectory; integer N = every N-th step
 //! ```
 //!
-//! The file is deserialised directly into [`SolverConfiguration`] via serde.
-//! The `type` field is mapped to [`SolverType::TimeEvolution`].
+//! The file is deserialised directly into
+//! [`SolverConfiguration`](crate::solver::SolverConfiguration) via serde.
+//! The `type` field is mapped to
+//! [`SolverType::TimeEvolution`](crate::solver::SolverType::TimeEvolution).
 //!
 //! # Supported solver types
 //!
 //! | YAML `type` | Maps to |
 //! |---|---|
-//! | `RK4` | `SolverType::TimeEvolution` dispatched to [`RK4Solver`] |
-//! | `Euler` | `SolverType::TimeEvolution` dispatched to [`EulerSolver`] |
+//! | `RK4` | `SolverType::TimeEvolution` dispatched to [`RK4Solver`](crate::solver::RK4Solver) |
+//! | `Euler` | `SolverType::TimeEvolution` dispatched to [`EulerSolver`](crate::solver::EulerSolver) |
 //!
 //! The solver name is stored as metadata in `SimulationResult` after the run.
 //! The CLI selects the concrete solver implementation based on this field.

@@ -1,6 +1,8 @@
-//! Command-line interface for `chrom-rs` (DD-001).
+//! Command-line interface for `chrom-rs`.
 //!
-//! See [`app`] for the execution context, command handlers, and helpers.
+//! Assembles the `dynamic-cli` application from a declarative YAML
+//! configuration embedded at compile time and wires it to the simulation
+//! pipeline defined in the [`app`](crate::cli::app) module.
 //!
 //! # Entry point
 //!
@@ -9,7 +11,24 @@
 //!     .expect("CLI initialisation failed")
 //!     .run();
 //! ```
+//!
+//! # Command surface (v0.2.0)
+//!
+//! ```text
+//! chrom-rs run [--project-dir <dir>]
+//!              --model    <file.yml>
+//!              --scenario <file.yml>
+//!              --solver   <file.yml>
+//!              [--output-csv   <file.csv>]
+//!              [--output-plot  <file.png>]
+//!              [--export-json  <file.json>]
+//! ```
 
+/// Execution context, command handlers, and simulation helpers.
+///
+/// All runtime state ([`ChromContext`](crate::cli::app::ChromContext)),
+/// input validation, and the `run` command handler
+/// ([`RunHandler`](crate::cli::app::RunHandler)) live here.
 pub mod app;
 
 use anyhow::anyhow;
@@ -22,15 +41,16 @@ use app::{ChromContext, RunHandler};
 // Embedded command configuration
 // ============================================================================
 
-/// Content of `src/cli/commands.yml`, embedded at compile time.
+/// YAML command configuration, embedded at compile time from
+/// `src/cli/commands.yml`.
 ///
-/// Parsed once in [`build_app`] via [`load_yaml`]. Keeping the declarations
-/// in YAML lets maintainers adjust help text, aliases, and option metadata
+/// Parsed once in [`build_app`] via `load_yaml`. Keeping the declarations in
+/// YAML lets maintainers adjust help text, aliases, and option metadata
 /// without touching Rust code.
 const COMMANDS_YML: &str = include_str!("commands.yml");
 
-/// Implementation name — must match the `implementation:` field in
-/// `commands.yml` for the `run` command.
+/// Handler name that must match the `implementation:` field of the `run`
+/// command in `commands.yml`.
 const RUN_HANDLER_NAME: &str = "run_handler";
 
 // ============================================================================
@@ -39,13 +59,15 @@ const RUN_HANDLER_NAME: &str = "run_handler";
 
 /// Assembles and returns the fully configured [`CliApp`].
 ///
-/// Parses the embedded [`COMMANDS_YML`], wires [`RunHandler`] and a fresh
-/// [`ChromContext`], then builds the application.
+/// Parses the embedded command YAML, wires
+/// [`RunHandler`] and a fresh
+/// [`ChromContext`], then delegates to
+/// `CliBuilder::build`.
 ///
 /// # Errors
 ///
-/// Returns an error if the embedded YAML is malformed or if the builder
-/// detects a missing required handler.
+/// - The embedded YAML is malformed (compile-time regression).
+/// - The builder detects a missing required handler.
 pub fn build_app() -> anyhow::Result<CliApp> {
     let config =
         load_yaml(COMMANDS_YML).map_err(|e| anyhow!("embedded commands.yml is invalid: {e}"))?;
@@ -73,8 +95,6 @@ mod tests {
 
     #[test]
     fn test_commands_yml_is_valid_yaml() {
-        // Vérifie que le YAML embarqué est syntaxiquement correct
-        // et contient la commande `run`.
         use dynamic_cli::config::loader::load_yaml;
         let config = load_yaml(COMMANDS_YML).expect("COMMANDS_YML must be valid");
         assert!(config.commands.iter().any(|c| c.name == "run"));

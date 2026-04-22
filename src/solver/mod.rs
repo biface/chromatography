@@ -353,7 +353,9 @@
 // =================================================================================================
 // Module Declarations
 // =================================================================================================
+
 mod boundary;
+/// Concrete solver implementations: Forward Euler and Runge-Kutta 4.
 pub mod methods;
 mod scenario;
 mod traits;

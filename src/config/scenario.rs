@@ -32,11 +32,13 @@
 //!
 //! # Design note
 //!
-//! This loader does **not** deserialise into an intermediate struct.
-//! It reads the YAML/JSON fields, constructs [`TemporalInjection`] values
-//! directly, and applies them to the model via [`PhysicalModel::set_default_injection`]
-//! and [`PhysicalModel::set_injection_for_species`]. The result is a fully
-//! initialised [`DomainBoundaries`] built from `initial_condition`.
+//! This loader does **not** deserialize into an intermediate struct.
+//! It reads the YAML/JSON fields, constructs
+//! [`TemporalInjection`](crate::models::TemporalInjection) values directly,
+//! and applies them to the model via the `PhysicalModel` injection setters.
+//! The result is a fully initialized
+//! [`DomainBoundaries`](crate::solver::DomainBoundaries) built from
+//! `initial_condition`.
 
 use crate::config::{ConfigError, Format, format_from_path};
 use crate::models::TemporalInjection;

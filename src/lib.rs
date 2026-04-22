@@ -1,20 +1,20 @@
 //! chrom-rs: Chromatography Simulation Framework
 //!
-//! A flexible and extensible framework for simulating chromatographic processes
-//! using numerical methods. Built with Rust for performance and safety.
+//! A flexible and extensible framework for simulating liquid chromatographic
+//! processes using numerical methods. Built with Rust for performance and safety.
 //!
 //! # Architecture
 //!
 //! chrom-rs is built on two core principles:
 //!
-//! 1. **Separation of Physics and Numerics**
-//!    - Physical models define equations (what to solve)
-//!    - Numerical solvers provide methods (how to solve)
+//! 1. **Separation of physics and numerics** — physical models define the
+//!    equations (what to solve); numerical solvers provide the integration
+//!    method (how to solve them). The same model can be solved with any
+//!    solver, and the same solver can integrate any model.
 //!
-//! 2. **Extensibility and Type Safety**
-//!    - Trait-based design for easy extension
-//!    - Type-safe state management
-//!    - Stable API (v0.1.0+)
+//! 2. **Extensibility and type safety** — all extension points are traits;
+//!    state is managed through typed containers; the API is stable from
+//!    v0.1.0 onwards.
 //!
 //! # Quick Start
 //!
@@ -61,30 +61,70 @@
 //!
 //! # Modules
 //!
-//! - [`physics`]: Physical models (equations)
-//! - [`solver`]: Numerical solvers (methods)
-//! - [`cli`]: Command-line interface
-//! - [`output`]: Result visualization and export (publishing)
+//! | Module | Role |
+//! |--------|------|
+//! | [`physics`] | Core traits and data types for physical models |
+//! | [`models`] | Concrete chromatography models (Langmuir single and multi-species) |
+//! | [`solver`] | Numerical solvers, scenario definition, and simulation result |
+//! | [`config`] | YAML/JSON configuration file loaders |
+//! | [`output`] | CSV export, JSON export, and chromatogram visualisation |
+//! | [`cli`] | Command-line interface built on `dynamic-cli` |
+//! | [`prelude`] | Convenience re-exports for the most common types |
 
-// Core modules
+/// Physical model traits, state containers, and data types.
+///
+/// Defines the extension points that all physical models must implement,
+/// as well as the typed containers ([`physics::PhysicalState`],
+/// [`physics::PhysicalData`]) used to exchange state between models and
+/// solvers.
 pub mod physics;
 
+/// Concrete chromatography models.
+///
+/// Contains [`models::LangmuirSingle`] for single-species simulations and
+/// [`models::LangmuirMulti`] for competitive multi-species adsorption, along
+/// with the [`models::TemporalInjection`] type that defines inlet boundary
+/// conditions as a function of time.
 pub mod models;
+
+/// Numerical solvers and simulation infrastructure.
+///
+/// Provides [`solver::Solver`] implementations (Forward Euler, RK4), the
+/// [`solver::Scenario`] type that binds a model to its boundary conditions,
+/// [`solver::SolverConfiguration`] for numerical parameters, and
+/// [`solver::SimulationResult`] which holds the computed trajectory.
 pub mod solver;
 
+/// Result visualisation and data export.
+///
+/// Sub-modules cover CSV export, JSON export, and chromatogram plots via
+/// `plotters`. See [`output::export`] and [`output::visualization`].
 pub mod output;
 
+/// Configuration file loaders for the three-file layout.
+///
+/// Each loader reads one YAML or JSON file and returns the corresponding
+/// domain object: [`config::model::load_model`] → `Box<dyn PhysicalModel>`,
+/// [`config::scenario::load_scenario`] → [`solver::DomainBoundaries`],
+/// [`config::solver::load_solver`] → [`solver::SolverConfiguration`].
 pub mod config;
 
+/// Command-line interface.
+///
+/// Entry point is [`cli::build_app`], which assembles the `dynamic-cli`
+/// application from the embedded `commands.yml` declaration and wires
+/// [`cli::app::RunHandler`] to the simulation pipeline.
 pub mod cli;
 
+/// Convenient re-exports for the most commonly used types.
+///
+/// Import everything with `use chrom_rs::prelude::*` to get the core traits
+/// and types without writing long paths.
+///
+/// ```rust
+/// use chrom_rs::prelude::*;
+/// ```
 pub mod prelude {
-    //! Convenient imports for common usage
-    //!
-    //! ```rust
-    //!
-    //! use chrom_rs::prelude::*;
-    //! ```
     pub use crate::models::TemporalInjection;
     pub use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
     pub use crate::solver::{

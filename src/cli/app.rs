@@ -1,13 +1,13 @@
-//! Application layer for the `chrom-rs` CLI (DD-001).
+//! Application layer for the `chrom-rs` CLI.
 //!
 //! Groups all runtime concerns in one place:
 //!
-//! - [`ChromContext`] / [`ContextError`]: execution context and its invariants.
+//! - [`ChromContext`] / `ContextError`: execution context and its invariants.
 //! - [`RunHandler`]: the `run` command handler that orchestrates the full
 //!   simulation pipeline.
-//! - [`resolve_species_names`]: detects the model type from the config file
+//! - `resolve_species_names`: detects the model type from the config file
 //!   before `Box<dyn PhysicalModel>` erases it.
-//! - [`resolve_export_map`]: deserialises the model into a concrete type to
+//! - `resolve_export_map`: deserialises the model into a concrete type to
 //!   call [`Exportable::to_map`](crate::physics::Exportable) for JSON export.
 //!
 //! # Path invariants

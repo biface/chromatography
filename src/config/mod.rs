@@ -5,10 +5,9 @@
 //!
 //! | Loader | File | Returns |
 //! |---|---|---|
-//! | [`model::load_model`] | `model.yml` | `Box<dyn PhysicalModel>` |
-//! | [`scenario::load_scenario`] | `scenario.yml` | `DomainBoundaries` |
-//! | [`solver::load_solver`] | `solver.yml` | `SolverConfiguration` |
-//!
+//! | [`load_model`](crate::config::model::load_model) | `model.yml` | `Box<dyn PhysicalModel>` |
+//! | [`load_scenario`](crate::config::scenario::load_scenario) | `scenario.yml` | `DomainBoundaries` |
+//! | [`load_solver`](crate::config::solver::load_solver) | `solver.yml` | `SolverConfiguration` |//!
 //! # Supported formats
 //!
 //! Both JSON and YAML are accepted. The format is inferred from the file
@@ -31,8 +30,11 @@ use std::fmt;
 use std::fs;
 use std::path::Path;
 
+/// Loader for `model.yml` — returns a boxed [`PhysicalModel`](crate::physics::PhysicalModel).
 pub mod model;
+/// Loader for `scenario.yml` — applies injections and returns [`DomainBoundaries`](crate::solver::DomainBoundaries).
 pub mod scenario;
+/// Loader for `solver.yml` — returns a [`SolverConfiguration`](crate::solver::SolverConfiguration).
 pub mod solver;
 
 // ============================================================================

@@ -93,7 +93,9 @@
 //! - **Langmuir 1D**: 1D chromatography with modified Langmuir isotherm
 
 // module declaration
+/// Core data types: [`PhysicalData`], [`PhysicalState`], and [`PhysicalQuantity`].
 pub mod data;
+/// Core traits: [`PhysicalModel`] and [`Exportable`].
 pub mod traits;
 // Model implementation
 

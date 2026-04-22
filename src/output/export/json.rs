@@ -27,7 +27,7 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! use chrom_rs::output::export::json::{to_json, from_json};
+//! use chrom_rs::output::export::{to_json, from_json};
 //! use serde_json::{Map, Value, json};
 //!
 //! // Produced by model.to_map(...) in the CLI layer
@@ -104,7 +104,7 @@ impl From<serde_json::Error> for JsonError {
 /// Writes a JSON map to a file (pretty-printed).
 ///
 /// The map is typically produced by
-/// [`Exportable::to_map`](crate::physics::export::Exportable::to_map).
+/// [`Exportable::to_map`](crate::physics::Exportable::to_map).
 ///
 /// # Errors
 ///
@@ -115,7 +115,7 @@ impl From<serde_json::Error> for JsonError {
 /// # Example
 ///
 /// ```rust,no_run
-/// use chrom_rs::output::export::json::to_json;
+/// use chrom_rs::output::export::to_json;
 /// use serde_json::{Map, Value};
 ///
 /// let mut map = Map::new();
@@ -132,7 +132,7 @@ pub fn to_json(map: &Map<String, Value>, path: &str) -> Result<(), JsonError> {
 /// Reads a JSON file and returns its content as a generic map.
 ///
 /// The map can then be passed to
-/// [`Exportable::from_map`](crate::physics::export::Exportable::from_map)
+/// [`Exportable::from_map`](crate::physics::Exportable::from_map)
 /// to reconstruct a physical model.
 ///
 /// # Errors
@@ -144,7 +144,7 @@ pub fn to_json(map: &Map<String, Value>, path: &str) -> Result<(), JsonError> {
 /// # Example
 ///
 /// ```rust,no_run
-/// use chrom_rs::output::export::json::from_json;
+/// use chrom_rs::output::export::from_json;
 ///
 /// let map = from_json("/tmp/result.json");
 /// ```
@@ -195,11 +195,9 @@ mod tests {
         to_json(&original, path).expect("write");
         let loaded = from_json(path).expect("read");
 
-        // metadata.solver must survive the round-trip
         let solver = loaded["metadata"]["solver"].as_str().unwrap();
         assert_eq!(solver, "RK4");
 
-        // time_points must survive
         let tp = loaded["data"]["time_points"].as_array().unwrap();
         assert_eq!(tp.len(), 3);
         assert!((tp[1].as_f64().unwrap() - 1.0).abs() < 1e-12);
@@ -213,7 +211,6 @@ mod tests {
 
     #[test]
     fn test_from_json_not_object() {
-        // Write a JSON array — not a top-level object
         let path = "/tmp/chrom_rs_test_array.json";
         std::fs::write(path, "[1, 2, 3]").unwrap();
         let result = from_json(path);
