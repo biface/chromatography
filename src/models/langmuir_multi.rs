@@ -976,10 +976,10 @@ impl Exportable for LangmuirMulti {
         let mut meta: Map<String, Value> = [
             ("model", Value::String(self.name().into())),
             ("n_species", Value::from(self.n_species() as u64)),
-            ("nz", Value::from(self.spatial_points() as u64)),
+            ("n_points", Value::from(self.spatial_points() as u64)),
             ("porosity", Value::from(self.porosity())),
             ("velocity", Value::from(self.velocity())),
-            ("length", Value::from(self.column_length())),
+            ("column_length", Value::from(self.column_length())),
             ("species", Value::Array(species_meta)),
         ]
         .into_iter()
@@ -1041,10 +1041,10 @@ impl Exportable for LangmuirMulti {
     ///
     /// | Key | Type | Description |
     /// |---|---|---|
-    /// | `nz` | `u64` | Number of spatial points |
+    /// | `n_points` | `u64` | Number of spatial points |
     /// | `porosity` | `f64` | Extra-granular porosity ε ∈ (0, 1) |
     /// | `velocity` | `f64` | Superficial velocity (m/s) |
-    /// | `length` | `f64` | Column length (m) |
+    /// | `column_length` | `f64` | Column length (m) |
     /// | `species` | array | Per-species parameters (see below) |
     ///
     /// Each entry in `metadata.species` must contain:
@@ -1085,10 +1085,10 @@ impl Exportable for LangmuirMulti {
             };
         }
 
-        let nz = get_usize!("nz");
+        let n_points = get_usize!("n_points");
         let porosity = get_f64!("porosity");
         let velocity = get_f64!("velocity");
-        let length = get_f64!("length");
+        let column_length = get_f64!("column_length");
 
         let species_arr = meta
             .get("species")
@@ -1144,12 +1144,12 @@ impl Exportable for LangmuirMulti {
 
         let first = params.remove(0);
         let mut model =
-            LangmuirMulti::new(vec![first], nz, porosity, velocity, length).map_err(|e| {
-                ExportError::InvalidValue {
+            LangmuirMulti::new(vec![first], n_points, porosity, velocity, column_length).map_err(
+                |e| ExportError::InvalidValue {
                     key: "metadata".into(),
                     reason: e,
-                }
-            })?;
+                },
+            )?;
 
         for sp in params {
             model
@@ -1753,7 +1753,7 @@ mod tests {
         use serde_json::json;
         let map = json!({
             "metadata": {
-                "nz": 100, "porosity": 0.4, "velocity": 0.001, "length": 0.25,
+                "n_points": 100, "porosity": 0.4, "velocity": 0.001, "column_length": 0.25,
                 "species": []
             }
         })
@@ -1777,7 +1777,7 @@ mod tests {
         // "porosity" absent — all other required keys present
         let map = json!({
             "metadata": {
-                "nz": 100, "velocity": 0.001, "length": 0.25,
+                "n_points": 100, "velocity": 0.001, "column_length": 0.25,
                 "species": [{"name": "A", "lambda": 1.0, "langmuir_k": 0.5, "port_number": 1}]
             }
         })

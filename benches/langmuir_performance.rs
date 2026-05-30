@@ -1428,7 +1428,7 @@ mod tests {
     fn test_tfa_single_builds_correctly() {
         let model = tfa_single(100);
         assert_eq!(model.spatial_points(), 100);
-        assert!((model.length() - COLUMN_LENGTH).abs() < 1e-12);
+        assert!((model.column_length() - COLUMN_LENGTH).abs() < 1e-12);
     }
 
     #[test]

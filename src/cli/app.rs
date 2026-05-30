@@ -537,8 +537,8 @@ LangmuirSingle:
   lambda: 1.2
   langmuir_k: 0.4
   port_number: 2.0
-  length: 0.25
-  nz: 100
+  column_length: 0.25
+  n_points: 100
   dz: 0.0025
   fe: 1.5
   ue: 0.0025
