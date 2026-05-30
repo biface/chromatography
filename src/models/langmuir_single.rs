@@ -147,7 +147,7 @@ use std::collections::HashMap;
 ///     1.2, 0.4, 2.0, 0.4, 0.001, 0.25, 100,
 ///     TemporalInjection::dirac(0.0, 1e-3),
 /// );
-/// assert_eq!(model.length(), 0.25);
+/// assert_eq!(model.column_length(), 0.25);
 /// assert_eq!(model.spatial_points(), 100);
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -174,10 +174,10 @@ pub struct LangmuirSingle {
 
     // ── Column geometry ───────────────────────────────────────────────────────
     /// Column length $L$ **\[m\]**
-    length: f64,
+    column_length: f64,
 
     /// Number of spatial discretization points $N_z$
-    nz: usize,
+    n_points: usize,
 
     /// Cell width $\Delta z = L / N_z$ **\[m\]** — precomputed
     ///
@@ -266,8 +266,8 @@ impl LangmuirSingle {
             lambda,
             langmuir_k,
             port_number,
-            length: column_length,
-            nz: spatial_points,
+            column_length,
+            n_points: spatial_points,
             dz,
             fe,
             ue,
@@ -302,12 +302,12 @@ impl LangmuirSingle {
 
     /// Returns the number of spatial discretization points $N_z$
     pub fn spatial_points(&self) -> usize {
-        self.nz
+        self.n_points
     }
 
     /// Returns the column length $L$ **\[m\]**
-    pub fn length(&self) -> f64 {
-        self.length
+    pub fn column_length(&self) -> f64 {
+        self.column_length
     }
 
     /// Computes the isotherm derivative $\partial \bar{C} / \partial C$
@@ -354,7 +354,7 @@ impl LangmuirSingle {
 impl PhysicalModel for LangmuirSingle {
     /// Returns the number of spatial discretisation points $N_z$
     fn points(&self) -> usize {
-        self.nz
+        self.n_points
     }
 
     /// Computes $\partial C / \partial t$ at all spatial points
@@ -406,10 +406,10 @@ impl PhysicalModel for LangmuirSingle {
 
         assert_eq!(
             c_profile.len(),
-            self.nz,
+            self.n_points,
             "Concentration profile size {} vs points discretization {}",
             c_profile.len(),
-            self.nz
+            self.n_points
         );
 
         // ── Transport loop ────────────────────────────────────────────────────
@@ -418,9 +418,9 @@ impl PhysicalModel for LangmuirSingle {
         // The propagation factor σ(C_i) depends on the local concentration,
         // making this a nonlinear PDE — hence the point-by-point evaluation.
 
-        let mut dc_dt = DVector::zeros(self.nz);
+        let mut dc_dt = DVector::zeros(self.n_points);
 
-        for n in 0..self.nz {
+        for n in 0..self.n_points {
             let c_n = c_profile[n];
 
             // Propagation factor: σ(C) = 1 / (1 + Fe · ∂C̄/∂C)
@@ -452,7 +452,7 @@ impl PhysicalModel for LangmuirSingle {
     fn setup_initial_state(&self) -> PhysicalState {
         PhysicalState::new(
             PhysicalQuantity::Concentration,
-            PhysicalData::Vector(DVector::zeros(self.nz)),
+            PhysicalData::Vector(DVector::zeros(self.n_points)),
         )
     }
 
@@ -489,16 +489,16 @@ impl Exportable for LangmuirSingle {
     /// ```json
     /// {
     ///   "metadata": {
-    ///     "model":       "Langmuir single specie with temporal injection",
-    ///     "lambda":      1.2,
-    ///     "langmuir_k":  0.4,
-    ///     "port_number": 2.0,
-    ///     "length":      0.25,
-    ///     "nz":          100,
-    ///     "fe":          1.5,
-    ///     "ue":          0.0025,
-    ///     "solver":      "Runge-Kutta 4",
-    ///     "dt":          "0.06"
+    ///     "model":              "Langmuir single specie with temporal injection",
+    ///     "lambda":             1.2,
+    ///     "langmuir_k":         0.4,
+    ///     "port_number":        2.0,
+    ///     "columns_length":     0.25,
+    ///     "n_points":           100,
+    ///     "fe":                 1.5,
+    ///     "ue":                 0.0025,
+    ///     "solver":             "Runge-Kutta 4",
+    ///     "dt":                 "0.06"
     ///   },
     ///   "data": {
     ///     "time_points": [0.0, 0.06, "..."],
@@ -528,8 +528,8 @@ impl Exportable for LangmuirSingle {
             ("lambda", Value::from(self.lambda)),
             ("langmuir_k", Value::from(self.langmuir_k)),
             ("port_number", Value::from(self.port_number)),
-            ("length", Value::from(self.length)),
-            ("nz", Value::from(self.nz as u64)),
+            ("column_length", Value::from(self.column_length)),
+            ("n_points", Value::from(self.n_points as u64)),
             ("fe", Value::from(self.fe)),
             ("ue", Value::from(self.ue)),
         ]
@@ -583,8 +583,8 @@ impl Exportable for LangmuirSingle {
     /// | `lambda` | `f64` | Linear retention term |
     /// | `langmuir_k` | `f64` | Langmuir equilibrium constant |
     /// | `port_number` | `f64` | Adsorption capacity |
-    /// | `length` | `f64` | Column length (m) |
-    /// | `nz` | `u64` | Number of spatial points |
+    /// | `column_length` | `f64` | Column length (m) |
+    /// | `n_points` | `u64` | Number of spatial points |
     /// | `fe` | `f64` | Phase ratio — back-computes porosity as `1 / (1 + fe)` |
     /// | `ue` | `f64` | Interstitial velocity — back-computes velocity as `ue × ε` |
     ///
@@ -623,10 +623,10 @@ impl Exportable for LangmuirSingle {
         let lambda = get_f64!("lambda");
         let langmuir_k = get_f64!("langmuir_k");
         let port_number = get_f64!("port_number");
-        let length = get_f64!("length");
+        let length = get_f64!("column_length");
         let fe = get_f64!("fe");
         let ue = get_f64!("ue");
-        let nz = get_usize!("nz");
+        let nz = get_usize!("n_points");
 
         // Back-compute constructor arguments from derived quantities:
         //   fe = (1 - ε) / ε  →  ε = 1 / (1 + fe)
@@ -815,7 +815,7 @@ mod tests {
 
         // Physical parameters must be unchanged after set_injection
         assert_eq!(model.spatial_points(), 100);
-        assert!((model.length() - 0.25).abs() < 1e-15);
+        assert!((model.column_length() - 0.25).abs() < 1e-15);
     }
 
     // ── Exportable ────────────────────────────────────────────────────────────
@@ -841,8 +841,8 @@ mod tests {
             "lambda",
             "langmuir_k",
             "port_number",
-            "length",
-            "nz",
+            "column_length",
+            "n_points",
             "fe",
             "ue",
         ] {
@@ -850,7 +850,7 @@ mod tests {
         }
         assert!((meta["lambda"].as_f64().unwrap() - 1.2).abs() < 1e-12);
         assert!((meta["langmuir_k"].as_f64().unwrap() - 0.4).abs() < 1e-12);
-        assert_eq!(meta["nz"].as_u64().unwrap(), 100);
+        assert_eq!(meta["n_points"].as_u64().unwrap(), 100);
     }
 
     #[test]
@@ -913,7 +913,7 @@ mod tests {
         let reconstructed = LangmuirSingle::from_map(map).expect("from_map must succeed");
 
         assert_eq!(reconstructed.spatial_points(), original.spatial_points());
-        assert!((reconstructed.length() - original.length()).abs() < 1e-12);
+        assert!((reconstructed.column_length() - original.column_length()).abs() < 1e-12);
 
         // Second pass: derived quantities (fe, ue) must survive the back-computation
         // porosity = 1/(1+fe), velocity = ue × ε
@@ -937,7 +937,7 @@ mod tests {
         assert!(
             matches!(
                 LangmuirSingle::from_map(partial),
-                Err(ExportError::MissingKey(_))
+                Err(ExportError::MissingKey(key)) if key == "lambda"
             ),
             "Missing 'lambda' must yield MissingKey"
         );
