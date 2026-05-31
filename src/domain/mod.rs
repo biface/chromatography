@@ -1,25 +1,24 @@
-//! Modèle du domaine — physical domain model.
+//! Physical domain model — equipment description layer.
 //!
-//! Ce module regroupe les types décrivant l'**équipement physique** d'un
-//! système chromatographique, indépendamment du modèle mathématique choisi
-//! (Langmuir, diffusion dans les pores, etc.).
+//! This module groups the types describing the **physical equipment** of a
+//! chromatographic system, independent of the mathematical model chosen
+//! (Langmuir, pore-diffusion, dispersive, etc.).
 //!
 //! # Design (DD-011)
 //!
-//! `domain/` est une **façade de construction validée** : ses types
-//! encapsulent et valident les paramètres physiques, puis les transmettent
-//! aux modèles via le constructeur `from_domain`. Les modèles conservent
-//! leurs champs internes — la migration de la propriété des données vers
-//! `domain/` est différée à un jalon futur.
+//! `domain/` is a **validated construction facade**: its types encapsulate and
+//! validate physical parameters, then pass them to models via the
+//! `from_domain` constructor. Models retain their internal fields — migration
+//! of data ownership to `domain/` is deferred to a future milestone.
 //!
 //! # Modules
 //!
-//! | Module | Type principal | Rôle |
-//! |--------|---------------|------|
-//! | [`column`] | [`Column`] | Géométrie de la colonne |
-//! | [`phases`] | [`MobilePhase`] | Propriétés de la phase mobile |
-//! | [`sample`] | [`Sample`] | Profils d'injection à l'entrée |
-//! | [`detector`] | [`Detector`] | Position du point de mesure |
+//! | Module | Primary type | Role |
+//! |--------|-------------|------|
+//! | [`column`] | [`Column`] | Column geometry |
+//! | [`phases`] | [`MobilePhase`] | Mobile-phase properties |
+//! | [`sample`] | [`Sample`] | Inlet injection profiles |
+//! | [`detector`] | [`Detector`] | Signal measurement point |
 //!
 //! # Example
 //!

@@ -1,33 +1,33 @@
-//! Détecteur chromatographique — chromatographic signal detector.
+//! Chromatographic signal detector.
 //!
-//! Ce module définit [`Detector`] et [`DetectorPosition`], qui spécifient
-//! l'emplacement du détecteur le long de l'axe de la colonne.
+//! This module defines [`Detector`] and [`DetectorPosition`], which specify
+//! the location of the measurement point along the column axis.
 //!
 //! # Physical background
 //!
-//! En chromatographie, le signal mesuré est la concentration en phase mobile
-//! au point de détection $z_d$. La position par défaut est la sortie de
-//! colonne ($z_d = L$), mais certains montages expérimentaux placent le
-//! détecteur en un point intermédiaire.
+//! In chromatography, the measured signal is the mobile-phase concentration
+//! at the detection point $z_d$. The default position is the column outlet
+//! ($z_d = L$), but some experimental setups place the detector at an
+//! intermediate point along the column.
 //!
 //! # Position variants
 //!
-//! | Variante | Description | Contrainte |
-//! |----------|-------------|-----------|
-//! | [`Outlet`](DetectorPosition::Outlet) | Sortie de colonne $z_d = L$ | aucune |
+//! | Variant | Description | Constraint |
+//! |---------|-------------|-----------|
+//! | [`Outlet`](DetectorPosition::Outlet) | Column outlet $z_d = L$ | none |
 //! | [`Relative`](DetectorPosition::Relative) | $z_d = r \cdot L$, $r \in [0, 1]$ | $r \in [0, 1]$ |
-//! | [`Absolute`](DetectorPosition::Absolute) | $z_d$ \[m\] | $z_d > 0$, validé contre $L$ à l'usage |
+//! | [`Absolute`](DetectorPosition::Absolute) | $z_d$ \[m\] | $z_d > 0$, validated against $L$ at use time |
 //!
 //! # Example
 //!
 //! ```rust
 //! use chrom_rs::domain::{Detector, DetectorPosition};
 //!
-//! // Détecteur en sortie de colonne (comportement actuel)
+//! // Detector at column outlet (current default behaviour)
 //! let det = Detector::outlet();
 //! assert!(matches!(det.position, DetectorPosition::Outlet));
 //!
-//! // Détecteur à mi-colonne
+//! // Detector at mid-column
 //! let det = Detector::new(DetectorPosition::Relative(0.5)).unwrap();
 //! assert!((det.absolute_position(0.25) - 0.125).abs() < 1e-12);
 //! ```
@@ -39,19 +39,16 @@ use std::fmt;
 // DetectorError
 // =============================================================================
 
-/// Erreurs de construction d'un [`Detector`] — Detector construction errors.
+/// Errors returned by [`Detector::new`] or [`Detector::validate_against_column`].
 #[derive(Debug)]
 pub enum DetectorError {
-    /// La position relative doit appartenir à \[0, 1\].
-    /// Relative position must be in \[0, 1\].
+    /// Relative position must lie in $[0, 1]$.
     InvalidRelativePosition(f64),
 
-    /// La position absolue doit être strictement positive.
-    /// Absolute position must be > 0.
+    /// Absolute position must be strictly positive ($z_d > 0$).
     InvalidAbsolutePosition(f64),
 
-    /// La position absolue dépasse la longueur de la colonne.
-    /// Absolute position exceeds column length.
+    /// Absolute position exceeds the column length.
     PositionExceedsColumn { position: f64, column_length: f64 },
 }
 
@@ -83,22 +80,19 @@ impl std::error::Error for DetectorError {}
 // DetectorPosition
 // =============================================================================
 
-/// Position du détecteur le long de l'axe de la colonne.
-///
 /// Detector position along the column axis.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DetectorPosition {
-    /// Sortie de colonne $z_d = L$ — column outlet (default behaviour).
+    /// Column outlet $z_d = L$ — default behaviour.
     Outlet,
 
-    /// Position relative $z_d = r \cdot L$, $r \in [0, 1]$.
-    ///
-    /// Relative position as a fraction of the column length.
+    /// Relative position $z_d = r \cdot L$, $r \in [0, 1]$.
     Relative(f64),
 
-    /// Position absolue $z_d$ \[m\] — absolute axial position.
+    /// Absolute axial position $z_d$ \[m\].
     ///
-    /// Doit être validée contre la longueur de la colonne avant usage.
+    /// Doit être validée contre la longueur de la colonne avant usage via
+    /// [`Detector::validate_against_column`].
     /// Must be validated against the column length before use.
     Absolute(f64),
 }
@@ -107,28 +101,28 @@ pub enum DetectorPosition {
 // Detector
 // =============================================================================
 
-/// Détecteur chromatographique à position configurable.
+/// Chromatographic detector with configurable position.
 ///
-/// `Detector` encapsule la position du point de mesure du signal. La position
-/// par défaut est la sortie de colonne ([`DetectorPosition::Outlet`]),
-/// reproduisant le comportement actuel de `outlet_data`.
+/// `Detector` encapsulates the measurement point along the column axis.
+/// The default position is the column outlet ([`DetectorPosition::Outlet`]),
+/// reproducing the behaviour of `outlet_data`.
 ///
 /// # Example
 ///
 /// ```rust
 /// use chrom_rs::domain::{Detector, DetectorPosition};
 ///
-/// // Sortie de colonne (défaut)
+/// // Column outlet (default)
 /// let det = Detector::outlet();
 ///
-/// // Mi-colonne
+/// // Mid-column detector
 /// let det = Detector::new(DetectorPosition::Relative(0.5)).unwrap();
-/// // Pour L = 0.25 m : z_d = 0.125 m
+/// // For L = 0.25 m: z_d = 0.125 m
 /// assert!((det.absolute_position(0.25) - 0.125).abs() < 1e-12);
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Detector {
-    /// Position du détecteur — detector position.
+    /// Detector position along the column axis.
     pub position: DetectorPosition,
 }
 
@@ -137,8 +131,6 @@ impl Detector {
     // Constructors
     // =========================================================================
 
-    /// Construit un détecteur après validation de la position.
-    ///
     /// Creates a validated detector.
     ///
     /// # Errors
@@ -147,9 +139,10 @@ impl Detector {
     /// - `Relative(r)` with $r \notin [0, 1]$
     /// - `Absolute(z)` with $z \leq 0$
     ///
-    /// Note : `Absolute(z)` n'est pas validé contre la longueur de colonne ici
-    /// (elle n'est pas connue à ce stade). Use [`validate_against_column`](Self::validate_against_column)
-    /// to check compatibility at simulation time.
+    /// Note: `Absolute(z)` is not validated against the column length here
+    /// (it is not known at construction time). Use
+    /// [`validate_against_column`](Self::validate_against_column) to check
+    /// compatibility at simulation time.
     ///
     /// # Example
     ///
@@ -185,10 +178,10 @@ impl Detector {
         Ok(Self { position })
     }
 
-    /// Construit un détecteur en sortie de colonne (comportement par défaut).
+    /// Creates a detector at the column outlet (default behaviour).
     ///
-    /// Creates an outlet detector (default behaviour — equivalent to current
-    /// `outlet_data` usage).
+    /// Equivalent to `Detector::new(DetectorPosition::Outlet)` — shorthand
+    /// for the most common case, reproducing the current `outlet_data` usage.
     ///
     /// # Example
     ///
@@ -208,12 +201,10 @@ impl Detector {
     // Accessors
     // =========================================================================
 
-    /// Retourne la position absolue $z_d$ \[m\] pour une longueur de colonne $L$ donnée.
-    ///
     /// Returns the absolute axial position $z_d$ \[m\] for a given column length $L$.
     ///
-    /// | Variante | Résultat |
-    /// |----------|---------|
+    /// | Variant | Result |
+    /// |---------|--------|
     /// | `Outlet` | $L$ |
     /// | `Relative(r)` | $r \cdot L$ |
     /// | `Absolute(z)` | $z$ |
@@ -239,10 +230,9 @@ impl Detector {
         }
     }
 
-    /// Valide la position absolue contre la longueur de la colonne.
+    /// Validates an `Absolute` position against the column length.
     ///
-    /// Validates an `Absolute` position against the column length. No-op for
-    /// `Outlet` and `Relative` variants.
+    /// No-op for `Outlet` and `Relative` variants.
     ///
     /// # Errors
     ///
@@ -270,27 +260,25 @@ impl Detector {
         Ok(())
     }
 
-    /// Retourne l'indice spatial du nœud le plus proche de la position du détecteur.
-    ///
     /// Returns the spatial node index closest to the detector position.
     ///
-    /// Utilisé pour extraire le signal depuis un profil de concentration discrétisé.
     /// Used to extract the signal from a discretised concentration profile.
+    /// Utilisé pour extraire le signal depuis un profil de concentration discrétisé.
     ///
     /// # Arguments
     ///
-    /// * `column_length` — longueur de la colonne $L$ \[m\]
-    /// * `n_points`      — nombre de nœuds spatiaux $N_z$
+    /// * `column_length` — column length $L$ \[m\]
+    /// * `n_points`      — number of spatial nodes $N_z$
     ///
     /// # Example
     ///
     /// ```rust
     /// use chrom_rs::domain::{Detector, DetectorPosition};
     ///
-    /// // Sortie de colonne → dernier nœud
+    /// // Outlet → last node
     /// assert_eq!(Detector::outlet().node_index(0.25, 100), 99);
     ///
-    /// // Mi-colonne → nœud 50
+    /// // Mid-column → node 50
     /// let det = Detector::new(DetectorPosition::Relative(0.5)).unwrap();
     /// assert_eq!(det.node_index(0.25, 100), 50);
     /// ```
@@ -303,8 +291,6 @@ impl Detector {
 }
 
 impl Default for Detector {
-    /// Détecteur par défaut : sortie de colonne.
-    ///
     /// Default detector: column outlet.
     fn default() -> Self {
         Self::outlet()
@@ -395,7 +381,7 @@ mod tests {
 
     #[test]
     fn test_validate_outlet_always_ok() {
-        // Outlet et Relative ne sont jamais rejetés par validate_against_column
+        // Outlet and Relative are never rejected by validate_against_column
         assert!(Detector::outlet().validate_against_column(0.01).is_ok());
         let det = Detector::new(DetectorPosition::Relative(0.9)).unwrap();
         assert!(det.validate_against_column(0.01).is_ok());
@@ -415,6 +401,7 @@ mod tests {
     #[test]
     fn test_node_index_clamped() {
         // Position absolue légèrement supérieure au dernier nœud → clamp
+        // Absolute position slightly beyond the last node → clamped to n_points - 1
         let det = Detector::new(DetectorPosition::Absolute(0.25)).unwrap();
         assert_eq!(det.node_index(0.25, 100), 99);
     }
