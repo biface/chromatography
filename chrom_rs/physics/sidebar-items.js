@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["data","traits"]};
+window.SIDEBAR_ITEMS = {"mod":["context","data","traits"]};

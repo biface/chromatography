@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["DetectorError","DetectorPosition"],"struct":["Detector"]};

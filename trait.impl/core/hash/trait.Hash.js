@@ -1,9 +1,9 @@
 (function() {
-    const implementors = Object.fromEntries([["chrom_rs",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.94.1/core/hash/trait.Hash.html\" title=\"trait core::hash::Hash\">Hash</a> for <a class=\"enum\" href=\"chrom_rs/physics/traits/enum.PhysicalQuantity.html\" title=\"enum chrom_rs::physics::traits::PhysicalQuantity\">PhysicalQuantity</a>",0]]]]);
+    const implementors = Object.fromEntries([["chrom_rs",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.95.0/core/hash/trait.Hash.html\" title=\"trait core::hash::Hash\">Hash</a> for <a class=\"enum\" href=\"chrom_rs/physics/context/enum.ContextVariable.html\" title=\"enum chrom_rs::physics::context::ContextVariable\">ContextVariable</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.95.0/core/hash/trait.Hash.html\" title=\"trait core::hash::Hash\">Hash</a> for <a class=\"enum\" href=\"chrom_rs/physics/traits/enum.PhysicalQuantity.html\" title=\"enum chrom_rs::physics::traits::PhysicalQuantity\">PhysicalQuantity</a>",0]]]]);
     if (window.register_implementors) {
         window.register_implementors(implementors);
     } else {
         window.pending_implementors = implementors;
     }
 })()
-//{"start":59,"fragment_lengths":[316]}
+//{"start":59,"fragment_lengths":[617]}
