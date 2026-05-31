@@ -1,46 +1,44 @@
-//! Phases chromatographiques — chromatographic phases.
+//! Chromatographic phases.
 //!
-//! Ce module regroupe les types décrivant les phases présentes dans un
-//! système chromatographique. Seule la **phase mobile** est modélisée en
-//! v0.3.0 ; d'autres phases (gradient d'élution, phases couplées) pourront
-//! être ajoutées ici dans les jalons futurs.
+//! This module groups the types describing the phases present in a
+//! chromatographic system. Only the **mobile phase** is modelled in v0.3.0;
+//! additional phases (gradient elution, coupled columns) may be added here
+//! in future milestones.
 //!
 //! # Structure
 //!
-//! | Type | Rôle |
+//! | Type | Role |
 //! |------|------|
-//! | [`MobilePhase`] | Solvant porteur — carrier fluid properties |
+//! | [`MobilePhase`] | Carrier fluid properties |
 //!
 //! # Physical background
 //!
-//! La **phase mobile** est le solvant qui circule à travers la colonne et
-//! transporte les solutés. Ses paramètres clés sont la vitesse superficielle
-//! $u$ et, optionnellement, la viscosité dynamique $\eta$.
+//! The **mobile phase** is the solvent flowing through the column that
+//! carries the solutes. Its key parameters are the superficial velocity $u$
+//! and, optionally, the dynamic viscosity $\eta$.
 //!
-//! La **vitesse interstitielle** $u_e = u / \varepsilon_e$ est la vitesse
-//! réelle du fluide entre les grains — elle gouverne le transport convectif
-//! dans les équations de conservation.
+//! The **interstitial velocity** $u_e = u / \varepsilon_e$ is the actual fluid
+//! velocity between the stationary-phase particles — it governs convective
+//! transport in the conservation equations.
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 // =============================================================================
-// Section : Mobile Phase
+// Section: Mobile Phase
 // =============================================================================
 
 // -----------------------------------------------------------------------------
 // MobilePhaseError
 // -----------------------------------------------------------------------------
 
-/// Erreurs de construction d'une [`MobilePhase`] — MobilePhase construction errors.
+/// Errors returned by [`MobilePhase::new`] when a physical constraint is violated.
 #[derive(Debug)]
 pub enum MobilePhaseError {
-    /// La vitesse superficielle doit être strictement positive.
-    /// Superficial velocity must be > 0.
+    /// Superficial velocity must be strictly positive ($u > 0$).
     InvalidVelocity(f64),
 
-    /// La viscosité, si fournie, doit être strictement positive.
-    /// Viscosity, when provided, must be > 0.
+    /// Dynamic viscosity, when provided, must be strictly positive ($\eta > 0$).
     InvalidViscosity(f64),
 }
 
@@ -63,11 +61,11 @@ impl std::error::Error for MobilePhaseError {}
 // MobilePhase
 // -----------------------------------------------------------------------------
 
-/// Phase mobile d'un système chromatographique.
+/// Carrier fluid properties of a chromatographic system.
 ///
-/// `MobilePhase` encapsule les propriétés du solvant porteur. Elle est
-/// indépendante du modèle mathématique et sert de façade de construction
-/// validée pour les modèles physiques via leur constructeur `from_domain`.
+/// `MobilePhase` encapsulates the properties of the carrier solvent. It is
+/// independent of the mathematical model and serves as a validated construction
+/// facade for physical models via their `from_domain` constructor.
 ///
 /// # Fields
 ///
@@ -82,22 +80,22 @@ impl std::error::Error for MobilePhaseError {}
 /// use chrom_rs::domain::MobilePhase;
 ///
 /// let mp = MobilePhase::new(1e-4, None).unwrap();
-/// // Vitesse interstitielle pour ε_e = 0.4
+/// // Interstitial velocity for ε_e = 0.4
 /// assert!((mp.interstitial_velocity(0.4) - 2.5e-4).abs() < 1e-15);
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MobilePhase {
-    /// Vitesse superficielle $u$ \[m/s\] — superficial velocity.
+    /// Superficial velocity $u$ \[m/s\].
     ///
     /// Vitesse du solvant rapportée à la section totale de la colonne
-    /// (vides + solide). The carrier velocity referred to the total
-    /// column cross-section.
+    /// (vides + solide). Carrier velocity referred to the total column
+    /// cross-section (voids + solid).
     pub velocity: f64,
 
-    /// Viscosité dynamique $\eta$ \[Pa·s\] — dynamic viscosity (optional).
+    /// Dynamic viscosity $\eta$ \[Pa·s\] (optional).
     ///
-    /// Requise uniquement pour les calculs de perte de charge. Required
-    /// only for pressure-drop calculations.
+    /// Requise uniquement pour les calculs de perte de charge.
+    /// Required only for pressure-drop calculations.
     pub viscosity: Option<f64>,
 }
 
@@ -106,8 +104,6 @@ impl MobilePhase {
     // Constructor
     // =========================================================================
 
-    /// Construit une phase mobile après validation des paramètres.
-    ///
     /// Creates a validated mobile phase.
     ///
     /// # Arguments
@@ -154,9 +150,9 @@ impl MobilePhase {
     // Derived accessors
     // =========================================================================
 
-    /// Vitesse interstitielle $u_e = u / \varepsilon_e$ \[m/s\].
+    /// Interstitial velocity $u_e = u / \varepsilon_e$ \[m/s\].
     ///
-    /// Interstitial velocity — the actual fluid velocity between particles.
+    /// Actual fluid velocity between the stationary-phase particles.
     ///
     /// # Arguments
     ///
@@ -184,10 +180,6 @@ impl MobilePhase {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // -------------------------------------------------------------------------
-    // MobilePhase
-    // -------------------------------------------------------------------------
 
     #[test]
     fn test_mobile_phase_valid() {

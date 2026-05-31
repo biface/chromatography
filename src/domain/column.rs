@@ -1,11 +1,10 @@
-//! Colonne chromatographique — physical geometry of the chromatographic column.
+//! Physical geometry of the chromatographic column.
 //!
-//! Ce module définit [`Column`], le type canonique décrivant la géométrie
-//! physique d'une colonne chromatographique. Il est indépendant de tout
-//! modèle mathématique et sert de couche de construction validée pour
-//! [`LangmuirSingle`](crate::models::LangmuirSingle) et
-//! [`LangmuirMulti`](crate::models::LangmuirMulti), ainsi que pour tout
-//! futur modèle de transport.
+//! This module defines [`Column`], the canonical type describing the physical
+//! geometry of a chromatographic column. It is independent of any mathematical
+//! model and serves as a validated construction facade for
+//! [`LangmuirSingle`](crate::models::LangmuirSingle),
+//! [`LangmuirMulti`](crate::models::LangmuirMulti), and any future transport model.
 //!
 //! # Physical background
 //!
@@ -44,20 +43,19 @@ use std::fmt;
 // ColumnError
 // =============================================================================
 
-/// Erreurs de construction d'une [`Column`] — Column construction errors.
+/// Errors returned by [`Column::new`] when a physical constraint is violated.
 #[derive(Debug)]
 pub enum ColumnError {
-    /// La longueur doit être strictement positive — column length must be > 0.
+    /// Column length must be strictly positive ($L > 0$).
     InvalidLength(f64),
 
-    /// Le nombre de points doit être ≥ 2 — spatial points must be ≥ 2.
+    /// Number of spatial nodes must be at least 2 ($N_z \geq 2$).
     InvalidPoints(usize),
 
-    /// La porosité doit appartenir à (0, 1) — porosity must be in (0, 1).
+    /// Extragranular porosity must lie in the open interval $(0, 1)$.
     InvalidPorosity(f64),
 
-    /// Le diamètre, s'il est fourni, doit être strictement positif.
-    /// Diameter, when provided, must be > 0.
+    /// Inner diameter, when provided, must be strictly positive ($d > 0$).
     InvalidDiameter(f64),
 }
 
@@ -86,12 +84,12 @@ impl std::error::Error for ColumnError {}
 // Column
 // =============================================================================
 
-/// Géométrie physique d'une colonne chromatographique.
+/// Physical geometry of a chromatographic column.
 ///
-/// `Column` encapsule les paramètres géométriques et de discrétisation d'une
-/// colonne. Il sert de façade de construction validée : les modèles physiques
-/// (`LangmuirSingle`, `LangmuirMulti`, …) acceptent une `&Column` dans leur
-/// constructeur `from_domain` et en extraient les champs nécessaires.
+/// `Column` encapsulates the geometric and discretisation parameters of a
+/// column. It acts as a validated construction facade: physical models
+/// (`LangmuirSingle`, `LangmuirMulti`, …) accept a `&Column` in their
+/// `from_domain` constructor and extract the fields they need.
 ///
 /// # Fields
 ///
@@ -113,20 +111,23 @@ impl std::error::Error for ColumnError {}
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Column {
-    /// Longueur de la colonne $L$ \[m\] — column length.
+    /// Column length $L$ \[m\].
     pub column_length: f64,
 
-    /// Nombre de nœuds spatiaux $N_z$ — number of spatial discretisation nodes.
+    /// Number of spatial discretisation nodes $N_z$.
     pub n_points: usize,
 
-    /// Porosité extragranulaire $\varepsilon_e \in (0, 1)$ — extragranular porosity.
+    /// Extragranular porosity $\varepsilon_e \in (0, 1)$.
+    ///
+    /// Fraction de vide disponible pour la phase mobile entre les grains.
+    /// Void fraction available to the mobile phase between stationary-phase particles.
     pub porosity: f64,
 
-    /// Diamètre interne $d$ \[m\] — inner diameter (optional).
+    /// Inner diameter $d$ \[m\] (optional).
     ///
     /// Requis uniquement pour convertir un débit volumique $F$ en vitesse
-    /// superficielle $u$. Required only to convert volumetric flow rate to
-    /// superficial velocity.
+    /// superficielle $u = F / (\pi d^2 / 4)$.
+    /// Required only to convert volumetric flow rate to superficial velocity.
     pub diameter: Option<f64>,
 }
 
@@ -135,8 +136,6 @@ impl Column {
     // Constructor
     // =========================================================================
 
-    /// Construit une colonne après validation des paramètres.
-    ///
     /// Creates a validated column.
     ///
     /// # Arguments
@@ -193,9 +192,7 @@ impl Column {
     // Derived accessors
     // =========================================================================
 
-    /// Largeur d'une cellule spatiale $\Delta z = L / N_z$ \[m\].
-    ///
-    /// Spatial cell width.
+    /// Spatial cell width $\Delta z = L / N_z$ \[m\].
     ///
     /// # Example
     ///
@@ -210,9 +207,9 @@ impl Column {
         self.column_length / self.n_points as f64
     }
 
-    /// Rapport de phase $F_e = (1 - \varepsilon_e) / \varepsilon_e$.
+    /// Phase ratio $F_e = (1 - \varepsilon_e) / \varepsilon_e$.
     ///
-    /// Phase ratio — ratio of stationary-phase volume to mobile-phase volume.
+    /// Ratio of stationary-phase volume to mobile-phase volume.
     ///
     /// # Example
     ///
