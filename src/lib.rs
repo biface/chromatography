@@ -71,6 +71,18 @@
 //! | [`cli`] | Command-line interface built on `dynamic-cli` |
 //! | [`prelude`] | Convenience re-exports for the most common types |
 
+/// Physical domain model — equipment description layer.
+///
+/// Provides validated, model-agnostic types for the physical equipment:
+/// [`domain::Column`], [`domain::MobilePhase`], [`domain::Sample`], and
+/// [`domain::Detector`]. These types serve as a construction facade for all
+/// physical models ([`models::LangmuirSingle`], [`models::LangmuirMulti`], …)
+/// via their `from_domain` constructors.
+///
+/// See [DD-011](https://github.com/biface/chromatography/issues/16) for the
+/// design rationale.
+pub mod domain;
+
 /// Physical model traits, state containers, and data types.
 ///
 /// Defines the extension points that all physical models must implement,
@@ -125,6 +137,9 @@ pub mod cli;
 /// use chrom_rs::prelude::*;
 /// ```
 pub mod prelude {
+    pub use crate::domain::{
+        Column, ColumnError, Detector, DetectorPosition, MobilePhase, MobilePhaseError, Sample,
+    };
     pub use crate::models::TemporalInjection;
     pub use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
     pub use crate::solver::{
