@@ -55,7 +55,7 @@
 //! #[typetag::serde]
 //! impl PhysicalModel for MyModel {
 //!      fn points(&self) -> usize { 1 }
-//!      fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+//!      fn compute_physics(&self, state: &PhysicalState, _ctx: &chrom_rs::physics::ComputeContext) -> PhysicalState { state.clone() }
 //!      fn setup_initial_state(&self) -> PhysicalState {
 //!          PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])))
 //!      }

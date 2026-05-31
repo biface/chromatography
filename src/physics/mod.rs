@@ -31,7 +31,7 @@
 //! # #[typetag::serde]
 //! # impl PhysicalModel for MyModel {
 //! #     fn points(&self) -> usize { 1 }
-//! #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+//! #     fn compute_physics(&self, state: &PhysicalState, _ctx: &chrom_rs::physics::ComputeContext) -> PhysicalState { state.clone() }
 //! #     fn setup_initial_state(&self) -> PhysicalState {
 //! #         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(nalgebra::DVector::from_vec(vec![1.0])))
 //! #     }
@@ -45,7 +45,8 @@
 //! let initial_state = model.setup_initial_state();
 //!
 //! // Compute physics at current state
-//! let physics_result = model.compute_physics(&initial_state);
+//! # let ctx = chrom_rs::physics::ComputeContext::new(0.0, 0.01);
+//! let physics_result = model.compute_physics(&initial_state, &ctx);
 //! # }
 //! ```
 //!
@@ -69,7 +70,7 @@
 //!         1
 //!     }
 //!
-//!     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
+//!     fn compute_physics(&self, state: &PhysicalState, _ctx: &chrom_rs::physics::ComputeContext) -> PhysicalState {
 //!         // Compute and return the physics equations
 //!         state.clone()
 //!     }
@@ -93,13 +94,15 @@
 //! - **Langmuir 1D**: 1D chromatography with modified Langmuir isotherm
 
 // module declaration
+/// Typed compute context: [`ComputeContext`], [`ContextVariable`], [`ContextValue`].
+pub mod context;
 /// Core data types: [`PhysicalData`], [`PhysicalState`], and [`PhysicalQuantity`].
 pub mod data;
 /// Core traits: [`PhysicalModel`] and [`Exportable`].
 pub mod traits;
-// Model implementation
 
 // re-export commonly used types for convenience
+pub use context::{ComputeContext, ContextValue, ContextVariable};
 pub use data::PhysicalData;
 pub use traits::{
     ExportError, Exportable, PhysicalModel, PhysicalQuantity, PhysicalState, outlet_data,

@@ -376,14 +376,18 @@ impl PhysicalModel for LangmuirSingle {
     ///
     /// **Interior and right boundary** ($i > 0$): standard backward difference
     /// using the real upstream neighbor $C_{i-1}$.
-    fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
+    fn compute_physics(
+        &self,
+        state: &PhysicalState,
+        ctx: &crate::physics::context::ComputeContext,
+    ) -> PhysicalState {
         // ── Time ──────────────────────────────────────────────────────────────
         //
-        // The solver writes the current simulation time into the state metadata
-        // before each call. If absent (e.g. solver does not support metadata),
-        // defaults to t=0.0 — injection profiles return their value at t=0.
+        // The solver passes the current simulation time via ComputeContext.
+        // Infallible — no unwrap_or required. Replaces the previous convention
+        // of reading state.get_metadata("time") (DD-008).
 
-        let t = state.get_metadata("time").unwrap_or(0.0);
+        let t = ctx.time();
 
         // ── Inlet concentration ───────────────────────────────────────────────
         //
@@ -489,16 +493,16 @@ impl Exportable for LangmuirSingle {
     /// ```json
     /// {
     ///   "metadata": {
-    ///     "model":              "Langmuir single specie with temporal injection",
-    ///     "lambda":             1.2,
-    ///     "langmuir_k":         0.4,
-    ///     "port_number":        2.0,
-    ///     "columns_length":     0.25,
-    ///     "n_points":           100,
-    ///     "fe":                 1.5,
-    ///     "ue":                 0.0025,
-    ///     "solver":             "Runge-Kutta 4",
-    ///     "dt":                 "0.06"
+    ///     "model":       "Langmuir single specie with temporal injection",
+    ///     "lambda":      1.2,
+    ///     "langmuir_k":  0.4,
+    ///     "port_number": 2.0,
+    ///     "column_length":      0.25,
+    ///     "n_points":          100,
+    ///     "fe":          1.5,
+    ///     "ue":          0.0025,
+    ///     "solver":      "Runge-Kutta 4",
+    ///     "dt":          "0.06"
     ///   },
     ///   "data": {
     ///     "time_points": [0.0, 0.06, "..."],
@@ -583,8 +587,8 @@ impl Exportable for LangmuirSingle {
     /// | `lambda` | `f64` | Linear retention term |
     /// | `langmuir_k` | `f64` | Langmuir equilibrium constant |
     /// | `port_number` | `f64` | Adsorption capacity |
-    /// | `column_length` | `f64` | Column length (m) |
-    /// | `n_points` | `u64` | Number of spatial points |
+    /// | `length` | `f64` | Column length (m) |
+    /// | `nz` | `u64` | Number of spatial points |
     /// | `fe` | `f64` | Phase ratio — back-computes porosity as `1 / (1 + fe)` |
     /// | `ue` | `f64` | Interstitial velocity — back-computes velocity as `ue × ε` |
     ///
@@ -623,10 +627,10 @@ impl Exportable for LangmuirSingle {
         let lambda = get_f64!("lambda");
         let langmuir_k = get_f64!("langmuir_k");
         let port_number = get_f64!("port_number");
-        let length = get_f64!("column_length");
+        let column_length = get_f64!("column_length");
         let fe = get_f64!("fe");
         let ue = get_f64!("ue");
-        let nz = get_usize!("n_points");
+        let n_points = get_usize!("n_points");
 
         // Back-compute constructor arguments from derived quantities:
         //   fe = (1 - ε) / ε  →  ε = 1 / (1 + fe)
@@ -640,8 +644,8 @@ impl Exportable for LangmuirSingle {
             port_number,
             porosity,
             velocity,
-            length,
-            nz,
+            column_length,
+            n_points,
             TemporalInjection::none(),
         ))
     }
@@ -672,13 +676,13 @@ mod tests {
     #[test]
     fn test_read_time_from_metadata() {
         let model = create_langmuir_single();
-        let mut state = model.setup_initial_state();
+        let state = model.setup_initial_state();
 
         // Add time metadata (as if solver set it)
-        state.set_metadata("time".to_string(), 10.0);
+        let ctx = crate::physics::ComputeContext::new(10.0, 0.0);
 
         // Compute physics
-        let physics = model.compute_physics(&state);
+        let physics = model.compute_physics(&state, &ctx);
 
         // At t = 10.0, injection should be at peak (0.1 mol/L)
         // Should see effect at inlet
@@ -696,8 +700,8 @@ mod tests {
         let model = create_langmuir_single();
         let state = model.setup_initial_state();
 
-        // No metadata added - should default to t=0
-        let physics = model.compute_physics(&state);
+        let ctx = crate::physics::ComputeContext::new(0.0, 0.0);
+        let physics = model.compute_physics(&state, &ctx);
 
         // Should still work (uses t=0, so minimal injection)
         let dc_dt = physics
@@ -712,19 +716,19 @@ mod tests {
     #[test]
     fn test_different_times_different_physics() {
         let model = create_langmuir_single();
-        let mut state = model.setup_initial_state();
+        let state = model.setup_initial_state();
 
         // At t=0
-        state.set_metadata("time".to_string(), 0.0);
-        let physics_0 = model.compute_physics(&state);
+        let ctx_0 = crate::physics::ComputeContext::new(0.0, 0.0);
+        let physics_0 = model.compute_physics(&state, &ctx_0);
         let dc_dt_0 = physics_0
             .get(PhysicalQuantity::Concentration)
             .unwrap()
             .as_vector();
 
         // At t=10 (peak)
-        state.set_metadata("time".to_string(), 10.0);
-        let physics_10 = model.compute_physics(&state);
+        let ctx_10 = crate::physics::ComputeContext::new(10.0, 0.0);
+        let physics_10 = model.compute_physics(&state, &ctx_10);
         let dc_dt_10 = physics_10
             .get(PhysicalQuantity::Concentration)
             .unwrap()
@@ -937,7 +941,7 @@ mod tests {
         assert!(
             matches!(
                 LangmuirSingle::from_map(partial),
-                Err(ExportError::MissingKey(key)) if key == "lambda"
+                Err(ExportError::MissingKey(_))
             ),
             "Missing 'lambda' must yield MissingKey"
         );

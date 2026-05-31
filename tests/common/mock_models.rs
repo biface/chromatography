@@ -38,7 +38,11 @@ impl PhysicalModel for ExponentialDecay {
         self.points
     }
 
-    fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
+    fn compute_physics(
+        &self,
+        state: &PhysicalState,
+        _ctx: &chrom_rs::physics::ComputeContext,
+    ) -> PhysicalState {
         // dy/dt = -k * y
         let mut result = state.clone();
 
@@ -96,7 +100,11 @@ impl PhysicalModel for ConstantGrowth {
         self.points
     }
 
-    fn compute_physics(&self, _state: &PhysicalState) -> PhysicalState {
+    fn compute_physics(
+        &self,
+        _state: &PhysicalState,
+        _ctx: &chrom_rs::physics::ComputeContext,
+    ) -> PhysicalState {
         // dy/dt = c (constant)
         PhysicalState::new(
             PhysicalQuantity::Concentration,
@@ -142,7 +150,11 @@ impl PhysicalModel for LinearTransport {
         self.points
     }
 
-    fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
+    fn compute_physics(
+        &self,
+        state: &PhysicalState,
+        _ctx: &chrom_rs::physics::ComputeContext,
+    ) -> PhysicalState {
         // Placeholder: just decay for now
         let mut result = state.clone();
 

@@ -103,7 +103,11 @@ impl PhysicalModel for SimpleModel {
         self.points
     }
 
-    fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
+    fn compute_physics(
+        &self,
+        state: &PhysicalState,
+        _ctx: &chrom_rs::physics::ComputeContext,
+    ) -> PhysicalState {
         let mut result = state.clone();
         if let Some(conc) = result.get_mut(PhysicalQuantity::Concentration) {
             conc.apply(|x| -0.1 * x);
