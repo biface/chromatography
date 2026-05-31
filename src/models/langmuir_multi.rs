@@ -409,6 +409,55 @@ impl LangmuirMulti {
         })
     }
 
+    /// Creates a `LangmuirMulti` model from validated domain objects.
+    ///
+    /// Accepts a [`Column`](crate::domain::Column) and a
+    /// [`MobilePhase`](crate::domain::MobilePhase) as construction input,
+    /// delegating to [`new`](Self::new) after extracting the required fields.
+    ///
+    /// # Arguments
+    ///
+    /// * `column`       - validated column geometry
+    /// * `mobile_phase` - validated mobile-phase properties
+    /// * `species`      - list of [`SpeciesParams`] (at least one, no duplicates)
+    ///
+    /// # Errors
+    ///
+    /// Propagates any error from [`new`](Self::new): empty species list,
+    /// duplicate species names, or invalid species parameters.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use chrom_rs::domain::{Column, MobilePhase};
+    /// use chrom_rs::models::{LangmuirMulti, SpeciesParams};
+    /// use chrom_rs::models::injection::TemporalInjection;
+    ///
+    /// let column = Column::new(0.25, 100, 0.4, None).unwrap();
+    /// let mobile_phase = MobilePhase::new(1e-4, None).unwrap();
+    /// let species = vec![
+    ///     SpeciesParams::new("A", 1.2, 0.4, 2, TemporalInjection::none()),
+    /// ];
+    ///
+    /// let model = LangmuirMulti::from_domain(&column, &mobile_phase, species).unwrap();
+    ///
+    /// assert_eq!(model.n_species(), 1);
+    /// assert!((model.column_length() - 0.25).abs() < 1e-12);
+    /// ```
+    pub fn from_domain(
+        column: &crate::domain::Column,
+        mobile_phase: &crate::domain::MobilePhase,
+        species: Vec<SpeciesParams>,
+    ) -> Result<Self, String> {
+        Self::new(
+            species,
+            column.n_points,
+            column.porosity,
+            mobile_phase.velocity,
+            column.column_length,
+        )
+    }
+
     /// Adds a competing chemical species to the model
     ///
     /// # Errors
@@ -424,10 +473,6 @@ impl LangmuirMulti {
     /// let inj = TemporalInjection::dirac(0.0, 1e-3);
     /// let sp1 = SpeciesParams::new("A", 1.0, 0.5, 1, inj.clone());
     /// let sp2 = SpeciesParams::new("B", 1.0, 2.0, 1, inj);
-    ///
-    /// let mut model = LangmuirMulti::new(vec![sp1], 50, 0.4, 0.001, 0.25).unwrap();
-    /// model.add_species(sp2).unwrap();
-    /// assert_eq!(model.n_species(), 2);
     /// ```
     pub fn add_species(&mut self, species: SpeciesParams) -> Result<(), String> {
         // validate the specie
@@ -1797,5 +1842,65 @@ mod tests {
             ),
             "Missing 'porosity' must yield MissingKey"
         );
+    }
+
+    #[test]
+    fn test_from_domain_builds_equivalent_model() {
+        use crate::domain::{Column, MobilePhase};
+
+        let column = Column::new(0.25, 100, 0.4, None).unwrap();
+        let mobile_phase = MobilePhase::new(1e-4, None).unwrap();
+        let species = vec![SpeciesParams::new(
+            "A",
+            1.2,
+            0.4,
+            2,
+            TemporalInjection::none(),
+        )];
+
+        let model = LangmuirMulti::from_domain(&column, &mobile_phase, species).unwrap();
+
+        assert_eq!(model.n_species(), 1);
+        assert!((model.column_length() - 0.25).abs() < 1e-12);
+        assert_eq!(model.spatial_points(), 100);
+    }
+
+    #[test]
+    fn test_from_domain_multi_species() {
+        use crate::domain::{Column, MobilePhase};
+
+        let column = Column::new(0.25, 100, 0.4, None).unwrap();
+        let mobile_phase = MobilePhase::new(1e-4, None).unwrap();
+        let species = vec![
+            SpeciesParams::new("A", 1.2, 0.4, 2, TemporalInjection::none()),
+            SpeciesParams::new("B", 0.8, 0.3, 2, TemporalInjection::none()),
+        ];
+
+        let model = LangmuirMulti::from_domain(&column, &mobile_phase, species).unwrap();
+        assert_eq!(model.n_species(), 2);
+    }
+
+    #[test]
+    fn test_from_domain_empty_species_fails() {
+        use crate::domain::{Column, MobilePhase};
+
+        let column = Column::new(0.25, 100, 0.4, None).unwrap();
+        let mobile_phase = MobilePhase::new(1e-4, None).unwrap();
+
+        assert!(LangmuirMulti::from_domain(&column, &mobile_phase, vec![]).is_err());
+    }
+
+    #[test]
+    fn test_from_domain_duplicate_species_fails() {
+        use crate::domain::{Column, MobilePhase};
+
+        let column = Column::new(0.25, 100, 0.4, None).unwrap();
+        let mobile_phase = MobilePhase::new(1e-4, None).unwrap();
+        let species = vec![
+            SpeciesParams::new("A", 1.2, 0.4, 2, TemporalInjection::none()),
+            SpeciesParams::new("A", 0.8, 0.3, 2, TemporalInjection::none()),
+        ];
+
+        assert!(LangmuirMulti::from_domain(&column, &mobile_phase, species).is_err());
     }
 }
