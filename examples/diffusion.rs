@@ -55,7 +55,11 @@ impl PhysicalModel for FisherKPP {
         self.n_points
     }
 
-    fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
+    fn compute_physics(
+        &self,
+        state: &PhysicalState,
+        _ctx: &chrom_rs::physics::ComputeContext,
+    ) -> PhysicalState {
         let u = state
             .get(PhysicalQuantity::Concentration)
             .expect("Concentration not found")

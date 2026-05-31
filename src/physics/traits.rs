@@ -532,7 +532,7 @@ impl std::ops::Mul<f64> for PhysicalState {
 ///         self.points
 ///     }
 ///
-///     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
+///     fn compute_physics(&self, state: &PhysicalState, _ctx: &chrom_rs::physics::ComputeContext) -> PhysicalState {
 ///         // Compute transport: dc/dt = -v * dc/dx
 ///         // (simplified - actual implementation would use finite differences)
 ///         let mut result = PhysicalState::empty();
@@ -567,7 +567,7 @@ pub trait PhysicalModel: Send + Sync {
     /// # #[typetag::serde]
     /// # impl PhysicalModel for MyModel {
     /// #   fn points(&self) -> usize { self.points }
-    /// #   fn compute_physics(&self, state: &chrom_rs::physics::PhysicalState) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
+    /// #   fn compute_physics(&self, state: &chrom_rs::physics::PhysicalState, _ctx: &chrom_rs::physics::ComputeContext) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
     /// #   fn setup_initial_state(&self) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
     /// #   fn name(&self) -> &str { "MyModel" }
     /// # }
@@ -579,15 +579,19 @@ pub trait PhysicalModel: Send + Sync {
     /// Compute the physics at a given state
     ///
     /// # Arguments
-    /// * `state` - Current physical state of the system
+    ///
+    /// * `state` — Current physical state of the system
+    /// * `ctx`   — Compute context carrying the current time $t$ and time step
+    ///   $\Delta t$ (infallible), plus optional derived variables
     ///
     /// # Returns
-    /// Result of evaluating the physics (interpretation depends on model type)
+    ///
+    /// Result of evaluating the physics (interpretation depends on model type).
     ///
     /// # Physical Interpretation
     ///
     /// **For time-dependent models (ODE)**:
-    /// - Returns right-hand side f(y) of dy/dt = f(y)
+    /// - Returns right-hand side f(y) of dy/dt = f(y, t)
     /// - Solver integrates this over time using Euler, RK4, etc.
     /// - Example: chromatography transport-dispersion-adsorption
     ///
@@ -606,7 +610,19 @@ pub trait PhysicalModel: Send + Sync {
     /// - Isotherms, kinetics, reactions
     /// - Spatial derivatives (finite differences)
     /// - Boundary conditions
-    fn compute_physics(&self, state: &PhysicalState) -> PhysicalState;
+    ///
+    /// # Breaking change (v0.3.0)
+    ///
+    /// The `ctx: &ComputeContext` argument replaces the previous convention of
+    /// injecting time via `state.set_metadata("time", t)`. Models now read
+    /// `ctx.time()` directly — infallible, no `unwrap_or` required.
+    ///
+    /// See [DD-008](https://github.com/biface/chromatography/issues/13).
+    fn compute_physics(
+        &self,
+        state: &PhysicalState,
+        ctx: &crate::physics::context::ComputeContext,
+    ) -> PhysicalState;
 
     /// Create the initial state for this physical model
     ///
@@ -647,7 +663,7 @@ pub trait PhysicalModel: Send + Sync {
     ///         state
     ///     }
     ///
-    ///     fn compute_physics(&self, _state: &PhysicalState) -> PhysicalState {
+    ///     fn compute_physics(&self, _state: &PhysicalState, _ctx: &chrom_rs::physics::ComputeContext) -> PhysicalState {
     ///         PhysicalState::empty()
     ///     }
     ///
@@ -667,7 +683,7 @@ pub trait PhysicalModel: Send + Sync {
     /// # #[typetag::serde]
     /// # impl PhysicalModel for Transport {
     /// #   fn points(&self) -> usize { 100 }
-    /// #   fn compute_physics(&self, _: &chrom_rs::physics::PhysicalState) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
+    /// #   fn compute_physics(&self, _: &chrom_rs::physics::PhysicalState, _ctx: &chrom_rs::physics::ComputeContext) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
     /// #   fn setup_initial_state(&self) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
     /// fn name(&self) -> &str {
     ///     "Transport-Dispersion-Adsorption Model"
@@ -690,7 +706,7 @@ pub trait PhysicalModel: Send + Sync {
     /// # #[typetag::serde]
     /// # impl PhysicalModel for MyModel {
     /// #   fn points(&self) -> usize { 100 }
-    /// #   fn compute_physics(&self, _: &chrom_rs::physics::PhysicalState) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
+    /// #   fn compute_physics(&self, _: &chrom_rs::physics::PhysicalState, _ctx: &chrom_rs::physics::ComputeContext) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
     /// #   fn setup_initial_state(&self) -> chrom_rs::physics::PhysicalState { chrom_rs::physics::PhysicalState::empty() }
     /// #   fn name(&self) -> &str { "MyModel" }
     /// fn description(&self) -> Option<&str> {

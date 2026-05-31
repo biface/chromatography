@@ -77,7 +77,7 @@
 //! # #[typetag::serde]
 //! # impl PhysicalModel for MyModel {
 //! #     fn points(&self) -> usize { 1 }
-//! #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+//! #     fn compute_physics(&self, state: &PhysicalState, _ctx: &chrom_rs::physics::ComputeContext) -> PhysicalState { state.clone() }
 //! #     fn setup_initial_state(&self) -> PhysicalState {
 //! #         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])))
 //! #     }
@@ -159,7 +159,7 @@ use crate::solver::{
 /// # #[typetag::serde]
 /// # impl PhysicalModel for MyModel {
 /// #     fn points(&self) -> usize { 1 }
-/// #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+/// #     fn compute_physics(&self, state: &PhysicalState, _ctx: &chrom_rs::physics::ComputeContext) -> PhysicalState { state.clone() }
 /// #     fn setup_initial_state(&self) -> PhysicalState {
 /// #         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])))
 /// #     }
@@ -268,30 +268,31 @@ impl Solver for RK4Solver {
 
             // ====== RK4 Stages ======
 
-            state.set_metadata("time".to_string(), t);
+            // Build compute context for this time step (DD-008)
+            let ctx = crate::physics::ComputeContext::new(t, dt);
 
             // Stage 1: Slope at beginning of interval
             // k₁ = f(yₙ, tₙ)
 
-            let k1 = scenario.model.compute_physics(&state);
+            let k1 = scenario.model.compute_physics(&state, &ctx);
 
             // Stage 2: Slope at midpoint using Euler prediction with k₁
             // k₂ = f(yₙ + dt/2·k₁, tₙ + dt/2)
 
             let state_k2 = state.clone() + k1.clone() * (dt / 2.0);
-            let k2 = scenario.model.compute_physics(&state_k2);
+            let k2 = scenario.model.compute_physics(&state_k2, &ctx);
 
             // Stage 3: Slope at midpoint using Euler prediction with k₂
             // k₃ = f(yₙ + dt/2·k₂, tₙ + dt/2)
 
             let state_k3 = state.clone() + k2.clone() * (dt / 2.0);
-            let k3 = scenario.model.compute_physics(&state_k3);
+            let k3 = scenario.model.compute_physics(&state_k3, &ctx);
 
             // Stage 4: Slope at end using Euler prediction with k₃
             // k₄ = f(yₙ + dt·k₃, tₙ + dt)
 
             let state_k4 = state.clone() + k3.clone() * dt;
-            let k4 = scenario.model.compute_physics(&state_k4);
+            let k4 = scenario.model.compute_physics(&state_k4, &ctx);
 
             // ====== RK4 Update ======
 
@@ -383,7 +384,11 @@ mod tests {
             self.points
         }
 
-        fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
+        fn compute_physics(
+            &self,
+            state: &PhysicalState,
+            _ctx: &crate::physics::ComputeContext,
+        ) -> PhysicalState {
             // dy/dt = -k * y
             // return -k * y as the physics
 
@@ -423,7 +428,11 @@ mod tests {
             self.points
         }
 
-        fn compute_physics(&self, _state: &PhysicalState) -> PhysicalState {
+        fn compute_physics(
+            &self,
+            _state: &PhysicalState,
+            _ctx: &crate::physics::ComputeContext,
+        ) -> PhysicalState {
             PhysicalState::new(
                 PhysicalQuantity::Concentration,
                 PhysicalData::uniform_vector(self.points, self.growth_rate),
@@ -460,7 +469,11 @@ mod tests {
             self.points
         }
 
-        fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
+        fn compute_physics(
+            &self,
+            state: &PhysicalState,
+            _ctx: &crate::physics::ComputeContext,
+        ) -> PhysicalState {
             let mut result = PhysicalState::empty();
 
             // Get position and velocity
@@ -847,7 +860,11 @@ mod tests {
                 self.points
             }
 
-            fn compute_physics(&self, _state: &PhysicalState) -> PhysicalState {
+            fn compute_physics(
+                &self,
+                _state: &PhysicalState,
+                _ctx: &crate::physics::ComputeContext,
+            ) -> PhysicalState {
                 PhysicalState::new(
                     PhysicalQuantity::Concentration,
                     PhysicalData::uniform_vector(self.points, f64::NAN),
@@ -893,7 +910,11 @@ mod tests {
                 self.points
             }
 
-            fn compute_physics(&self, _state: &PhysicalState) -> PhysicalState {
+            fn compute_physics(
+                &self,
+                _state: &PhysicalState,
+                _ctx: &crate::physics::ComputeContext,
+            ) -> PhysicalState {
                 PhysicalState::new(
                     PhysicalQuantity::Concentration,
                     PhysicalData::uniform_vector(self.points, f64::INFINITY),
@@ -969,7 +990,11 @@ mod tests {
                 self.points
             }
 
-            fn compute_physics(&self, _state: &PhysicalState) -> PhysicalState {
+            fn compute_physics(
+                &self,
+                _state: &PhysicalState,
+                _ctx: &crate::physics::ComputeContext,
+            ) -> PhysicalState {
                 let mut result = PhysicalState::empty();
 
                 // dC/dt = 1

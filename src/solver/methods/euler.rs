@@ -56,7 +56,7 @@
 //! # #[typetag::serde]
 //! # impl PhysicalModel for MyModel {
 //! #     fn points(&self) -> usize { 1 }
-//! #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+//! #     fn compute_physics(&self, state: &PhysicalState, _ctx: &chrom_rs::physics::ComputeContext) -> PhysicalState { state.clone() }
 //! #     fn setup_initial_state(&self) -> PhysicalState {
 //! #         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])))
 //! #     }
@@ -127,7 +127,7 @@ use crate::solver::{Scenario, SimulationResult, Solver, SolverConfiguration, Sol
 /// # #[typetag::serde]
 /// # impl PhysicalModel for MyModel {
 /// #     fn points(&self) -> usize { 1 }
-/// #     fn compute_physics(&self, state: &PhysicalState) -> PhysicalState { state.clone() }
+/// #     fn compute_physics(&self, state: &PhysicalState, _ctx: &chrom_rs::physics::ComputeContext) -> PhysicalState { state.clone() }
 /// #     fn setup_initial_state(&self) -> PhysicalState {
 /// #         PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Vector(DVector::from_vec(vec![1.0])))
 /// #     }
@@ -230,14 +230,13 @@ impl Solver for EulerSolver {
 
             // ====== Euler step ======
 
-            // 0. Add metadata time to be used by injection condition
+            // 1. Build compute context for this time step (DD-008)
+            let ctx = crate::physics::ComputeContext::new(t, dt);
 
-            state.set_metadata("time".to_string(), t);
-
-            // 1. Compute physics: f(y_n, t_n)
+            // 2. Compute physics: f(y_n, t_n)
             //    This returns the right-hand side of dy/dt = f(y, t)
             //    For chromatography: transport + dispersion + adsorption terms
-            let physics: PhysicalState = scenario.model.compute_physics(&state);
+            let physics: PhysicalState = scenario.model.compute_physics(&state, &ctx);
 
             // 2. Update state: y_{n+1} = y_n + dt * f(y_n)
             //    PhysicalState implements Add and Mul<f64>, so this works naturally
@@ -323,7 +322,11 @@ mod tests {
             self.points
         }
 
-        fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
+        fn compute_physics(
+            &self,
+            state: &PhysicalState,
+            _ctx: &crate::physics::ComputeContext,
+        ) -> PhysicalState {
             // dy/dt = -k * y
             // return -k * y as the physics
 
@@ -363,7 +366,11 @@ mod tests {
             self.points
         }
 
-        fn compute_physics(&self, _state: &PhysicalState) -> PhysicalState {
+        fn compute_physics(
+            &self,
+            _state: &PhysicalState,
+            _ctx: &crate::physics::ComputeContext,
+        ) -> PhysicalState {
             PhysicalState::new(
                 PhysicalQuantity::Concentration,
                 PhysicalData::uniform_vector(self.points, self.growth_rate),
@@ -761,7 +768,11 @@ mod tests {
                 self.points
             }
 
-            fn compute_physics(&self, _state: &PhysicalState) -> PhysicalState {
+            fn compute_physics(
+                &self,
+                _state: &PhysicalState,
+                _ctx: &crate::physics::ComputeContext,
+            ) -> PhysicalState {
                 // Return NaN to trigger validation error
                 PhysicalState::new(
                     PhysicalQuantity::Concentration,
@@ -810,7 +821,11 @@ mod tests {
                 self.points
             }
 
-            fn compute_physics(&self, _state: &PhysicalState) -> PhysicalState {
+            fn compute_physics(
+                &self,
+                _state: &PhysicalState,
+                _ctx: &crate::physics::ComputeContext,
+            ) -> PhysicalState {
                 // Return Inf to trigger validation error
                 PhysicalState::new(
                     PhysicalQuantity::Concentration,
@@ -892,7 +907,11 @@ mod tests {
                 self.points
             }
 
-            fn compute_physics(&self, _state: &PhysicalState) -> PhysicalState {
+            fn compute_physics(
+                &self,
+                _state: &PhysicalState,
+                _ctx: &crate::physics::ComputeContext,
+            ) -> PhysicalState {
                 let mut result = PhysicalState::empty();
 
                 result.set(

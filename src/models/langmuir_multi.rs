@@ -669,16 +669,19 @@ impl PhysicalModel for LangmuirMulti {
     ///
     /// **Singular matrix fallback**: identity matrix + warning log. The solver will
     /// catch any NaN/Inf in the resulting state.
-    fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
+    fn compute_physics(
+        &self,
+        state: &PhysicalState,
+        ctx: &crate::physics::context::ComputeContext,
+    ) -> PhysicalState {
         let n_species = self.n_species();
 
         // ── Time ──────────────────────────────────────────────────────────────────
         //
-        // The solver writes the current simulation time into the state metadata
-        // before each call. If absent (e.g. first call, or solver does not support
-        // metadata), we default to t=0.0 — injection profiles will return their
-        // value at t=0.
-        let t = state.get_metadata("time").unwrap_or(0.0);
+        // The solver passes the current simulation time via ComputeContext.
+        // Infallible — no unwrap_or required. Replaces the previous convention
+        // of reading state.get_metadata("time") (DD-008).
+        let t = ctx.time();
 
         // ── State extraction ──────────────────────────────────────────────────────
         //
@@ -976,10 +979,10 @@ impl Exportable for LangmuirMulti {
         let mut meta: Map<String, Value> = [
             ("model", Value::String(self.name().into())),
             ("n_species", Value::from(self.n_species() as u64)),
-            ("n_points", Value::from(self.spatial_points() as u64)),
+            ("nz", Value::from(self.spatial_points() as u64)),
             ("porosity", Value::from(self.porosity())),
             ("velocity", Value::from(self.velocity())),
-            ("column_length", Value::from(self.column_length())),
+            ("length", Value::from(self.column_length())),
             ("species", Value::Array(species_meta)),
         ]
         .into_iter()
@@ -1041,10 +1044,10 @@ impl Exportable for LangmuirMulti {
     ///
     /// | Key | Type | Description |
     /// |---|---|---|
-    /// | `n_points` | `u64` | Number of spatial points |
+    /// | `nz` | `u64` | Number of spatial points |
     /// | `porosity` | `f64` | Extra-granular porosity ε ∈ (0, 1) |
     /// | `velocity` | `f64` | Superficial velocity (m/s) |
-    /// | `column_length` | `f64` | Column length (m) |
+    /// | `length` | `f64` | Column length (m) |
     /// | `species` | array | Per-species parameters (see below) |
     ///
     /// Each entry in `metadata.species` must contain:
@@ -1085,10 +1088,10 @@ impl Exportable for LangmuirMulti {
             };
         }
 
-        let n_points = get_usize!("n_points");
+        let nz = get_usize!("nz");
         let porosity = get_f64!("porosity");
         let velocity = get_f64!("velocity");
-        let column_length = get_f64!("column_length");
+        let length = get_f64!("length");
 
         let species_arr = meta
             .get("species")
@@ -1144,12 +1147,12 @@ impl Exportable for LangmuirMulti {
 
         let first = params.remove(0);
         let mut model =
-            LangmuirMulti::new(vec![first], n_points, porosity, velocity, column_length).map_err(
-                |e| ExportError::InvalidValue {
+            LangmuirMulti::new(vec![first], nz, porosity, velocity, length).map_err(|e| {
+                ExportError::InvalidValue {
                     key: "metadata".into(),
                     reason: e,
-                },
-            )?;
+                }
+            })?;
 
         for sp in params {
             model
@@ -1440,7 +1443,8 @@ mod tests {
     #[test]
     fn test_compute_physics_output_shape() {
         let model = two_species_model();
-        let phys = model.compute_physics(&model.setup_initial_state());
+        let ctx = crate::physics::ComputeContext::new(0.0, 0.0);
+        let phys = model.compute_physics(&model.setup_initial_state(), &ctx);
         let mat = phys
             .get(PhysicalQuantity::Concentration)
             .unwrap()
@@ -1475,19 +1479,19 @@ mod tests {
             ))
             .unwrap();
 
-        let mut state = model.setup_initial_state();
+        let state = model.setup_initial_state();
 
-        state.set_metadata("time".to_string(), 0.0);
+        let ctx_0 = crate::physics::ComputeContext::new(0.0, 0.0);
         let dc_t0 = model
-            .compute_physics(&state)
+            .compute_physics(&state, &ctx_0)
             .get(PhysicalQuantity::Concentration)
             .unwrap()
             .as_matrix()
             .clone_owned();
 
-        state.set_metadata("time".to_string(), 10.0);
+        let ctx_10 = crate::physics::ComputeContext::new(10.0, 0.0);
         let dc_t10 = model
-            .compute_physics(&state)
+            .compute_physics(&state, &ctx_10)
             .get(PhysicalQuantity::Concentration)
             .unwrap()
             .as_matrix()
@@ -1507,8 +1511,9 @@ mod tests {
     fn test_compute_physics_defaults_to_t0_without_metadata() {
         // Without metadata the model must not panic — defaults to t=0.0
         let model = two_species_model();
+        let ctx = crate::physics::ComputeContext::new(0.0, 0.0);
         let mat = model
-            .compute_physics(&model.setup_initial_state())
+            .compute_physics(&model.setup_initial_state(), &ctx)
             .get(PhysicalQuantity::Concentration)
             .unwrap()
             .as_matrix()
@@ -1522,10 +1527,10 @@ mod tests {
     #[test]
     fn test_compute_physics_no_nan_or_inf() {
         let model = two_species_model();
-        let mut st = model.setup_initial_state();
-        st.set_metadata("time".to_string(), 5.0);
+        let st = model.setup_initial_state();
+        let ctx = crate::physics::ComputeContext::new(5.0, 0.0);
         let mat = model
-            .compute_physics(&st)
+            .compute_physics(&st, &ctx)
             .get(PhysicalQuantity::Concentration)
             .unwrap()
             .as_matrix()
@@ -1541,10 +1546,10 @@ mod tests {
         // On an empty column, interior points (i>0) have zero gradient → dC/dt = 0.
         // Row 0 may be non-zero if injection.evaluate(t) > 0 (Dirac at t=0).
         let model = two_species_model();
-        let mut st = model.setup_initial_state();
-        st.set_metadata("time".to_string(), 0.0);
+        let st = model.setup_initial_state();
+        let ctx = crate::physics::ComputeContext::new(0.0, 0.0);
         let mat = model
-            .compute_physics(&st)
+            .compute_physics(&st, &ctx)
             .get(PhysicalQuantity::Concentration)
             .unwrap()
             .as_matrix()
@@ -1753,7 +1758,7 @@ mod tests {
         use serde_json::json;
         let map = json!({
             "metadata": {
-                "n_points": 100, "porosity": 0.4, "velocity": 0.001, "column_length": 0.25,
+                "nz": 100, "porosity": 0.4, "velocity": 0.001, "length": 0.25,
                 "species": []
             }
         })
@@ -1777,7 +1782,7 @@ mod tests {
         // "porosity" absent — all other required keys present
         let map = json!({
             "metadata": {
-                "n_points": 100, "velocity": 0.001, "column_length": 0.25,
+                "nz": 100, "velocity": 0.001, "length": 0.25,
                 "species": [{"name": "A", "lambda": 1.0, "langmuir_k": 0.5, "port_number": 1}]
             }
         })

@@ -886,7 +886,11 @@ mod tests {
             self.n_points
         }
 
-        fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
+        fn compute_physics(
+            &self,
+            state: &PhysicalState,
+            _ctx: &crate::physics::ComputeContext,
+        ) -> PhysicalState {
             let c = state
                 .get(PhysicalQuantity::Concentration)
                 .unwrap()
@@ -920,7 +924,11 @@ mod tests {
             self.n_points
         }
 
-        fn compute_physics(&self, state: &PhysicalState) -> PhysicalState {
+        fn compute_physics(
+            &self,
+            state: &PhysicalState,
+            _ctx: &crate::physics::ComputeContext,
+        ) -> PhysicalState {
             let m = state
                 .get(PhysicalQuantity::Concentration)
                 .unwrap()
