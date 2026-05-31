@@ -275,6 +275,64 @@ impl LangmuirSingle {
         }
     }
 
+    /// Creates a `LangmuirSingle` model from validated domain objects.
+    ///
+    /// Accepts a [`Column`](crate::domain::Column) and a
+    /// [`MobilePhase`](crate::domain::MobilePhase) as construction input,
+    /// delegating to [`new`](Self::new) after extracting the required fields.
+    ///
+    /// This is the preferred constructor when building a model from the domain
+    /// layer — it avoids passing raw `f64` parameters and benefits from the
+    /// validation already performed by `Column::new` and `MobilePhase::new`.
+    ///
+    /// # Arguments
+    ///
+    /// * `column`       — validated column geometry
+    /// * `mobile_phase` — validated mobile-phase properties
+    /// * `lambda`       — $\lambda \geq 0$ \[dimensionless\]
+    /// * `langmuir_k`   — $\tilde{K} > 0$ \[L/mol\]
+    /// * `port_number`  — $N > 0$ \[dimensionless\]
+    /// * `injection`    — temporal injection profile at $z = 0$
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use chrom_rs::domain::{Column, MobilePhase};
+    /// use chrom_rs::models::{LangmuirSingle, TemporalInjection};
+    ///
+    /// let column = Column::new(0.25, 100, 0.4, None).unwrap();
+    /// let mobile_phase = MobilePhase::new(1e-4, None).unwrap();
+    /// let injection = TemporalInjection::gaussian(10.0, 2.0, 0.1);
+    ///
+    /// let model = LangmuirSingle::from_domain(
+    ///     &column, &mobile_phase,
+    ///     1.2, 0.4, 2.0,
+    ///     injection,
+    /// );
+    ///
+    /// assert_eq!(model.spatial_points(), 100);
+    /// assert!((model.column_length() - 0.25).abs() < 1e-12);
+    /// ```
+    pub fn from_domain(
+        column: &crate::domain::Column,
+        mobile_phase: &crate::domain::MobilePhase,
+        lambda: f64,
+        langmuir_k: f64,
+        port_number: f64,
+        injection: TemporalInjection,
+    ) -> Self {
+        Self::new(
+            lambda,
+            langmuir_k,
+            port_number,
+            column.porosity,
+            mobile_phase.velocity,
+            column.column_length,
+            column.n_points,
+            injection,
+        )
+    }
+
     /// Returns the temporal injection profile at the column inlet
     pub fn injection(&self) -> &TemporalInjection {
         &self.injection
@@ -954,5 +1012,51 @@ mod tests {
             ),
             "Absent metadata block must yield MissingKey"
         );
+    }
+
+    #[test]
+    fn test_from_domain_builds_equivalent_model() {
+        use crate::domain::{Column, MobilePhase};
+
+        let column = Column::new(0.25, 100, 0.4, None).unwrap();
+        let mobile_phase = MobilePhase::new(1e-4, None).unwrap();
+        let injection = TemporalInjection::gaussian(10.0, 2.0, 0.1);
+
+        let model = LangmuirSingle::from_domain(&column, &mobile_phase, 1.2, 0.4, 2.0, injection);
+
+        // Geometry matches column
+        assert!((model.column_length() - 0.25).abs() < 1e-12);
+        assert_eq!(model.spatial_points(), 100);
+
+        // Physics matches manual construction
+        let reference = LangmuirSingle::new(
+            1.2,
+            0.4,
+            2.0,
+            0.4,
+            1e-4,
+            0.25,
+            100,
+            TemporalInjection::gaussian(10.0, 2.0, 0.1),
+        );
+        assert!((model.column_length() - reference.column_length()).abs() < 1e-12);
+        assert_eq!(model.spatial_points(), reference.spatial_points());
+    }
+
+    #[test]
+    fn test_from_domain_propagates_column_validation() {
+        use crate::domain::{Column, MobilePhase};
+
+        // Column::new already validates — from_domain cannot receive invalid column
+        assert!(Column::new(0.0, 100, 0.4, None).is_err());
+        assert!(Column::new(0.25, 1, 0.4, None).is_err());
+        assert!(Column::new(0.25, 100, 1.5, None).is_err());
+
+        // Valid construction succeeds
+        let column = Column::new(0.25, 100, 0.4, None).unwrap();
+        let mp = MobilePhase::new(1e-4, None).unwrap();
+        let model =
+            LangmuirSingle::from_domain(&column, &mp, 1.2, 0.4, 2.0, TemporalInjection::none());
+        assert_eq!(model.spatial_points(), 100);
     }
 }
