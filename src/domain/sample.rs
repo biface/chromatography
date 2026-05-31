@@ -5,7 +5,7 @@
 //!
 //! # Design
 //!
-//! `Sample` uses the same key/value scheme as [`PhysicalModel::set_injections`]:
+//! `Sample` uses the same key/value scheme as [`PhysicalModel::set_injections`](crate::physics::PhysicalModel::set_injections):
 //!
 //! | Key | Meaning |
 //! |-----|---------|
@@ -14,7 +14,7 @@
 //!
 //! This scheme is identical to the `HashMap<Option<String>, TemporalInjection>`
 //! already used inside `LangmuirSingle` and `LangmuirMulti`, and integrates
-//! directly with [`PhysicalModel::set_injections`].
+//! directly with [`PhysicalModel::set_injections`](crate::physics::PhysicalModel::set_injections).
 //!
 //! # Example
 //!
@@ -144,7 +144,7 @@ impl Sample {
     }
 
     /// Returns a reference to the inner map, compatible with
-    /// [`PhysicalModel::set_injections`].
+    /// [`PhysicalModel::set_injections`](crate::physics::PhysicalModel::set_injections).
     pub fn as_map(&self) -> &HashMap<Option<String>, TemporalInjection> {
         &self.injections
     }

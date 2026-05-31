@@ -15,10 +15,10 @@
 //!
 //! | Module | Primary type | Role |
 //! |--------|-------------|------|
-//! | [`column`] | [`Column`] | Column geometry |
-//! | [`phases`] | [`MobilePhase`] | Mobile-phase properties |
-//! | [`sample`] | [`Sample`] | Inlet injection profiles |
-//! | [`detector`] | [`Detector`] | Signal measurement point |
+//! | `column` | [`Column`](crate::domain::Column) | Column geometry |
+//! | `phases` | [`MobilePhase`](crate::domain::MobilePhase) | Mobile-phase properties |
+//! | `sample` | [`Sample`](crate::domain::Sample) | Inlet injection profiles |
+//! | `detector` | [`Detector`](crate::domain::Detector) | Signal measurement point |
 //!
 //! # Example
 //!
