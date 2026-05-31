@@ -11,6 +11,44 @@ Versioning: [SemVer](https://semver.org/)
 
 ---
 
+## [0.3.0] — 2026-05-31
+
+### Added
+- `domain/` module — validated construction facade for physical equipment (DD-011, [#16](https://github.com/biface/chromatography/issues/16), [#38](https://github.com/biface/chromatography/issues/38)):
+  - `Column { column_length, n_points, porosity, diameter? }` — column geometry; derived accessors `dz()`, `phase_ratio()`
+  - `MobilePhase { velocity, viscosity? }` — carrier fluid; derived accessor `interstitial_velocity(porosity)`
+  - `Sample { injections: HashMap<Option<String>, TemporalInjection> }` — inlet injection profiles; compatible with `PhysicalModel::set_injections`
+  - `Detector { position: DetectorPosition }` — signal measurement point; `DetectorPosition::Outlet | Relative(f64) | Absolute(f64)`; accessors `absolute_position()`, `node_index()`, `validate_against_column()`
+  - All types derive `Serialize + Deserialize`; validated constructors return `Result<T, XxxError>`
+  - All types re-exported via `lib.rs` prelude
+- `physics/context.rs` — typed compute context (DD-008, [#13](https://github.com/biface/chromatography/issues/13), [#47](https://github.com/biface/chromatography/issues/47)):
+  - `ComputeContext` — infallible `time()` / `time_step()` accessors; optional `HashMap<ContextVariable, ContextValue>` for derived quantities
+  - `ContextVariable` — typed enum key (`Hash + Eq`): `Time`, `TimeStep`, `SpatialGradient { dimension, component }`, `External { name }`
+  - `ContextValue` — typed value enum: `Scalar(f64)`, `Boolean(bool)`, `ScalarField(DVector<f64>)`, `VectorField(DMatrix<f64>)`
+  - Structurally aligned with oxiflow `ComputeContext`; convergence deferred to post-v1.0.0 (DD-014)
+- `LangmuirSingle::from_domain(column, mobile_phase, lambda, k, port, injection)` — ergonomic constructor from domain objects
+- `LangmuirMulti::from_domain(column, mobile_phase, species) -> Result<Self, String>` — ergonomic constructor from domain objects
+
+### Changed
+- **Breaking** — `PhysicalModel::compute_physics` signature extended with compute context:
+  ```rust
+  // 0.2.0 (removed)
+  fn compute_physics(&self, state: &PhysicalState) -> PhysicalState;
+  // 0.3.0
+  fn compute_physics(&self, state: &PhysicalState, ctx: &ComputeContext) -> PhysicalState;
+  ```
+  Euler and RK4 solvers now build `ComputeContext::new(t, dt)` at each step; models read `ctx.time()` directly — `state.set_metadata("time", t)` removed
+- **Breaking** — `LangmuirSingle` JSON/YAML keys renamed for consistency with `LangmuirMulti` and `output/`:
+  - `"length"` → `"column_length"`
+  - `"nz"` → `"n_points"`
+- `LangmuirSingle` internal field `length` → `column_length`, `nz` → `n_points`; accessor `length()` → `column_length()`
+
+### Fixed
+- Rustdoc broken intra-doc links in `domain/mod.rs` (`Column`, `MobilePhase`, `Sample`, `Detector`) and `domain/sample.rs` (`PhysicalModel::set_injections`)
+- `cargo doc --no-deps` now generates 0 warnings
+
+---
+
 ## [0.2.0] — 2026-04-22
 
 ### Added
