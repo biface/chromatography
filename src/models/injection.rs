@@ -90,23 +90,26 @@ enum TemporalInjectionSnapshot {
 /// | [`Custom`](TemporalInjection::Custom) | Arbitrary closure (not serialisable) |
 /// | [`None`](TemporalInjection::None) | No injection (zero inlet concentration) |
 pub enum TemporalInjection {
-    /// Dirac delta injection at a single time point
+    /// Instantaneous (discrete) injection at a single time point
     ///
     /// # Parameters
     ///
-    /// - `time` : Time of injection \[s\]
-    /// - `amount` : Amount injected (integral) \[mol/L·s\]
+    /// - `time`   : Injection time \[s\]
+    /// - `amount` : Inlet concentration \[mol/L\] applied for exactly one time step
     ///
     /// # Physics
     ///
-    /// Approximated as a narrow Gaussian with σ = dt/2
+    /// `evaluate(t)` returns `amount` when `t == time` and `0` otherwise.
+    /// The actual injected quantity \[mol/L·s\] is `amount · Δt`, determined
+    /// by the solver time step — no continuous approximation is used.
     ///
     /// # Example
     ///
     /// ```rust
     /// use chrom_rs::models::TemporalInjection;
-    /// // Inject at t=5s
     /// let injection = TemporalInjection::dirac(5.0, 0.1);
+    /// assert_eq!(injection.evaluate(5.0), 0.1);
+    /// assert_eq!(injection.evaluate(5.1), 0.0);
     /// ```
     Dirac { time: f64, amount: f64 },
 
@@ -407,14 +410,12 @@ impl TemporalInjection {
     pub fn evaluate(&self, t: f64) -> f64 {
         match self {
             Self::Dirac { time, amount } => {
-                // Approximate as narrow Gaussian
-                // Width chosen to give reasonable discrete representation
-                let width = 0.1; // 0.1 second width for Dirac approximation
-                let distance = (t - time) / width;
-                let peak = amount / (width * (2.0 * std::f64::consts::PI).sqrt());
-                let exposant = -(distance * distance) / (2.0 * width * width);
-
-                peak * exposant.exp()
+                // Discrete Dirac: inject `amount` [mol/L] at exactly t == time,
+                // zero everywhere else. The injected quantity [mol/L·s] is
+                // amount * dt, where dt is the solver time step.
+                // Exact bit-for-bit equality: the solver passes t = step * dt
+                // as a freshly computed f64; the same literal matches exactly.
+                if t == *time { *amount } else { 0.0 }
             }
 
             Self::Gaussian {
@@ -470,14 +471,18 @@ mod tests {
     fn test_dirac_injection() {
         let injection = TemporalInjection::dirac(10.0, 1.0);
 
-        // Before injection
-        assert!(injection.evaluate(0.0) < 0.01);
+        // Exactly at injection time: returns amount
+        assert_eq!(injection.evaluate(10.0), 1.0);
 
-        // At injection time (should have high concentration)
-        assert!(injection.evaluate(10.0) > 1.0);
+        // Before injection: zero
+        assert_eq!(injection.evaluate(0.0), 0.0);
 
-        // After injection
-        assert!(injection.evaluate(20.0) < 0.01);
+        // After injection: zero
+        assert_eq!(injection.evaluate(20.0), 0.0);
+
+        // Any time != injection time: zero
+        // Use 10.0 + 1e-9 which is representably different from 10.0
+        assert_eq!(injection.evaluate(10.0 + 1e-9), 0.0);
     }
 
     #[test]
@@ -597,17 +602,15 @@ mod tests {
         let injection = TemporalInjection::dirac(10.0, 1.0);
         let clone = injection.clone();
 
-        // Before injection
-        assert!(injection.evaluate(0.0) < 0.01);
-        assert!(clone.evaluate(0.0) < 0.01);
+        // Clone behaves identically to original
+        assert_eq!(injection.evaluate(0.0), clone.evaluate(0.0));
+        assert_eq!(injection.evaluate(10.0), clone.evaluate(10.0));
+        assert_eq!(injection.evaluate(20.0), clone.evaluate(20.0));
 
-        // At injection time (should have high concentration)
-        assert!(injection.evaluate(10.0) > 1.0);
-        assert!(clone.evaluate(10.0) > 1.0);
-
-        // After injection
-        assert!(injection.evaluate(20.0) < 0.01);
-        assert!(clone.evaluate(20.0) < 0.01);
+        // Discrete semantics: amount only at injection time
+        assert_eq!(injection.evaluate(10.0), 1.0);
+        assert_eq!(injection.evaluate(0.0), 0.0);
+        assert_eq!(injection.evaluate(20.0), 0.0);
     }
 
     #[test]
