@@ -378,13 +378,21 @@ impl LangmuirSingle {
     ///
     /// # Note on concentration dependence
     ///
-    /// At $C = 0$ (dilute limit), the derivative equals $\lambda + N \tilde{K}$ —
+    /// At $C = 0$ (dilute limit), the derivative equals $\lambda + \bar{N} \tilde{K}$ —
     /// the Henry constant. As $C \to \infty$, it tends to $\lambda$ (linear regime).
     /// This concentration dependence is what produces asymmetric chromatographic peaks.
+    ///
+    /// # Correction note
+    ///
+    /// The effective adsorption capacity is $\bar{N} = (1 - \varepsilon) \cdot N$,
+    /// not $N$ itself. The factor $(1 - \varepsilon)$ is recovered from the stored
+    /// phase ratio: $(1 - \varepsilon) = F_e / (1 + F_e)$.
     #[inline]
     fn derivative_isotherm(&self, concentration: f64) -> f64 {
+        // N_bar = (1 - ε) · N, recovered from fe = (1-ε)/ε → (1-ε) = fe/(1+fe)
+        let n_bar = self.fe / (1.0 + self.fe) * self.port_number;
         let denom = 1.0 + self.langmuir_k * concentration;
-        self.lambda + (self.port_number * self.langmuir_k) / (denom * denom)
+        self.lambda + (n_bar * self.langmuir_k) / (denom * denom)
     }
 
     /// Computes the propagation factor $\sigma(C)$
