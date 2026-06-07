@@ -268,31 +268,33 @@ impl Solver for RK4Solver {
 
             // ====== RK4 Stages ======
 
-            // Build compute context for this time step (DD-008)
-            let ctx = crate::physics::ComputeContext::new(t, dt);
+            // Each stage evaluates the model at a different time within [tₙ, tₙ₊₁].
+            // A distinct ComputeContext is built for each stage so that
+            // time-dependent boundary conditions (e.g. temporal injections) are
+            // evaluated at the correct intermediate time (DD-008).
 
             // Stage 1: Slope at beginning of interval
             // k₁ = f(yₙ, tₙ)
-
-            let k1 = scenario.model.compute_physics(&state, &ctx);
+            let ctx1 = crate::physics::ComputeContext::new(t, dt);
+            let k1 = scenario.model.compute_physics(&state, &ctx1);
 
             // Stage 2: Slope at midpoint using Euler prediction with k₁
             // k₂ = f(yₙ + dt/2·k₁, tₙ + dt/2)
-
+            let ctx2 = crate::physics::ComputeContext::new(t + dt / 2.0, dt);
             let state_k2 = state.clone() + k1.clone() * (dt / 2.0);
-            let k2 = scenario.model.compute_physics(&state_k2, &ctx);
+            let k2 = scenario.model.compute_physics(&state_k2, &ctx2);
 
             // Stage 3: Slope at midpoint using Euler prediction with k₂
             // k₃ = f(yₙ + dt/2·k₂, tₙ + dt/2)
-
+            let ctx3 = crate::physics::ComputeContext::new(t + dt / 2.0, dt);
             let state_k3 = state.clone() + k2.clone() * (dt / 2.0);
-            let k3 = scenario.model.compute_physics(&state_k3, &ctx);
+            let k3 = scenario.model.compute_physics(&state_k3, &ctx3);
 
             // Stage 4: Slope at end using Euler prediction with k₃
             // k₄ = f(yₙ + dt·k₃, tₙ + dt)
-
+            let ctx4 = crate::physics::ComputeContext::new(t + dt, dt);
             let state_k4 = state.clone() + k3.clone() * dt;
-            let k4 = scenario.model.compute_physics(&state_k4, &ctx);
+            let k4 = scenario.model.compute_physics(&state_k4, &ctx4);
 
             // ====== RK4 Update ======
 
