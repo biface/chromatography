@@ -91,3 +91,7 @@ path = "tools/plot_parallelism_threshold.rs"
 [[bin]]
 name = "plot_species_response_curve"
 path = "tools/plot_species_response_curve.rs"
+
+[[test]]
+name = "scientific_validation"
+path = "validation/main.rs"
