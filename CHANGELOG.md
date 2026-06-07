@@ -11,6 +11,26 @@ Versioning: [SemVer](https://semver.org/)
 
 ---
 
+## [0.4.0] — 2026-06-07
+
+### Added
+- `validation/` — standalone test crate for scientific validation (DD-012, [#17](https://github.com/biface/chromatography/issues/17), [#42](https://github.com/biface/chromatography/issues/42)):
+  - `validation/dissimilarity.rs` — surface resolution $R_{sf}$ (Eq. 7.1, Felinger & Guiochon): `rsf`, `normalize`, `trapezoid` functions; linear interpolation on heterogeneous time grids; 12 unit tests
+  - `validation/reference.rs` — physical reference cases with analytical predictions: `ReferenceCase::linear_tfa()` (Lapidus-Amundson, $t_R = 624$ s, $\sigma = 61.4$ s) and `ReferenceCase::nonlinear_tfa()` ($C_0 = 1.0$ mol/L); `COLUMN_LENGTH`, `POROSITY`, `VELOCITY`, `N_POINTS`, `N_STEPS`, `T_TOTAL`, `T_INJ` shared constants
+  - `validation/main.rs` — 7 integration tests: retention time (< 1 % error), peak width (< 10 % error), mass conservation (≥ 90 %), Langmuir peak compression (mode-based), solver consistency $R_{sf}(\text{Euler}, \text{RK4}) = 0.016 < 0.05$, plus a diagnostic test
+  - Declared in `Cargo.toml` as `[[test]] name = "scientific_validation" path = "validation/main.rs"`
+
+### Fixed
+- **`LangmuirSingle::derivative_isotherm`** — the effective adsorption capacity $\bar{N} = (1-\varepsilon) \cdot N$ was incorrectly computed as raw $N$ (missing stationary phase fraction $(1-\varepsilon)$). `LangmuirMulti` stored `stationary_fraction = 1 - \varepsilon` and was unaffected. Impact: retention time under-predicted by ~46 % for the default TFA parameters. ([#42](https://github.com/biface/chromatography/issues/42))
+- **`RK4Solver` — intermediate stage time evaluation** — stages k₂, k₃, k₄ all used the same `ComputeContext` at $t = n \cdot \Delta t$, making time-dependent boundary conditions (injections) incorrect at intermediate times. Each stage now receives its own context: k₁ at $t$, k₂/k₃ at $t + \Delta t/2$, k₄ at $t + \Delta t$. ([#42](https://github.com/biface/chromatography/issues/42))
+- **`TemporalInjection::Dirac`** — the Gaussian approximation (fixed $\sigma = 0.1$ s) placed half its area at $t < 0$ and was incompatible with RK4 intermediate stage evaluation. Replaced by an exact discrete equality: `evaluate(t)` returns `amount` if `t == time`, `0.0` otherwise. ([#42](https://github.com/biface/chromatography/issues/42))
+
+### Changed
+- `Cargo.toml`: version bumped from `0.3.0` to `0.4.0`
+
+
+---
+
 ## [0.3.0] — 2026-05-31
 
 ### Added
