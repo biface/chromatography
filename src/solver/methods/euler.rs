@@ -399,6 +399,8 @@ mod tests {
 
     #[test]
     fn test_euler_solver_default() {
+        // Deliberately exercises `Default::default()`, not the `new()` shortcut.
+        #[allow(clippy::default_constructed_unit_structs)]
         let solver = EulerSolver::default();
         assert_eq!(solver.name(), "Forward Euler");
     }

@@ -659,7 +659,7 @@ mod tests {
 
         let temporal = boundary.time_boundary();
 
-        assert_eq!(temporal.is_some(), true);
+        assert!(temporal.is_some());
         assert_eq!(temporal.unwrap().name, "t");
     }
 

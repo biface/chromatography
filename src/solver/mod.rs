@@ -594,9 +594,7 @@ mod tests {
 
         let _guard = ThresholdGuard::save(1234);
 
-        let handles: Vec<_> = (0..8)
-            .map(|_| thread::spawn(|| parallel_threshold()))
-            .collect();
+        let handles: Vec<_> = (0..8).map(|_| thread::spawn(parallel_threshold)).collect();
 
         for handle in handles {
             assert_eq!(handle.join().unwrap(), 1234);

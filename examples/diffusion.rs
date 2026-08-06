@@ -98,7 +98,7 @@ impl PhysicalModel for FisherKPP {
             let u_linear = self.bc_left * (1.0 - t) + self.bc_right * t;
             let perturbation = 0.1 * (3.0 * std::f64::consts::PI * x / self.length).sin();
 
-            u[i] = (u_linear + perturbation).max(0.0).min(1.0);
+            u[i] = (u_linear + perturbation).clamp(0.0, 1.0);
         }
 
         // Forcer les conditions de Dirichlet

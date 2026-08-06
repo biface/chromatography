@@ -17,6 +17,11 @@ fn test_euler_first_order_convergence() {
 
     let decay_rate = 0.3;
     let total_time = 10.0;
+    // The cast is required, not redundant: without it, `.exp()` on an
+    // unsuffixed float literal expression triggers E0689 (ambiguous numeric
+    // type) — inherent-method resolution runs before `total_time`'s later
+    // use in `SolverConfiguration::time_evolution` can pin the type to f64.
+    #[allow(clippy::unnecessary_cast)]
     let exact = (-decay_rate * (total_time as f64)).exp();
 
     let steps_list = vec![100, 200, 400, 800];
@@ -64,6 +69,9 @@ fn test_rk4_fourth_order_convergence() {
 
     let decay_rate = 0.3;
     let total_time = 5.0;
+    // See test_euler_first_order_convergence: the cast is required to avoid
+    // E0689 (ambiguous numeric type) on the `.exp()` call.
+    #[allow(clippy::unnecessary_cast)]
     let exact = (-decay_rate * (total_time as f64)).exp();
 
     let steps_list = vec![10, 20, 40, 80];

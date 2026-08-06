@@ -1688,13 +1688,14 @@ mod tests {
     #[test]
     fn test_apply_function_to_vector() {
         let mut data = PhysicalData::from_vec(vec![1.0, 2.0, 3.0]);
-        let result = vec![4.0, 9.0, 16.0];
+        let result = [4.0, 9.0, 16.0];
 
         data.apply(|v| v * v + 2.0 * v + 1.0);
 
         assert!(data.is_vector());
-        for i in 0..result.len() - 1 {
-            assert_eq!(data.as_vector()[i], result[i]);
+        let actual = data.as_vector();
+        for (a, e) in actual.iter().zip(result.iter()).take(result.len() - 1) {
+            assert_eq!(a, e);
         }
     }
 

@@ -523,6 +523,8 @@ mod tests {
 
     #[test]
     fn test_rk4_solver_default() {
+        // Deliberately exercises `Default::default()`, not the `new()` shortcut.
+        #[allow(clippy::default_constructed_unit_structs)]
         let solver = RK4Solver::default();
         assert_eq!(solver.name(), "Runge Kutta (RK4)");
     }
