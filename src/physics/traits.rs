@@ -1431,10 +1431,10 @@ mod tests {
 
     #[test]
     fn test_outlet_data_scalar() {
-        let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(3.14));
+        let state = PhysicalState::new(PhysicalQuantity::Concentration, PhysicalData::Scalar(2.5));
         assert_eq!(
             outlet_data(PhysicalQuantity::Concentration, &[state], 0),
-            vec![3.14]
+            vec![2.5]
         );
     }
 
