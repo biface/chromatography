@@ -58,8 +58,8 @@ jobs:
           key: ${{ runner.os }}-clippy-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-clippy-
 
-      - name: cargo clippy — default features
-        run: cargo clippy -- -D warnings
+      - name: cargo clippy — default features, all targets
+        run: cargo clippy --all-targets -- -D warnings
 
       # v0.3.0+ — activate when optional features are declared in Cargo.toml
       # - name: cargo clippy — feature async
