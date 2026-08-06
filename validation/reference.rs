@@ -92,7 +92,7 @@ pub struct ReferenceCase {
     /// Expected peak standard deviation $\sigma_t$ \[s\]
     ///
     /// Derived from numerical dispersion of the upwind scheme
-    /// (Lapidus-Amundson): $\sigma_t = \sqrt{2 D_{num} L / u_{e,eff}^3}$.
+    /// (Aris, 1959): $\sigma_t = \sqrt{2 D_{num} L / u_{e,eff}^3}$.
     /// `None` for non-linear cases where no analytical expression applies.
     pub sigma_analytical: Option<f64>,
 
@@ -195,6 +195,167 @@ impl ReferenceCase {
 }
 
 // =================================================================================================
+// Multi-species reference cases (issue #43)
+// =================================================================================================
+
+/// A single species' physical parameters and expected retention time within
+/// a [`MultiSpeciesCase`].
+pub struct SpeciesReference {
+    /// Human-readable species identifier
+    pub name: &'static str,
+    /// Isotherm intercept $\lambda$ \[dimensionless\]
+    pub lambda: f64,
+    /// Langmuir equilibrium constant $\tilde{K}$ \[L/mol\]
+    pub langmuir_k: f64,
+    /// Number of adsorption sites $N$ \[dimensionless\]
+    pub port_number: u32,
+    /// Expected retention time in the dilute (linear) limit \[s\]
+    ///
+    /// $t_R = t_0 (1 + F_e K_a^0)$ with $K_a^0 = \lambda + \bar{N} \tilde{K}$,
+    /// evaluated independently per species — valid here because competitive
+    /// terms are second-order in concentration and negligible at the dilute
+    /// $C_0$ used by these cases.
+    pub t_retention: f64,
+}
+
+/// Physical setup and per-species predictions for a competitive
+/// (multi-species, [`LangmuirMulti`](chrom_rs::models::LangmuirMulti)) validation case.
+pub struct MultiSpeciesCase {
+    /// Human-readable identifier
+    pub name: &'static str,
+    /// Column length $L$ \[m\]
+    pub column_length: f64,
+    /// Interstitial porosity $\varepsilon$
+    pub porosity: f64,
+    /// Superficial velocity $u$ \[m/s\]
+    pub velocity: f64,
+    /// Number of spatial discretisation points $N_z$
+    pub n_points: usize,
+    /// Shared inlet concentration $C_0$ \[mol/L\] — dilute, identical for all species
+    pub c0: f64,
+    /// Total simulation time \[s\]
+    pub t_total: f64,
+    /// Number of time steps $N_t$
+    pub n_steps: usize,
+    /// Per-species parameters and predictions
+    pub species: Vec<SpeciesReference>,
+}
+
+impl MultiSpeciesCase {
+    /// Injection duration \[s\] — two solver time steps, mirroring [`T_INJ`]
+    /// for the same RK4-compatibility reason (see [`T_INJ`] docs).
+    pub fn t_inj(&self) -> f64 {
+        2.0 * self.t_total / self.n_steps as f64
+    }
+
+    /// **Case D — Ascorbic / Erythorbic acid** (competitive Langmuir)
+    ///
+    /// Column and species parameters from Nicoud (2015), Figure 5. Predictions
+    /// are computed with the same dilute-limit formula as
+    /// [`ReferenceCase::linear_retention_time`], applied independently per
+    /// species — valid because competitive terms are second-order in
+    /// concentration and negligible at $C_0 = 10^{-3}$ mol/L.
+    ///
+    /// | Species    | λ   | K̃ \[L/mol\] | N | $t_R$ \[s\] |
+    /// |------------|-----|-------------|---|-------------|
+    /// | Ascorbic   | 1.0 | 1.1         | 2 | 448.0       |
+    /// | Erythorbic | 1.0 | 1.7         | 2 | 556.0       |
+    ///
+    /// Column: $L = 0.25$ m, $\varepsilon = 0.4$, $u = 10^{-3}$ m/s.
+    ///
+    /// Reference: Nicoud, R.-M. (2015). *Chromatographic Processes: Modeling,
+    /// Simulation, and Design*. Cambridge University Press, Figure 5.
+    pub fn ascorbic_erythorbic() -> Self {
+        Self {
+            name: "ascorbic_erythorbic",
+            column_length: 0.25,
+            porosity: 0.4,
+            velocity: 1.0e-3,
+            n_points: 100,
+            c0: 1.0e-3,
+            t_total: 800.0,
+            n_steps: 4000,
+            species: vec![
+                SpeciesReference {
+                    name: "Ascorbic",
+                    lambda: 1.0,
+                    langmuir_k: 1.1,
+                    port_number: 2,
+                    t_retention: 448.0,
+                },
+                SpeciesReference {
+                    name: "Erythorbic",
+                    lambda: 1.0,
+                    langmuir_k: 1.7,
+                    port_number: 2,
+                    t_retention: 556.0,
+                },
+            ],
+        }
+    }
+
+    /// **Case E — Glucose / Fructose, linear regime** (Nicoud §10.1)
+    ///
+    /// Only the Henry (dilute-limit) coefficients $K_{gl} = 0.27$ and
+    /// $K_{fr} = 0.46$ are reported in the literature (concentrations in g/L,
+    /// SMB design context) — no standalone pulse-injection case with an
+    /// absolute column geometry or retention time in seconds is given.
+    ///
+    /// Column geometry is therefore reused from the TFA reference case
+    /// ([`COLUMN_LENGTH`], [`POROSITY`], [`VELOCITY`]) for consistency within
+    /// `validation/`, and the Langmuir parameters are chosen as $\lambda = 0$,
+    /// $N = 1$, $\tilde{K} = K_H / (1-\varepsilon)$ so that
+    /// $K_a^0 = \bar{N}\tilde{K}$ reproduces the literature Henry constant
+    /// $K_H$ exactly. This decomposition does not affect the predicted
+    /// retention time: in the linear regime $t_R$ depends only on the product
+    /// $\bar{N}\tilde{K}$, not on how it is split between $N$ and $\tilde{K}$,
+    /// nor on the concentration unit (g/L vs mol/L), since $K_a^0$ is a pure
+    /// dilute-limit ratio.
+    ///
+    /// | Species  | $K_H$ | λ   | K̃      | N | $t_R$ \[s\] |
+    /// |----------|-------|-----|---------|---|-------------|
+    /// | Glucose  | 0.27  | 0.0 | 0.4500  | 1 | 168.6       |
+    /// | Fructose | 0.46  | 0.0 | 0.7667  | 1 | 202.8       |
+    ///
+    /// The quadratic/synergistic terms of Eq. (10.1) are out of scope here
+    /// (tracked separately for a post-v0.4.1 milestone).
+    ///
+    /// Reference: Nicoud, R.-M. (2015). *Chromatographic Processes: Modeling,
+    /// Simulation, and Design*. Cambridge University Press, §10.1.2, Eq. (10.1)
+    /// (linear terms only).
+    pub fn glucose_fructose_linear() -> Self {
+        let k_gl = 0.27 / (1.0 - POROSITY);
+        let k_fr = 0.46 / (1.0 - POROSITY);
+        Self {
+            name: "glucose_fructose_linear",
+            column_length: COLUMN_LENGTH,
+            porosity: POROSITY,
+            velocity: VELOCITY,
+            n_points: N_POINTS,
+            c0: 1.0e-3,
+            t_total: 400.0,
+            n_steps: 2000,
+            species: vec![
+                SpeciesReference {
+                    name: "Glucose",
+                    lambda: 0.0,
+                    langmuir_k: k_gl,
+                    port_number: 1,
+                    t_retention: 168.6,
+                },
+                SpeciesReference {
+                    name: "Fructose",
+                    lambda: 0.0,
+                    langmuir_k: k_fr,
+                    port_number: 1,
+                    t_retention: 202.8,
+                },
+            ],
+        }
+    }
+}
+
+// =================================================================================================
 // Tests
 // =================================================================================================
 
@@ -228,5 +389,56 @@ mod tests {
         assert!((lin.injected_area() - lin.c0 * T_INJ).abs() < 1e-12);
         let nl = ReferenceCase::nonlinear_tfa();
         assert!((nl.injected_area() - nl.c0 * T_INJ).abs() < 1e-12);
+    }
+
+    /// Verifies that the documented `t_retention` values for the
+    /// Ascorbic/Erythorbic case are consistent with the shared
+    /// $t_R = t_0 (1 + F_e K_a^0)$ formula, $K_a^0 = \lambda + \bar{N}\tilde{K}$.
+    #[test]
+    fn ascorbic_erythorbic_t_retention_matches_formula() {
+        let case = MultiSpeciesCase::ascorbic_erythorbic();
+        let t0 = case.column_length / (case.velocity / case.porosity);
+        let fe = (1.0 - case.porosity) / case.porosity;
+
+        for sp in &case.species {
+            let n_bar = (1.0 - case.porosity) * sp.port_number as f64;
+            let ka0 = sp.lambda + n_bar * sp.langmuir_k;
+            let t_r = t0 * (1.0 + fe * ka0);
+            assert!(
+                (t_r - sp.t_retention).abs() < 1e-6,
+                "species '{}': formula gives {t_r}, documented {}",
+                sp.name,
+                sp.t_retention
+            );
+        }
+    }
+
+    /// Verifies that the documented `t_retention` values for the
+    /// Glucose/Fructose linear case reproduce the literature Henry
+    /// constants ($K_{gl}=0.27$, $K_{fr}=0.46$) exactly through
+    /// $K_a^0 = \bar{N}\tilde{K}$.
+    #[test]
+    fn glucose_fructose_linear_t_retention_matches_formula() {
+        let case = MultiSpeciesCase::glucose_fructose_linear();
+        let t0 = case.column_length / (case.velocity / case.porosity);
+        let fe = (1.0 - case.porosity) / case.porosity;
+        let henry = [0.27, 0.46];
+
+        for (sp, k_h) in case.species.iter().zip(henry) {
+            let n_bar = (1.0 - case.porosity) * sp.port_number as f64;
+            let ka0 = sp.lambda + n_bar * sp.langmuir_k;
+            assert!(
+                (ka0 - k_h).abs() < 1e-10,
+                "species '{}': K_a^0 = {ka0} should equal Henry constant {k_h}",
+                sp.name
+            );
+            let t_r = t0 * (1.0 + fe * ka0);
+            assert!(
+                (t_r - sp.t_retention).abs() < 1e-6,
+                "species '{}': formula gives {t_r}, documented {}",
+                sp.name,
+                sp.t_retention
+            );
+        }
     }
 }
