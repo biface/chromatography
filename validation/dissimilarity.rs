@@ -2,7 +2,7 @@
 //!
 //! # Background
 //!
-//! The **surface resolution** $R_{sf}$ (Eq. 7.1, Felinger & Guiochon) compares two
+//! The **surface resolution** $R_{sf}$ (Eq. 7.1, Nicoud, 2015, §7.1) compares two
 //! normalised chromatograms $Y_1(t)$ and $Y_2(t)$ by integrating the absolute
 //! difference of their normalised profiles:
 //!
