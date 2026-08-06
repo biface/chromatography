@@ -11,6 +11,39 @@ Versioning: [SemVer](https://semver.org/)
 
 ---
 
+## [0.4.1] — 2026-08-06
+
+### Added
+- `validation/reference.rs` — two multi-species reference cases for `LangmuirMulti` ([#43](https://github.com/biface/chromatography/issues/43)):
+  - `MultiSpeciesCase::ascorbic_erythorbic()` — competitive Langmuir (Nicoud 2015, Figure 5): $t_{R,A} = 448$ s, $t_{R,B} = 556$ s, $\Delta t_R = 108$ s
+  - `MultiSpeciesCase::glucose_fructose_linear()` — linear regime only (Nicoud 2015, §10.1.2, Eq. (10.1), linear terms): Henry constants $K_{gl} = 0.27$, $K_{fr} = 0.46$ reproduced exactly via $\lambda = 0$, $N = 1$, $\tilde K = K_H / (1-\varepsilon)$
+  - `validation/main.rs` — 3 new integration tests: per-species retention time (< 1 % error) for both cases, plus retention-time-gap check for the competitive case
+- `examples/validation_report.rs` — on-demand structured JSON comparison report ([#44](https://github.com/biface/chromatography/issues/44)): simulated vs. reference peak position/amplitude, $R_{sf}$(Euler, RK4), and solver parameters (Δt, Δz, CFL) for every reference case; run via `cargo run --example validation_report`
+
+### Fixed
+- `validation/reference.rs`, `validation/dissimilarity.rs` — module-level rustdoc citations corrected: Lapidus & Amundson (1952) → Aris (1959) for the analytical PD model; Felinger & Guiochon → Nicoud (2015), §7.1 for the $R_{sf}$ criterion ([#43](https://github.com/biface/chromatography/issues/43))
+- `cargo clippy --all-targets -- -D warnings` cleanup: 1 deny-by-default error and ~20 warnings, none previously visible to CI (`cargo clippy` omitted `--all-targets`/`--tests` — see `.github/workflows/ci.yml` below):
+  - `src/physics/traits.rs` — ambiguous `3.14` scalar in `test_outlet_data_scalar` (`clippy::approx_constant`, deny-by-default)
+  - `src/models/langmuir_multi.rs` — redundant `&` in a `format!` argument
+  - `src/solver/boundary.rs` — `assert_eq!(x, true)` → `assert!(x)`
+  - `src/solver/mod.rs` — redundant closure around `parallel_threshold`
+  - `src/physics/data.rs` — `Vec` literal never mutated → array; manual indexed loop → `zip`
+  - `examples/acids_multi.rs`, `examples/acids_from_config.rs` — 9 `for s in 0..n_species` loops idiomatized to iterators (2 similar-looking loops per file left untouched: they index two/three collections independently and are not needless-range-loop candidates)
+  - `examples/diffusion.rs` — `.max(0.0).min(1.0)` → `.clamp(0.0, 1.0)`
+  - `benches/langmuir_performance.rs` — unused `Rng` import (superseded by `RngExt::random_range` under `rand` 0.10), unused `use super::*;` in `mod tests`, doc-list indentation (×3)
+  - `benches/solver_performance.rs` — unused loop variable `label` → `_label`
+  - `tools/plot_species_response_curve.rs` — compile-time assertions wrapped in `const { assert!(..) }`
+  - `src/solver/methods/euler.rs`, `rk4.rs` — `EulerSolver::default()` / `RK4Solver::default()` kept as-is with a justified `#[allow(clippy::default_constructed_unit_structs)]`: these tests specifically exercise the `Default` impl
+  - `tests/solver_convergence.rs` — kept the `as f64` cast clippy flagged as `unnecessary_cast` (justified `#[allow]`): removing it triggers E0689 (ambiguous numeric type) on the following `.exp()` call, since inherent-method resolution runs before the type is otherwise pinned
+
+### CI
+- `.github/workflows/ci.yml` — clippy job extended to `cargo clippy --all-targets -- -D warnings`; previously omitted `--all-targets`/`--tests`, so `#[cfg(test)]` code, `examples/`, `benches/`, `tools/`, and standalone `[[test]]` crates (including `validation/`) were never checked
+
+### Changed
+- `Cargo.toml`: version bumped from `0.4.0` to `0.4.1`
+
+---
+
 ## [0.4.0] — 2026-06-07
 
 ### Added
