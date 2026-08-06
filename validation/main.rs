@@ -17,6 +17,9 @@
 //! | `nonlinear_tfa_peak_compression` | B — non-linear | $t_{mode}^{NL} < t_{mode}^{lin}$ |
 //! | `nonlinear_tfa_mass_conservation` | B — non-linear | $\int C_{out} / \int C_{in} \geq 85\%$ |
 //! | `euler_vs_rk4_rsf` | C — internal | $R_{sf}(\text{Euler}, \text{RK4}) < 0.05$ |
+//! | `ascorbic_erythorbic_retention_times` | D — competitive | per-species $|t_R^{sim} - t_R^{ana}| / t_R < 1\%$ |
+//! | `ascorbic_erythorbic_retention_gap` | D — competitive | $|\Delta t_R^{sim} - \Delta t_R^{ana}| / \Delta t_R < 1\%$ |
+//! | `glucose_fructose_linear_retention_times` | E — linear, multi-species | per-species $|t_R^{sim} - t_R^{ana}| / t_R < 1\%$ |
 //!
 //! # Bugs discovered during validation
 //!
@@ -36,15 +39,15 @@
 mod dissimilarity;
 mod reference;
 
-use chrom_rs::models::{LangmuirSingle, TemporalInjection};
+use chrom_rs::models::{LangmuirMulti, LangmuirSingle, SpeciesParams, TemporalInjection};
 use chrom_rs::physics::{PhysicalData, PhysicalModel, PhysicalQuantity};
 use chrom_rs::solver::{
     DomainBoundaries, EulerSolver, RK4Solver, Scenario, Solver, SolverConfiguration,
 };
 use dissimilarity::{rsf, trapezoid};
 use reference::{
-    COLUMN_LENGTH, KI, LAMBDA, N_POINTS, N_STEPS, POROSITY, PORT_NUMBER, ReferenceCase, T_INJ,
-    T_TOTAL, VELOCITY,
+    COLUMN_LENGTH, KI, LAMBDA, MultiSpeciesCase, N_POINTS, N_STEPS, POROSITY, PORT_NUMBER,
+    ReferenceCase, T_INJ, T_TOTAL, VELOCITY,
 };
 
 // =================================================================================================
@@ -118,6 +121,69 @@ fn run_euler(c0: f64) -> (Vec<f64>, Vec<f64>) {
         .expect("Euler solver failed");
     let c_out = outlet_profile(&result, n_pts);
     (result.time_points, c_out)
+}
+
+/// Extract per-species $C_{outlet}(t)$ from a multi-species simulation result.
+///
+/// Returns `[species_index][time_step]`.
+fn outlet_profile_multi(
+    result: &chrom_rs::solver::SimulationResult,
+    n_points: usize,
+    n_species: usize,
+) -> Vec<Vec<f64>> {
+    let mut per_species: Vec<Vec<f64>> = vec![Vec::new(); n_species];
+    for state in &result.state_trajectory {
+        if let Some(PhysicalData::Matrix(m)) = state.get(PhysicalQuantity::Concentration) {
+            for s in 0..n_species {
+                per_species[s].push(m[(n_points - 1, s)]);
+            }
+        }
+    }
+    per_species
+}
+
+/// Run a competitive (multi-species) simulation for `case` with the RK4 solver.
+///
+/// Every species shares the same `Rectangle(0, t_inj, c0)` injection profile
+/// (mirroring the single-species TFA cases), so that competition — not
+/// injection shape — is the only cross-species effect under test.
+///
+/// Returns `(time_points, [species_index][time_step])`.
+fn run_multi_rk4(case: &MultiSpeciesCase) -> (Vec<f64>, Vec<Vec<f64>>) {
+    let t_inj = case.t_inj();
+    let species: Vec<SpeciesParams> = case
+        .species
+        .iter()
+        .map(|sp| {
+            SpeciesParams::new(
+                sp.name,
+                sp.lambda,
+                sp.langmuir_k,
+                sp.port_number,
+                TemporalInjection::rectangle(0.0, t_inj, case.c0),
+            )
+        })
+        .collect();
+    let n_species = species.len();
+
+    let model = LangmuirMulti::new(
+        species,
+        case.n_points,
+        case.porosity,
+        case.velocity,
+        case.column_length,
+    )
+    .expect("invalid multi-species reference case parameters");
+
+    let boundaries = DomainBoundaries::temporal(model.setup_initial_state());
+    let scenario = Scenario::new(Box::new(model), boundaries);
+    let config = SolverConfiguration::time_evolution(case.t_total, case.n_steps);
+    let result = RK4Solver::new()
+        .solve(&scenario, &config)
+        .expect("RK4 solver failed");
+
+    let per_species = outlet_profile_multi(&result, case.n_points, n_species);
+    (result.time_points, per_species)
 }
 
 /// Compute the first moment (retention time) of an outlet concentration profile.
@@ -371,4 +437,92 @@ fn euler_vs_rk4_rsf() {
         criterion < 0.05,
         "Rsf(Euler, RK4) = {criterion:.4} ≥ 0.05 — solver divergence detected"
     );
+}
+
+// =================================================================================================
+// Case D — Ascorbic / Erythorbic acid (competitive Langmuir)
+// =================================================================================================
+
+/// Per-species retention time must match the dilute-limit prediction within
+/// 1 %, for both species of the competitive case.
+///
+/// Reference: Nicoud (2015), Figure 5.
+#[test]
+fn ascorbic_erythorbic_retention_times() {
+    let case = MultiSpeciesCase::ascorbic_erythorbic();
+    let (t_sim, per_species) = run_multi_rk4(&case);
+
+    for (i, sp) in case.species.iter().enumerate() {
+        let t_r_sim = first_moment(&t_sim, &per_species[i]);
+        let error_pct = (t_r_sim - sp.t_retention).abs() / sp.t_retention * 100.0;
+        println!(
+            "{:<12} analytical tR = {:.1} s, simulated tR = {:.1} s, error = {:.3} %",
+            sp.name, sp.t_retention, t_r_sim, error_pct
+        );
+        assert!(
+            error_pct < 1.0,
+            "tR error = {error_pct:.3} % >= 1 % for species '{}' in case '{}'",
+            sp.name,
+            case.name
+        );
+    }
+}
+
+/// The retention time gap between the two species must match the literature
+/// prediction ($\Delta t_R = 108$ s) within 1 %.
+///
+/// This is a stricter check than the per-species retention times above: it
+/// validates that the *separation* — the quantity SMB design actually
+/// depends on — is not distorted, even if per-species errors partly cancel.
+#[test]
+fn ascorbic_erythorbic_retention_gap() {
+    let case = MultiSpeciesCase::ascorbic_erythorbic();
+    let (t_sim, per_species) = run_multi_rk4(&case);
+
+    let t_r: Vec<f64> = (0..case.species.len())
+        .map(|i| first_moment(&t_sim, &per_species[i]))
+        .collect();
+    let gap_sim = t_r[1] - t_r[0];
+    let gap_ana = case.species[1].t_retention - case.species[0].t_retention;
+    let error_pct = (gap_sim - gap_ana).abs() / gap_ana * 100.0;
+
+    println!(
+        "Analytical Δt_R = {:.1} s, simulated Δt_R = {:.1} s, error = {:.3} %",
+        gap_ana, gap_sim, error_pct
+    );
+    assert!(
+        error_pct < 1.0,
+        "Δt_R error = {error_pct:.3} % >= 1 % for case '{}'",
+        case.name
+    );
+}
+
+// =================================================================================================
+// Case E — Glucose / Fructose (linear regime)
+// =================================================================================================
+
+/// Per-species retention time must match the Henry-constant-derived
+/// prediction within 1 %.
+///
+/// Reference: Nicoud (2015), §10.1.2 — linear terms of Eq. (10.1) only; the
+/// quadratic/synergistic terms are out of scope (post-v0.4.1).
+#[test]
+fn glucose_fructose_linear_retention_times() {
+    let case = MultiSpeciesCase::glucose_fructose_linear();
+    let (t_sim, per_species) = run_multi_rk4(&case);
+
+    for (i, sp) in case.species.iter().enumerate() {
+        let t_r_sim = first_moment(&t_sim, &per_species[i]);
+        let error_pct = (t_r_sim - sp.t_retention).abs() / sp.t_retention * 100.0;
+        println!(
+            "{:<10} analytical tR = {:.1} s, simulated tR = {:.1} s, error = {:.3} %",
+            sp.name, sp.t_retention, t_r_sim, error_pct
+        );
+        assert!(
+            error_pct < 1.0,
+            "tR error = {error_pct:.3} % >= 1 % for species '{}' in case '{}'",
+            sp.name,
+            case.name
+        );
+    }
 }
