@@ -6,10 +6,10 @@
 //!
 //! # Bibliographic basis
 //!
-//! - **Lapidus & Amundson (1952)** — analytical solution for linear
-//!   advection-dispersion in a chromatographic column; provides exact
+//! - **Aris (1959)** — analytical solution for linear advection-dispersion
+//!   (Taylor-Aris dispersion) in a chromatographic column; provides exact
 //!   expressions for the retention time and peak variance.
-//! - **Felinger & Guiochon, §7.1** — dissimilarity criterion $R_{sf}$
+//! - **Nicoud (2015), §7.1** — dissimilarity criterion $R_{sf}$
 //!   and its thresholds for model equivalence (Figures 7.1–7.3).
 //!
 //! # Validation strategy
@@ -18,7 +18,7 @@
 //!
 //! | Case | Regime | Criterion | Reference |
 //! |------|--------|-----------|-----------|
-//! | [`linear_tfa`] | Linear ($C_0 \to 0$) | $t_R$ ±1 %, $\sigma$ ±10 %, mass ≥ 90 % | Lapidus-Amundson analytical |
+//! | [`linear_tfa`] | Linear ($C_0 \to 0$) | $t_R$ ±1 %, $\sigma$ ±10 %, mass ≥ 90 % | Aris (1959) analytical |
 //! | [`nonlinear_tfa`] | Non-linear ($C_0 = 0.1$) | $t_R < t_R^{lin}$, mass ≥ 85 % | Langmuir qualitative properties |
 //! | Euler vs RK4 | Internal | $R_{sf} < 0.05$ | §7.1, Figure 7.1 |
 //!
@@ -112,7 +112,7 @@ impl ReferenceCase {
     /// **Case A — Linear regime** ($C_0 = 10^{-3}$ mol/L, $\tilde{K} C_0 \ll 1$)
     ///
     /// The Langmuir isotherm reduces to its linear limit; the analytical
-    /// solution of Lapidus & Amundson (1952) applies exactly.
+    /// solution of Aris (1959) applies exactly.
     ///
     /// Analytical predictions (upwind scheme, $N_z = 100$, $N_t = 4500$,
     /// $T = 900$ s):
@@ -123,7 +123,8 @@ impl ReferenceCase {
     /// | $\sigma_t$ | 61.39 s |
     /// | Mass recovery | ≥ 90 % |
     ///
-    /// Reference: Lapidus & Amundson, *J. Phys. Chem.* 56 (1952) 984.
+    /// Reference: Aris, R. (1959). "On the dispersion of a solute in a fluid
+    /// flowing through a tube." *Proc. R. Soc. Lond. A*, 235(1200), 67–77.
     pub fn linear_tfa() -> Self {
         Self {
             name: "linear_tfa",
