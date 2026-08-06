@@ -765,8 +765,8 @@ mod tests {
     #[test]
     fn test_threshold_at_n_species_10() {
         assert_eq!(THRESHOLD_N_SPECIES, 10);
-        assert!((9 * N_POINTS) < PARALLEL_THRESHOLD_OPS);
-        assert!((10 * N_POINTS) >= PARALLEL_THRESHOLD_OPS);
+        const { assert!((9 * N_POINTS) < PARALLEL_THRESHOLD_OPS) };
+        const { assert!((10 * N_POINTS) >= PARALLEL_THRESHOLD_OPS) };
     }
 
     // ── Courbe O(n³) ─────────────────────────────────────────────────────

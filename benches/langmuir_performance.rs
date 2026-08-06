@@ -82,7 +82,7 @@ use std::time::Duration;
 
 use criterion::{BenchmarkId, Criterion, SamplingMode, criterion_group, criterion_main};
 use rand::rngs::SmallRng;
-use rand::{Rng, RngExt, SeedableRng};
+use rand::{RngExt, SeedableRng};
 
 use chrom_rs::models::{LangmuirMulti, LangmuirSingle, SpeciesParams, TemporalInjection};
 use chrom_rs::physics::{PhysicalData, PhysicalModel, PhysicalQuantity};
@@ -244,7 +244,7 @@ struct MultiParams {
 ///
 /// * `n_species` — Nombre d'espèces à générer / *number of species to generate*
 /// * `seed`      — Graine RNG pour la reproductibilité (utiliser 42) /
-///                 *RNG seed for reproducibility (use 42)*
+///   *RNG seed for reproducibility (use 42)*
 ///
 /// # Reproductibilité stricte / *Strict reproducibility*
 ///
@@ -445,7 +445,7 @@ where
 /// # Arguments
 ///
 /// * `params`   — Paramètres physiques (lambdas, ks, ns) /
-///                *physical parameters (lambdas, ks, ns)*
+///   *physical parameters (lambdas, ks, ns)*
 /// * `n_points` — Nombre de points spatiaux / *number of spatial points*
 ///
 /// # Panics
@@ -493,7 +493,7 @@ fn build_multi_from_params(params: &MultiParams, n_points: usize) -> LangmuirMul
 ///
 /// * `n`     — Nombre d'espèces cible / *target number of species*
 /// * `n_ref` — Nombre d'espèces de référence (généralement le premier point de grille) /
-///             *reference number of species (typically the first grid point)*
+///   *reference number of species (typically the first grid point)*
 ///
 /// # Exemple / *Example*
 ///
@@ -1251,7 +1251,6 @@ criterion_main!(langmuir_benches);
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     // ── cfl_to_nsteps ─────────────────────────────────────────────────────────
 

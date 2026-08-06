@@ -364,7 +364,7 @@ impl LangmuirMulti {
             if !seen.insert(&sp.name) {
                 return Err(format!(
                     "Duplicate speciees name '{}' in intial species list",
-                    &sp.name
+                    sp.name
                 ));
             }
         }

@@ -346,7 +346,7 @@ fn benchmark_solver_comparison(c: &mut Criterion) {
     ];
 
     // Test each configuration with both solvers
-    for (points, time_steps, label) in configurations {
+    for (points, time_steps, _label) in configurations {
         // Calculate total time based on problem size
         // We use dt ≈ 0.1s, so total_time = time_steps * 0.1
         let total_time = (time_steps as f64) * 0.1;

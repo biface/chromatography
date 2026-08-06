@@ -280,8 +280,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut peak_concentrations = Vec::with_capacity(n_species);
         let mut retention_times = Vec::with_capacity(n_species);
-        for s in 0..n_species {
-            let (peak, rt, _) = peak_stats(&per_species[s], &result.time_points);
+        for outlet in &per_species {
+            let (peak, rt, _) = peak_stats(outlet, &result.time_points);
             peak_concentrations.push(peak);
             retention_times.push(rt);
         }
@@ -344,10 +344,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     println!("{:-<55}", "");
     for r in &multi_runs {
-        for s in 0..n_species {
+        for (s, name) in species_names.iter().enumerate().take(n_species) {
             println!(
                 "{:<12} {:<14} {:>12.6} {:>12.1}",
-                species_names[s], r.solver_name, r.peak_concentrations[s], r.retention_times[s]
+                name, r.solver_name, r.peak_concentrations[s], r.retention_times[s]
             );
         }
         println!("{:-<55}", "");
@@ -405,12 +405,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("\n— Competitive —");
         let euler = &multi_runs[0];
         let rk4 = &multi_runs[1];
-        for s in 0..n_species {
+        for (s, name) in species_names.iter().enumerate().take(n_species) {
             let peak_diff = (rk4.peak_concentrations[s] - euler.peak_concentrations[s]).abs();
             let peak_pct = peak_diff / euler.peak_concentrations[s] * 100.0;
             let rt_diff = (rk4.retention_times[s] - euler.retention_times[s]).abs();
             let rt_ppm = rt_diff / euler.retention_times[s] * 1_000_000.0;
-            println!("\n  {} (competitive):", species_names[s]);
+            println!("\n  {} (competitive):", name);
             println!("    Peak difference     : {peak_diff:.6} mol/L ({peak_pct:.2}%)");
             println!("    Ret. time difference: {rt_diff:.4} s ({rt_ppm:.2} ppm)");
         }
@@ -461,23 +461,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Species", "Solo (s)", "Mixed (s)", "Shift (s)"
     );
     println!("{:-<50}", "");
-    for s in 0..n_species {
+    for (s, name) in species_names.iter().enumerate().take(n_species) {
         let solo_euler = solo_runs
             .iter()
-            .find(|r| r.species_name == species_names[s] && r.solver_name == "Euler")
+            .find(|r| r.species_name == *name && r.solver_name == "Euler")
             .unwrap();
         let shift = euler_multi.retention_times[s] - solo_euler.retention_time_secs;
         println!(
             "{:<12} {:>12.1} {:>12.1} {:>+12.1}",
-            species_names[s], solo_euler.retention_time_secs, euler_multi.retention_times[s], shift
+            name, solo_euler.retention_time_secs, euler_multi.retention_times[s], shift
         );
     }
 
     println!();
-    for s in 0..n_species {
+    for (s, name) in species_names.iter().enumerate().take(n_species) {
         let solo_euler = solo_runs
             .iter()
-            .find(|r| r.species_name == species_names[s] && r.solver_name == "Euler")
+            .find(|r| r.species_name == *name && r.solver_name == "Euler")
             .unwrap();
         let shift = euler_multi.retention_times[s] - solo_euler.retention_time_secs;
         let effect = match shift {
@@ -487,7 +487,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             sh if sh > 0.0 => "elutes LATER in mixture (competitor occupies shared sites)",
             _ => "elutes EARLIER in mixture (displaced by stronger competitor)",
         };
-        println!("  {} : {effect}", species_names[s]);
+        println!("  {} : {effect}", name);
     }
 
     println!("\nDone.");
