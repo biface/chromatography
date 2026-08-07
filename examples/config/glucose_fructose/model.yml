@@ -1,0 +1,26 @@
+# Mirrors MultiSpeciesCase::glucose_fructose_linear() in validation/reference.rs.
+# langmuir_k derived from the Henry constants (Nicoud 2015, §10.1):
+#   K_gl = 0.27 / (1 - porosity) = 0.45
+#   K_fr = 0.46 / (1 - porosity) = 0.7666666666666667
+LangmuirMulti:
+  species:
+    - name: Glucose
+      lambda: 0.0
+      langmuir_k: 0.45
+      port_number: 1
+      injection:
+        type: None
+    - name: Fructose
+      lambda: 0.0
+      langmuir_k: 0.7666666666666667
+      port_number: 1
+      injection:
+        type: None
+  n_points: 100
+  porosity: 0.4
+  velocity: 0.001
+  column_length: 0.3
+  dz: 0.003
+  fe: 1.5
+  ue: 0.0025
+  stationary_fraction: 0.6

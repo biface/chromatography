@@ -1,0 +1,4 @@
+type: Euler
+total_time: 400.0
+time_steps: 2000
+step: ~
