@@ -356,6 +356,14 @@ fn report_case(case: &Case) -> Value {
         .collect();
     let rsf_max = rsf_per_species.iter().cloned().fold(f64::MIN, f64::max);
 
+    // Wall-clock solve time per solver — end-to-end (Scenario::new through
+    // Solver::solve), single run, not a statistically-sound Criterion
+    // measurement. Meant to give an order-of-magnitude cost-vs-accuracy
+    // reading alongside Rsf, not to replace `benches/langmuir_performance.rs`
+    // (issue #55).
+    let euler_ms = elapsed_euler.as_secs_f64() * 1000.0;
+    let rk4_ms = elapsed_rk4.as_secs_f64() * 1000.0;
+
     json!({
         "case": case.name,
         "species": species,
