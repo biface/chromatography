@@ -25,12 +25,24 @@
 //!    - the parallelism threshold (crossed at n_species = 10 with
 //!      n_points = 100),
 //!    - the RK4 vs Euler overhead over the full range.
+//! 6. **`bench_reference_cases`** — Euler vs RK4 end-to-end solve time on
+//!    the two real multi-species cases validated in #43/#44
+//!    (Ascorbic/Erythorbic, Glucose/Fructose), as opposed to groups 3 and 5
+//!    above, which explore synthetic n_species scaling. Neither case
+//!    crosses the parallelism threshold (n_points × n_species = 200 < 999).
+//! 7. **`bench_isotherm_evaluation_cost`** — a single [`PhysicalModel::compute_physics`]
+//!    call, isolated from the PDE solve, for both real reference cases at
+//!    matched n_points/n_species. Tests whether the RK4/Euler cost ratio
+//!    difference observed in group 6 is actually explained by isotherm
+//!    evaluation cost (issue #55).
 //!
 //! # Physical parameters
 //!
-//! All groups except 3 and 5 use TFA parameters (scientifically validated —
+//! Groups 1, 2 and 4 use TFA parameters (scientifically validated —
 //! Nicoud 2015, Fig. 4). Groups 3 and 5 generate reproducible random
-//! parameters (seed = 42).
+//! parameters (seed = 42). Group 6 uses the two real multi-species
+//! reference cases from Nicoud (2015), Fig. 5 and §10.1 (see
+//! `RefCase::ascorbic_erythorbic`/`glucose_fructose_linear` below).
 //!
 //! # Compute-time estimation (group 5)
 //!
@@ -1441,6 +1453,8 @@ criterion_group!(
     bench_multi_species_scaling,
     bench_parallelism_threshold,
     bench_species_response_curve,
+    bench_reference_cases,
+    bench_isotherm_evaluation_cost,
 );
 
 criterion_main!(langmuir_benches);
