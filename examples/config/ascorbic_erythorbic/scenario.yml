@@ -1,0 +1,9 @@
+# Injection profile mirrors MultiSpeciesCase::ascorbic_erythorbic() in
+# validation/reference.rs: Rectangle(0, t_inj, c0) with
+# t_inj = 2 * t_total / n_steps = 2 * 800.0 / 4000 = 0.4 s, c0 = 1.0e-3 mol/L.
+initial_condition: zero
+default_injection:
+  type: Rectangle
+  start: 0.0
+  end: 0.4
+  concentration: 0.001
