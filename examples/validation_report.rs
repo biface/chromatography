@@ -1,9 +1,10 @@
-//! On-demand scientific validation report (issue #44).
+//! On-demand scientific validation report (issues #44, #55).
 //!
 //! Runs the reference cases from `validation/reference.rs` and produces a
 //! structured JSON summary — simulated vs. reference peak positions, the
-//! $R_{sf}$ dissimilarity between the Euler and RK4 solvers, and the solver
-//! parameters used (Δt, Δz, CFL) — for scientific review and publication.
+//! $R_{sf}$ dissimilarity between the Euler and RK4 solvers, per-solver
+//! wall-clock solve time, and the solver parameters used (Δt, Δz, CFL) —
+//! for scientific review and publication.
 //!
 //! Complements the automated CI tests in `validation/main.rs` (which assert
 //! pass/fail against fixed tolerances) with a human-readable artifact meant
@@ -267,12 +268,12 @@ fn outlet_profiles(result: &SimulationResult, n_points: usize, n_species: usize)
     per_species
 }
 
-/// Run `case` with the given solver, returning `(time_points, [species][time_step])`.
-fn run(case: &Case, solver: &dyn Solver) -> (Vec<f64>, Vec<Vec<f64>>) {
+/// Run `case` with the given solver, returning `(time_points, [species][time_step], elapsed)`.
+fn run(case: &Case, solver: &dyn Solver) -> (Vec<f64>, Vec<Vec<f64>>, std::time::Duration) {
     let t_inj = case.t_inj();
     let config = SolverConfiguration::time_evolution(case.t_total, case.n_steps);
 
-    let (result, n_species) = if case.species.len() == 1 {
+    let (result, n_species, elapsed) = if case.species.len() == 1 {
         let sp = &case.species[0];
         let model = LangmuirSingle::new(
             sp.lambda,
@@ -286,7 +287,9 @@ fn run(case: &Case, solver: &dyn Solver) -> (Vec<f64>, Vec<Vec<f64>>) {
         );
         let boundaries = DomainBoundaries::temporal(model.setup_initial_state());
         let scenario = Scenario::new(Box::new(model), boundaries);
-        (solver.solve(&scenario, &config).expect("solver failed"), 1)
+        let start = std::time::Instant::now();
+        let result = solver.solve(&scenario, &config).expect("solver failed");
+        (result, 1, start.elapsed())
     } else {
         let species: Vec<SpeciesParams> = case
             .species
@@ -312,14 +315,13 @@ fn run(case: &Case, solver: &dyn Solver) -> (Vec<f64>, Vec<Vec<f64>>) {
         .expect("invalid case parameters");
         let boundaries = DomainBoundaries::temporal(model.setup_initial_state());
         let scenario = Scenario::new(Box::new(model), boundaries);
-        (
-            solver.solve(&scenario, &config).expect("solver failed"),
-            n_species,
-        )
+        let start = std::time::Instant::now();
+        let result = solver.solve(&scenario, &config).expect("solver failed");
+        (result, n_species, start.elapsed())
     };
 
     let profiles = outlet_profiles(&result, case.n_points, n_species);
-    (result.time_points, profiles)
+    (result.time_points, profiles, elapsed)
 }
 
 // =================================================================================================
@@ -328,8 +330,8 @@ fn run(case: &Case, solver: &dyn Solver) -> (Vec<f64>, Vec<Vec<f64>>) {
 
 /// Build the JSON report entry for one case.
 fn report_case(case: &Case) -> Value {
-    let (t_rk4, c_rk4) = run(case, &RK4Solver::new());
-    let (t_euler, c_euler) = run(case, &EulerSolver::new());
+    let (t_rk4, c_rk4, elapsed_rk4) = run(case, &RK4Solver::new());
+    let (t_euler, c_euler, elapsed_euler) = run(case, &EulerSolver::new());
 
     let species: Vec<Value> = case
         .species
@@ -368,6 +370,11 @@ fn report_case(case: &Case) -> Value {
         "case": case.name,
         "species": species,
         "rsf_euler_vs_rk4": rsf_max,
+        "solve_time_ms": {
+            "euler": euler_ms,
+            "rk4": rk4_ms,
+            "rk4_over_euler_ratio": rk4_ms / euler_ms,
+        },
         "solver_parameters": {
             "delta_t_s": case.dt(),
             "delta_z_m": case.dz(),
@@ -425,6 +432,14 @@ fn main() -> Result<(), JsonError> {
             params["delta_t_s"].as_f64().unwrap(),
             params["delta_z_m"].as_f64().unwrap(),
             params["cfl"].as_f64().unwrap(),
+        );
+        let timing = &entry["solve_time_ms"];
+        println!(
+            "  Euler = {:>7.2} ms   RK4 = {:>7.2} ms   (×{:.2})   Rsf(Euler,RK4) = {:.4}",
+            timing["euler"].as_f64().unwrap(),
+            timing["rk4"].as_f64().unwrap(),
+            timing["rk4_over_euler_ratio"].as_f64().unwrap(),
+            entry["rsf_euler_vs_rk4"].as_f64().unwrap(),
         );
     }
 
