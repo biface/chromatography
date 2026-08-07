@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use chrom_rs::cli::app::{ChromContext, RunHandler};
-use dynamic_cli::{CommandHandler, ExecutionContext};
+use dynamic_cli::{CommandHandler, ExecutionContext, ParsedArgs};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -33,19 +33,20 @@ fn copy_files(files: &[&str], dest_dir: &Path) {
     }
 }
 
-/// Builds the `args` map passed to `RunHandler::execute`.
-fn make_args(entries: &[(&str, &str)]) -> HashMap<String, String> {
-    entries
+/// Builds the `args` passed to `RunHandler::execute`.
+fn make_args(entries: &[(&str, &str)]) -> ParsedArgs {
+    let map: HashMap<String, String> = entries
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect()
+        .collect();
+    ParsedArgs::from_scalars(map)
 }
 
 /// Runs the handler with `project-dir` pointing at `dir`.
 ///
 /// `RunHandler::execute` reads `project-dir` from `args` and calls
 /// `set_project_dir` internally — the context starts with the default `.`.
-fn run(dir: &Path, args: &HashMap<String, String>) {
+fn run(dir: &Path, args: &ParsedArgs) {
     let mut ctx = ChromContext::new();
     RunHandler
         .execute(&mut ctx as &mut dyn ExecutionContext, args)

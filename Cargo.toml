@@ -27,7 +27,7 @@ inherits = "test"
 opt-level = 0
 
 [dependencies]
-dynamic-cli = "0.2.0"
+dynamic-cli = "0.6.0"
 nalgebra = { version = "0.34.2", features = ["serde-serialize"] }
 num = "0.4.3"
 serde = { version = "1.0.228", features = ["derive"] }
