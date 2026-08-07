@@ -1198,6 +1198,238 @@ fn _note_rk4_n100() {
 }
 
 // =================================================================================================
+// Group 6 — real reference-case end-to-end solve time (issue #55)
+// =================================================================================================
+
+/// One multi-species reference case, end-to-end solve time only.
+///
+/// Minimal local copy of the two reference cases used in `validation/`
+/// and `examples/validation_report.rs` — `benches/` cannot depend on the
+/// standalone `[[test]]` crate any more than `examples/` can (see
+/// `examples/validation_report.rs`'s header for the full rationale). Only
+/// the fields this group needs are kept; do not add fields "just in case".
+struct RefCase {
+    name: &'static str,
+    column_length: f64,
+    porosity: f64,
+    velocity: f64,
+    n_points: usize,
+    c0: f64,
+    t_total: f64,
+    n_steps: usize,
+    /// (name, lambda, langmuir_k, port_number)
+    species: Vec<(&'static str, f64, f64, u32)>,
+}
+
+impl RefCase {
+    fn t_inj(&self) -> f64 {
+        2.0 * self.t_total / self.n_steps as f64
+    }
+
+    /// Case D — Ascorbic/Erythorbic, competitive Langmuir (Nicoud 2015, Fig. 5).
+    /// Mirrors `MultiSpeciesCase::ascorbic_erythorbic()`.
+    fn ascorbic_erythorbic() -> Self {
+        Self {
+            name: "ascorbic_erythorbic",
+            column_length: 0.25,
+            porosity: 0.4,
+            velocity: 1.0e-3,
+            n_points: 100,
+            c0: 1.0e-3,
+            t_total: 800.0,
+            n_steps: 4000,
+            species: vec![("Ascorbic", 1.0, 1.1, 2), ("Erythorbic", 1.0, 1.7, 2)],
+        }
+    }
+
+    /// Case E — Glucose/Fructose, linear regime (Nicoud 2015, §10.1).
+    /// Mirrors `MultiSpeciesCase::glucose_fructose_linear()`.
+    fn glucose_fructose_linear() -> Self {
+        let porosity = 0.4;
+        Self {
+            name: "glucose_fructose_linear",
+            column_length: 0.3,
+            porosity,
+            velocity: 1.0e-3,
+            n_points: 100,
+            c0: 1.0e-3,
+            t_total: 400.0,
+            n_steps: 2000,
+            species: vec![
+                ("Glucose", 0.0, 0.27 / (1.0 - porosity), 1),
+                ("Fructose", 0.0, 0.46 / (1.0 - porosity), 1),
+            ],
+        }
+    }
+
+    /// Builds a fresh [`Scenario`] + [`SolverConfiguration`] for this case.
+    ///
+    /// Called inside `b.iter()` (not hoisted outside) so that model/scenario
+    /// construction is excluded from nothing — the whole point of this group
+    /// is the cost a user actually pays end-to-end, construction included.
+    fn build_scenario(&self) -> (Scenario, SolverConfiguration) {
+        let t_inj = self.t_inj();
+        let species: Vec<SpeciesParams> = self
+            .species
+            .iter()
+            .map(|&(name, lambda, k, n)| {
+                SpeciesParams::new(
+                    name,
+                    lambda,
+                    k,
+                    n,
+                    TemporalInjection::rectangle(0.0, t_inj, self.c0),
+                )
+            })
+            .collect();
+        let model = LangmuirMulti::new(
+            species,
+            self.n_points,
+            self.porosity,
+            self.velocity,
+            self.column_length,
+        )
+        .expect("reference case parameters always valid");
+        let boundaries = DomainBoundaries::temporal(model.setup_initial_state());
+        let scenario = Scenario::new(Box::new(model), boundaries);
+        let config = SolverConfiguration::time_evolution(self.t_total, self.n_steps);
+        (scenario, config)
+    }
+}
+
+/// Euler vs RK4, real end-to-end `Solver::solve` time on the two
+/// multi-species cases actually validated in #43/#44 — as opposed to
+/// groups 3 and 5 above, which explore *synthetic* n_species scaling.
+///
+/// Both cases have n_points × n_species = 100 × 2 = 200, well under the
+/// parallelism threshold (999, see [`chrom_rs::solver::parallel_threshold`]).
+/// Neither case triggers Rayon dispatch — the parallelism explored in
+/// groups 4 and 5 does not benefit these two real cases, only cases with
+/// higher spatial resolution or more competing species.
+fn bench_reference_cases(c: &mut Criterion) {
+    let cases = [
+        RefCase::ascorbic_erythorbic(),
+        RefCase::glucose_fructose_linear(),
+    ];
+
+    let mut group = c.benchmark_group("bench_reference_cases");
+    group.sampling_mode(SamplingMode::Flat);
+    group.sample_size(10);
+
+    for case in &cases {
+        let euler_id = BenchmarkId::new("euler", case.name);
+        group.bench_with_input(euler_id, case, |b, case| {
+            b.iter(|| {
+                let (scenario, config) = case.build_scenario();
+                black_box(EulerSolver::new().solve(&scenario, &config).ok())
+            })
+        });
+
+        let rk4_id = BenchmarkId::new("rk4", case.name);
+        group.bench_with_input(rk4_id, case, |b, case| {
+            b.iter(|| {
+                let (scenario, config) = case.build_scenario();
+                black_box(RK4Solver::new().solve(&scenario, &config).ok())
+            })
+        });
+    }
+
+    group.finish();
+}
+
+// =================================================================================================
+// Enregistrement Criterion
+// Criterion registration
+// =================================================================================================
+
+// =================================================================================================
+// Group 7 — isotherm evaluation cost, isolated from the PDE solve (issue #55)
+// =================================================================================================
+
+/// Calls [`PhysicalModel::compute_physics`] directly, once per iteration —
+/// no time-stepping, no `Solver::solve`. This isolates the cost of a single
+/// right-hand-side evaluation (`jacobian` + `inverse_propagation` inside
+/// [`LangmuirMulti`], both `pub(crate)` and therefore not directly
+/// reachable from this bench crate — `compute_physics` is the public entry
+/// point that exercises them) from the cost of everything else RK4/Euler do
+/// around it (state allocation, trajectory storage, time bookkeeping).
+///
+/// Both cases share n_points=100, n_species=2 — same matrix size, same
+/// number of floating-point operations in `jacobian`'s O(n²) loop and the
+/// 2×2 matrix inversion, by construction (see `jacobian`'s doc comment in
+/// `src/models/langmuir_multi.rs`). If per-call cost differs measurably
+/// between the two cases here, that's evidence for the "isotherm
+/// nonlinearity is more expensive to evaluate" hypothesis from the
+/// wiki write-up. If it doesn't, that hypothesis is not supported by this
+/// measurement, and the RK4/Euler ratio difference observed in
+/// `bench_reference_cases` needs a different explanation.
+fn bench_isotherm_evaluation_cost(c: &mut Criterion) {
+    struct EvalCase {
+        name: &'static str,
+        column_length: f64,
+        species: Vec<(&'static str, f64, f64, u32)>,
+    }
+
+    let cases = [
+        EvalCase {
+            name: "ascorbic_erythorbic",
+            column_length: 0.25,
+            species: vec![("Ascorbic", 1.0, 1.1, 2), ("Erythorbic", 1.0, 1.7, 2)],
+        },
+        EvalCase {
+            name: "glucose_fructose_linear",
+            column_length: 0.3,
+            species: vec![
+                ("Glucose", 0.0, 0.45, 1),
+                ("Fructose", 0.0, 0.7666666666666667, 1),
+            ],
+        },
+    ];
+
+    let mut group = c.benchmark_group("bench_isotherm_evaluation_cost");
+    group.measurement_time(Duration::from_secs(10));
+    group.sample_size(50);
+    group.warm_up_time(Duration::from_secs(3));
+
+    const N_POINTS: usize = 100;
+    // Representative mid-peak concentration — nonzero on purpose, so the
+    // shared denominator term (1 + Σ K̃ⱼCⱼ) is actually exercised rather
+    // than trivially evaluated at C=0.
+    const REPRESENTATIVE_CONCENTRATION: f64 = 5.0e-4;
+
+    for case in &cases {
+        let species: Vec<SpeciesParams> = case
+            .species
+            .iter()
+            .map(|&(name, lambda, k, n)| {
+                SpeciesParams::new(
+                    name,
+                    lambda,
+                    k,
+                    n,
+                    TemporalInjection::rectangle(0.0, 0.4, 1.0e-3),
+                )
+            })
+            .collect();
+        let n_species = species.len();
+        let model = LangmuirMulti::new(species, N_POINTS, 0.4, 1.0e-3, case.column_length)
+            .expect("reference case parameters always valid");
+
+        let state = chrom_rs::physics::PhysicalState::new(
+            PhysicalQuantity::Concentration,
+            PhysicalData::uniform_matrix(N_POINTS, n_species, REPRESENTATIVE_CONCENTRATION),
+        );
+        let ctx = chrom_rs::physics::ComputeContext::new(0.0, 0.2);
+
+        group.bench_function(case.name, |b| {
+            b.iter(|| black_box(model.compute_physics(&state, &ctx)))
+        });
+    }
+
+    group.finish();
+}
+
+// =================================================================================================
 // Enregistrement Criterion
 // Criterion registration
 // =================================================================================================
