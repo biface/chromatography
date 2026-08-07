@@ -10,6 +10,9 @@
 //! 2. **Theoretical O(n²) curve**: grey dashes, anchored on the first serial point
 //! 3. **Log-log regression**: regression line per regime with measured exponent
 //! 4. **Breakpoint annotation**: measured speedup between npts=499 and npts=500
+//! 5. **Validated-case marker** (issue #55): orange ring on the n_points=100
+//!    point — both real reference cases (Ascorbic/Erythorbic,
+//!    Glucose/Fructose) operate here, well inside the serial regime
 //!
 //! # Cargo.toml
 //!
@@ -546,6 +549,33 @@ fn generate_plot(points: &[DataPoint], output_path: &Path) -> anyhow::Result<()>
             .iter()
             .map(|&(x, y)| Circle::new((x, y), 5, RED.filled())),
     )?;
+
+    // ── Annotation des cas réels validés (issue #55) ───────────────────────
+    // ── Real validated-case annotation (issue #55) ─────────────────────────
+    //
+    // Ascorbic/Erythorbic et Glucose/Fructose (#43, #44) partagent tous deux
+    // n_points=100, n_species=2 → ops=200 — déjà présent dans la grille de
+    // mesure ci-dessus, aucune donnée supplémentaire à collecter.
+    // Ascorbic/Erythorbic and Glucose/Fructose (#43, #44) both have
+    // n_points=100, n_species=2 → ops=200 — already present in the
+    // measurement grid above, no extra data collection needed.
+    if let Some(real) = points.iter().find(|p| p.n_points == 100) {
+        let x = real.n_points as f64;
+        chart.draw_series(std::iter::once(Circle::new(
+            (x, real.time_ms),
+            9,
+            ShapeStyle {
+                color: RGBColor(255, 140, 0).to_rgba(),
+                filled: false,
+                stroke_width: 3,
+            },
+        )))?;
+        chart.draw_series(std::iter::once(Text::new(
+            "Validated cases\n(Ascorbic/Erythorbic,\nGlucose/Fructose)\nops=200",
+            (x + x_max * 0.015, real.time_ms + y_max * 0.10),
+            ("sans-serif", 11).into_font().color(&RGBColor(200, 110, 0)),
+        )))?;
+    }
 
     // ── Annotation du gain à la cassure ───────────────────────────────────
     // ── Breakpoint gain annotation ────────────────────────────────────────
