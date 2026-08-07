@@ -1,0 +1,4 @@
+type: RK4
+total_time: 800.0
+time_steps: 4000
+step: ~
