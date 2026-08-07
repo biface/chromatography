@@ -11,6 +11,20 @@ Versioning: [SemVer](https://semver.org/)
 
 ---
 
+## [0.5.0] — dynamic-cli 0.6.0 Adaptation
+
+### Changed
+- `Cargo.toml` — `dynamic-cli` `0.2.0` → `0.6.0` ([#52](https://github.com/biface/chromatography/issues/52), DD-001)
+- `src/cli/mod.rs` — `register_handler` → `register_sync_handler` (renamed in dcli 0.5.0; the old name is `#[deprecated]`, which `cargo clippy -- -D warnings` turns into a build error)
+- `src/cli/app.rs` — `RunHandler::execute` and the internal `resolve_input_path` helper migrated from `&HashMap<String, String>` to `&ParsedArgs` (dcli 0.6.0, DD-024): `args.get("x")` → `args.get_scalar("x")` for all 4 fields read directly (`project-dir`, `output-csv`, `output-plot`, `export-json`) plus the 3 fields resolved via `resolve_input_path` (`model`, `scenario`, `solver`)
+- No user-facing CLI surface change — `src/cli/commands.yml` unchanged, no `repeatable` options introduced (see DD-016, deferred to v0.6.0)
+
+### Docs
+- `benches/solver_performance.rs`, `benches/langmuir_performance.rs`, `tools/plot_parallelism_threshold.rs`, `tools/plot_species_response_curve.rs` — module-level rustdoc introductions rewritten to state the run command (`cargo bench --bench <name>` and, where applicable, the companion `cargo run --bin plot_*` invocation) up front ([#54](https://github.com/biface/chromatography/issues/54))
+- `benches/langmuir_performance.rs`, `tools/plot_parallelism_threshold.rs`, `tools/plot_species_response_curve.rs` — rustdoc converted from bilingual FR/EN to English only, per the project's rustdoc convention (bilingual prose belongs in `//` code comments and the wiki, not `///`/`//!` rustdoc)
+
+---
+
 ## [0.4.1] — 2026-08-06
 
 ### Added

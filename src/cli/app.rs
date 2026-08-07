@@ -20,13 +20,12 @@
 //! These invariants are enforced exclusively by
 //! [`ChromContext::set_project_dir`].
 
-use std::collections::HashMap;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 
 use anyhow::anyhow;
 use dynamic_cli::error::ExecutionError;
-use dynamic_cli::{CommandHandler, DynamicCliError, ExecutionContext};
+use dynamic_cli::{CommandHandler, DynamicCliError, ExecutionContext, ParsedArgs};
 
 use crate::config::{model::load_model, scenario::load_scenario, solver::load_solver};
 use crate::models::{LangmuirMulti, LangmuirSingle};
@@ -377,7 +376,7 @@ impl CommandHandler for RunHandler {
     fn execute(
         &self,
         ctx: &mut dyn ExecutionContext,
-        args: &HashMap<String, String>,
+        args: &ParsedArgs,
     ) -> dynamic_cli::Result<()> {
         // ── 1. Project directory ─────────────────────────────────────────────
         let chrom_ctx = ctx
@@ -390,7 +389,7 @@ impl CommandHandler for RunHandler {
                 })
             })?;
 
-        let project_dir_str = args.get("project-dir").map(|s| s.as_str()).unwrap_or(".");
+        let project_dir_str = args.get_scalar("project-dir").unwrap_or(".");
 
         chrom_ctx
             .set_project_dir(project_dir_str)
@@ -450,7 +449,7 @@ impl CommandHandler for RunHandler {
         // ── 6. Outputs ───────────────────────────────────────────────────────
 
         // CSV
-        if let Some(csv_name) = args.get("output-csv") {
+        if let Some(csv_name) = args.get_scalar("output-csv") {
             let csv_buf = project_dir.join(csv_name);
             let csv_path = path_to_str(&csv_buf).map_err(to_cli_err)?;
             let exporter = CsvExporter::new(CsvConfig::default());
@@ -468,7 +467,7 @@ impl CommandHandler for RunHandler {
         }
 
         // Plot
-        if let Some(plot_name) = args.get("output-plot") {
+        if let Some(plot_name) = args.get_scalar("output-plot") {
             let plot_buf = project_dir.join(plot_name);
             let plot_path = path_to_str(&plot_buf).map_err(to_cli_err)?;
             if is_multi {
@@ -483,7 +482,7 @@ impl CommandHandler for RunHandler {
         }
 
         // JSON export
-        if let Some(json_name) = args.get("export-json") {
+        if let Some(json_name) = args.get_scalar("export-json") {
             let json_buf = project_dir.join(json_name);
             let json_path = path_to_str(&json_buf).map_err(to_cli_err)?;
             let map = resolve_export_map(&model_path, &result)
@@ -501,13 +500,9 @@ impl CommandHandler for RunHandler {
 // ============================================================================
 
 /// Resolves a required option to a [`PathBuf`] under `project_dir`.
-fn resolve_input_path(
-    project_dir: &Path,
-    args: &HashMap<String, String>,
-    key: &str,
-) -> anyhow::Result<PathBuf> {
+fn resolve_input_path(project_dir: &Path, args: &ParsedArgs, key: &str) -> anyhow::Result<PathBuf> {
     let name = args
-        .get(key)
+        .get_scalar(key)
         .ok_or_else(|| anyhow!("missing required option '--{key}'"))?;
     Ok(project_dir.join(name))
 }
@@ -528,6 +523,7 @@ mod tests {
     use crate::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
     use crate::solver::SimulationResult;
     use dynamic_cli::downcast_ref;
+    use std::collections::HashMap;
     use std::io::Write;
 
     // ── Fixtures YAML ─────────────────────────────────────────────────────────
@@ -749,15 +745,16 @@ LangmuirMulti:
 
     #[test]
     fn test_resolve_input_path_found() {
-        let mut args = HashMap::new();
-        args.insert("model".to_string(), "model.yml".to_string());
+        let mut map = HashMap::new();
+        map.insert("model".to_string(), "model.yml".to_string());
+        let args = ParsedArgs::from_scalars(map);
         let result = resolve_input_path(Path::new("/proj"), &args, "model").unwrap();
         assert_eq!(result, PathBuf::from("/proj/model.yml"));
     }
 
     #[test]
     fn test_resolve_input_path_missing_key() {
-        let args = HashMap::new();
+        let args = ParsedArgs::from_scalars(HashMap::new());
         assert!(resolve_input_path(Path::new("."), &args, "model").is_err());
     }
 

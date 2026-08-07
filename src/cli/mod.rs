@@ -75,7 +75,7 @@ pub fn build_app() -> anyhow::Result<CliApp> {
     CliBuilder::new()
         .config(config)
         .context(Box::new(ChromContext::new()))
-        .register_handler(RUN_HANDLER_NAME, Box::new(RunHandler))
+        .register_sync_handler(RUN_HANDLER_NAME, Box::new(RunHandler))
         .build()
         .map_err(|e| anyhow!("CLI builder error: {e}"))
 }
