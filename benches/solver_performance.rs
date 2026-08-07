@@ -1,7 +1,10 @@
 //! Performance benchmarks for numerical solvers
 //!
 //! This benchmark compares Euler and RK4 solvers on identical problems
-//! to measure their relative performance characteristics.
+//! to measure their relative performance characteristics. Run it with
+//! `cargo bench --bench solver_performance` (see "Running Benchmarks" below
+//! for narrower filters). No companion `tools/plot_*` binary consumes its
+//! output.
 //!
 //! # What We're Measuring
 //!
