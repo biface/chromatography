@@ -92,6 +92,18 @@ path = "tools/plot_parallelism_threshold.rs"
 name = "plot_species_response_curve"
 path = "tools/plot_species_response_curve.rs"
 
+[[bin]]
+name = "plot_reference_cases_timing"
+path = "tools/plot_reference_cases_timing.rs"
+
+[[bin]]
+name = "plot_cost_accuracy"
+path = "tools/plot_cost_accuracy.rs"
+
+[[bin]]
+name = "plot_stiffness_convergence"
+path = "tools/plot_stiffness_convergence.rs"
+
 [[test]]
 name = "scientific_validation"
 path = "validation/main.rs"
