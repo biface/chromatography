@@ -1,50 +1,41 @@
-//! Benchmarks de performance pour les modèles Langmuir
-//! *Performance benchmarks for Langmuir models*
+//! Performance benchmarks for Langmuir models.
 //!
-//! # Objectif / *Objective*
+//! Run with `cargo bench --bench langmuir_performance`; the HTML report
+//! lands in `target/criterion/`. Groups 4 and 5 below feed
+//! `tools/plot_parallelism_threshold` and `tools/plot_species_response_curve`
+//! respectively.
 //!
-//! Ce fichier mesure cinq dimensions indépendantes des performances de
-//! `chrom-rs` :
-//! *This file measures five independent performance dimensions of `chrom-rs`:*
+//! # Objective
 //!
-//! 1. **`bench_cfl_stability`** — Stabilité numérique en fonction du CFL
-//!    (Euler et RK4).
-//!    *Numerical stability as a function of CFL (Euler and RK4).*
-//! 2. **`bench_single_vs_multi_1species`** — Surcoût de [`LangmuirMulti`]
-//!    sur un problème mono-espèce (Euler et RK4).
-//!    *Overhead of [`LangmuirMulti`] on a single-species problem (Euler and RK4).*
-//! 3. **`bench_multi_species_scaling`** — Scalabilité O(n³) de l'inversion
-//!    jacobienne pour n_species ∈ {1, 2, 5, 10, 20, 50} (Euler uniquement).
-//!    *O(n³) scalability of Jacobian inversion for n_species ∈ {1,2,5,10,20,50} (Euler only).*
-//! 4. **`bench_parallelism_threshold`** — Déclenchement du parallélisme rayon
-//!    autour du seuil n_points × n_species ≥ 1000.
-//!    *Rayon parallelism trigger around the threshold n_points × n_species ≥ 1000.*
-//! 5. **`bench_species_response_curve`** — Courbe de réponse complète de
-//!    n_species = 2 à 100, **Euler et RK4**, avec n_points = 100 fixé.
-//!    *Full response curve from n_species = 2 to 100, **Euler and RK4**, with n_points = 100 fixed.*
-//!    Ce groupe croise simultanément :
-//!    *This group simultaneously observes:*
-//!    - la loi d'échelle O(n³) de l'inversion LU,
-//!      *the O(n³) scaling law of LU inversion,*
-//!    - le seuil de parallélisme (franchi à n_species = 10 avec n_points = 100),
-//!      *the parallelism threshold (crossed at n_species = 10 with n_points = 100),*
-//!    - le surcoût RK4 vs Euler sur la plage complète.
-//!      *the RK4 vs Euler overhead over the full range.*
+//! This file measures five independent performance dimensions of
+//! `chrom-rs`:
 //!
-//! # Paramètres physiques / *Physical parameters*
+//! 1. **`bench_cfl_stability`** — Numerical stability as a function of CFL
+//!    (Euler and RK4).
+//! 2. **`bench_single_vs_multi_1species`** — Overhead of [`LangmuirMulti`]
+//!    on a single-species problem (Euler and RK4).
+//! 3. **`bench_multi_species_scaling`** — O(n³) scalability of Jacobian
+//!    inversion for n_species ∈ {1, 2, 5, 10, 20, 50} (Euler only).
+//! 4. **`bench_parallelism_threshold`** — Rayon parallelism trigger around
+//!    the threshold n_points × n_species ≥ 1000.
+//! 5. **`bench_species_response_curve`** — Full response curve from
+//!    n_species = 2 to 100, **Euler and RK4**, with n_points = 100 fixed.
+//!    This group simultaneously observes:
+//!    - the O(n³) scaling law of LU inversion,
+//!    - the parallelism threshold (crossed at n_species = 10 with
+//!      n_points = 100),
+//!    - the RK4 vs Euler overhead over the full range.
 //!
-//! Tous les groupes sauf les groupes 3 et 5 utilisent les paramètres TFA
-//! (validés scientifiquement — Nicoud 2015, Fig. 4).  Les groupes 3 et 5
-//! génèrent des paramètres aléatoires reproductibles (seed = 42).
-//! *All groups except 3 and 5 use TFA parameters (scientifically validated —
-//! Nicoud 2015, Fig. 4). Groups 3 and 5 generate reproducible random parameters (seed = 42).*
+//! # Physical parameters
 //!
-//! # Estimation du temps de calcul (groupe 5) / *Compute-time estimation (group 5)*
+//! All groups except 3 and 5 use TFA parameters (scientifically validated —
+//! Nicoud 2015, Fig. 4). Groups 3 and 5 generate reproducible random
+//! parameters (seed = 42).
 //!
-//! Avant chaque exécution Criterion, `bench_species_response_curve` imprime
-//! sur `stderr` un tableau de pré-analyse :
-//! *Before each Criterion run, `bench_species_response_curve` prints a
-//! pre-analysis table to `stderr`:*
+//! # Compute-time estimation (group 5)
+//!
+//! Before each Criterion run, `bench_species_response_curve` prints a
+//! pre-analysis table to `stderr`:
 //!
 //! ```text
 //! [species_curve] n_sp=  2  ops=  200  regime=serial     n_steps= 2400  ratio_O3=  1.00x
@@ -52,30 +43,16 @@
 //! [species_curve] n_sp=100  ops=10000  regime=PARALLEL   n_steps= 2400  ratio_O3=125000.00x
 //! ```
 //!
-//! La colonne `ratio_O3` est le rapport théorique `(n / n_ref)³` par rapport
-//! à n_species = 2.  Si les temps mesurés suivent ce ratio, la complexité
-//! O(n³) est confirmée.
-//! *The `ratio_O3` column is the theoretical ratio `(n / n_ref)³` relative to
-//! n_species = 2.  If measured times follow this ratio, O(n³) complexity is confirmed.*
+//! The `ratio_O3` column is the theoretical ratio `(n / n_ref)³` relative to
+//! n_species = 2. If measured times follow this ratio, O(n³) complexity is
+//! confirmed.
 //!
-//! # Exécution / *Running*
+//! # Note on NaN/Inf detection
 //!
-//! ```bash
-//! cargo bench --bench langmuir_performance
-//! # Rapport HTML : target/criterion/
-//! # HTML report:   target/criterion/
-//! ```
-//!
-//! # Note sur la détection NaN/Inf / *Note on NaN/Inf detection*
-//!
-//! Pour les CFL ≥ 1.0, le solveur Euler produit typiquement des NaN.
-//! La fonction [`is_numerically_stable`] inspecte l'état final après chaque
-//! itération sonde et affiche un avertissement — sans interrompre la mesure
-//! du temps (afin que Criterion enregistre même les cas instables).
-//! *For CFL ≥ 1.0 the Euler solver typically produces NaN values.
-//! The [`is_numerically_stable`] function inspects the final state after each
+//! For CFL ≥ 1.0 the Euler solver typically produces NaN values. The
+//! [`is_numerically_stable`] function inspects the final state after each
 //! probe iteration and prints a warning — without interrupting the timing
-//! (so that Criterion records even unstable cases).*
+//! (so that Criterion records even unstable cases).
 
 use std::hint::black_box;
 use std::time::Duration;

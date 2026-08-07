@@ -1,27 +1,16 @@
-//! Visualisation de la courbe de réponse n_species (bench_species_response_curve)
-//! *Species response curve visualisation (bench_species_response_curve)*
+//! Species response curve visualisation (bench_species_response_curve).
 //!
-//! # Éléments visuels / *Visual elements*
+//! Run with `cargo bench --bench langmuir_performance -- bench_species_response_curve`
+//! then `cargo run --bin plot_species_response_curve --release`; output lands
+//! in `target/plots/species_response_curve.svg`.
 //!
-//! 1. **Courbes mesurées** : Euler (bleu) + RK4 (rouge) avec barres d'erreur IC 95%
-//! 2. **Courbe théorique O(n³)** : pointillés gris, calée sur le premier point (n=2)
-//! 3. **Régression log-log** : exposant mesuré sur Euler et RK4 séparément
-//! 4. **Ligne du seuil de parallélisme** : verte, à n_species = 10 (ops = 1000)
-//! 5. **Annotation du ratio RK4/Euler** : mesuré sur chaque point
+//! # Visual elements
 //!
-//! *1. **Measured curves**: Euler (blue) + RK4 (red) with 95% CI error bars*
-//! *2. **Theoretical O(n³) curve**: grey dashes, anchored on first point (n=2)*
-//! *3. **Log-log regression**: measured exponent on Euler and RK4 separately*
-//! *4. **Parallelism threshold line**: green, at n_species=10 (ops=1000)*
-//! *5. **RK4/Euler ratio annotation**: measured at each point*
-//!
-//! # Utilisation / *Usage*
-//!
-//! ```bash
-//! cargo bench --bench langmuir_performance -- bench_species_response_curve
-//! cargo run --bin plot_species_response_curve --release
-//! # → target/plots/species_response_curve.svg
-//! ```
+//! 1. **Measured curves**: Euler (blue) + RK4 (red) with 95% CI error bars
+//! 2. **Theoretical O(n³) curve**: grey dashes, anchored on first point (n=2)
+//! 3. **Log-log regression**: measured exponent on Euler and RK4 separately
+//! 4. **Parallelism threshold line**: green, at n_species=10 (ops=1000)
+//! 5. **RK4/Euler ratio annotation**: measured at each point
 //!
 //! # Cargo.toml
 //!

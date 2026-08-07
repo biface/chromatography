@@ -1,25 +1,15 @@
-//! Visualisation du seuil de parallélisme Rayon
-//! *Rayon parallelism threshold visualisation*
+//! Rayon parallelism threshold visualisation.
 //!
-//! # Éléments visuels / *Visual elements*
+//! Run with `cargo bench --bench langmuir_performance -- bench_parallelism_threshold`
+//! then `cargo run --bin plot_parallelism_threshold --release`; output lands
+//! in `target/plots/parallelism_threshold.svg`.
 //!
-//! 1. **Courbe mesurée** : série (bleue) + parallèle (rouge) avec barres d'erreur IC 95%
-//! 2. **Courbe théorique O(n²)** : pointillés gris, calée sur le premier point série
-//! 3. **Régression log-log** : droite de régression sur chaque régime avec exposant mesuré
-//! 4. **Annotation de cassure** : gain mesuré entre npts=499 et npts=500
+//! # Visual elements
 //!
-//! *1. **Measured curve**: serial (blue) + parallel (red) with 95% CI error bars*
-//! *2. **Theoretical O(n²) curve**: grey dashes, anchored on the first serial point*
-//! *3. **Log-log regression**: regression line per regime with measured exponent*
-//! *4. **Breakpoint annotation**: measured speedup between npts=499 and npts=500*
-//!
-//! # Utilisation / *Usage*
-//!
-//! ```bash
-//! cargo bench --bench langmuir_performance -- bench_parallelism_threshold
-//! cargo run --bin plot_parallelism_threshold --release
-//! # → target/plots/parallelism_threshold.svg
-//! ```
+//! 1. **Measured curve**: serial (blue) + parallel (red) with 95% CI error bars
+//! 2. **Theoretical O(n²) curve**: grey dashes, anchored on the first serial point
+//! 3. **Log-log regression**: regression line per regime with measured exponent
+//! 4. **Breakpoint annotation**: measured speedup between npts=499 and npts=500
 //!
 //! # Cargo.toml
 //!
