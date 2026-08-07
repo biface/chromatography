@@ -9,6 +9,22 @@ Versioning: [SemVer](https://semver.org/)
 
 ## [Unreleased]
 
+### Added
+- `benches/langmuir_performance.rs` — group 6, `bench_reference_cases`: Euler vs RK4 end-to-end `Solver::solve` time on the two real multi-species cases validated in #43/#44 (Ascorbic/Erythorbic, Glucose/Fructose), as opposed to groups 3/5 which explore synthetic n_species scaling ([#55](https://github.com/biface/chromatography/issues/55))
+- `examples/validation_report.rs` — per-solver wall-clock solve time (`solve_time_ms.euler`, `solve_time_ms.rk4`, `solve_time_ms.rk4_over_euler_ratio`) added to the JSON report and console summary, alongside the existing `rsf_euler_vs_rk4` ([#55](https://github.com/biface/chromatography/issues/55))
+- `examples/config/ascorbic_erythorbic/`, `examples/config/glucose_fructose/` — CLI-ready config directories (`model.yml`, `scenario.yml`, `solver_euler.yml`, `solver_rk4.yml`) exactly mirroring the physical and solver parameters of `MultiSpeciesCase::ascorbic_erythorbic()`/`glucose_fructose_linear()` in `validation/reference.rs` — usable directly with `chrom-rs run --output-plot` to produce a chromatogram matching the literature-validated cases ([#55](https://github.com/biface/chromatography/issues/55))
+- `tools/plot_reference_cases_timing.rs` (`[[bin]] plot_reference_cases_timing`) — grouped bar chart of Euler vs RK4 mean solve time on the two real reference cases, reading Criterion `estimates.json` from `bench_reference_cases` ([#55](https://github.com/biface/chromatography/issues/55))
+- `tools/plot_cost_accuracy.rs` (`[[bin]] plot_cost_accuracy`) — grouped bar chart of Euler vs RK4 solve time annotated with $R_{sf}$(Euler, RK4) per case, reading `validation_report.json` ([#55](https://github.com/biface/chromatography/issues/55))
+- `benches/langmuir_performance.rs` — group 7, `bench_isotherm_evaluation_cost`: isolates a single `PhysicalModel::compute_physics` call (no PDE solve) for both real reference cases at matched n_points/n_species, to test whether the group 6 RK4/Euler ratio difference is actually explained by isotherm-evaluation cost ([#55](https://github.com/biface/chromatography/issues/55))
+- `examples/stiffness_convergence.rs` — Δt convergence sweep (baseline `n_steps` ×1/×2/×5/×10/×25/×50) for both real reference cases, tracking $R_{sf}$(Euler, RK4) at each resolution with injection duration held fixed, to test the adsorption-front-stiffness hypothesis from the wiki write-up's "Perspective" section ([#55](https://github.com/biface/chromatography/issues/55))
+- `tools/plot_stiffness_convergence.rs` (`[[bin]] plot_stiffness_convergence`) — log-log plot of $R_{sf}$(Euler, RK4) vs Δt per case, reading `stiffness_convergence.json` ([#55](https://github.com/biface/chromatography/issues/55))
+
+### Changed
+- `tools/plot_parallelism_threshold.rs` — added a marker on the n_points=100 measured point: both real reference cases (Ascorbic/Erythorbic, Glucose/Fructose) operate there (ops=200), well inside the serial regime ([#55](https://github.com/biface/chromatography/issues/55))
+
+### Verified
+- Neither real reference case crosses the Rayon parallelism threshold: n_points × n_species = 100 × 2 = 200 for both Ascorbic/Erythorbic and Glucose/Fructose, against a threshold of 999 ([#55](https://github.com/biface/chromatography/issues/55))
+
 ---
 
 ## [0.5.0] — dynamic-cli 0.6.0 Adaptation
