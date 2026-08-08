@@ -1,5 +1,5 @@
 metadata:
-  version: "0.2.0"
+  version: "0.5.0"
   prompt: "chrom-rs"
   prompt_suffix: " > "
 
@@ -7,6 +7,7 @@ commands:
   - name: run
     aliases:
       - simulate
+      - solve
     description: "Run a chromatography simulation from three configuration files."
     required: true
     arguments: []
@@ -20,31 +21,37 @@ commands:
         description: "Root directory for all file names (no '..' allowed)."
         choices: []
 
+      # --- Legacy scalar options — kept for backward compatibility ---
+      # `required: false` at the schema level on purpose: dcli itself can no
+      # longer enforce "this option is mandatory", because each of these three
+      # roles can now be satisfied EITHER by its scalar option OR by a
+      # `--source <role> file=...` occurrence. RunHandler::execute enforces
+      # "exactly one of the two, per role" by hand (see `resolve_source`).
       - name: model
         short: "m"
         long: model
         option_type: string
-        required: true
+        required: false
         default: ~
-        description: "Model configuration file (e.g. model.yml)."
+        description: "Model configuration file (e.g. model.yml). Alternative to '--source model file=...'."
         choices: []
 
       - name: scenario
         short: "s"
         long: scenario
         option_type: string
-        required: true
+        required: false
         default: ~
-        description: "Scenario configuration file (e.g. scenario.yml)."
+        description: "Scenario configuration file (e.g. scenario.yml). Alternative to '--source scenario file=...'."
         choices: []
 
       - name: solver
         short: "S"
         long: solver
         option_type: string
-        required: true
+        required: false
         default: ~
-        description: "Solver configuration file (e.g. solver.yml)."
+        description: "Solver configuration file (e.g. solver.yml). Alternative to '--source solver file=...'."
         choices: []
 
       - name: output-csv
@@ -53,7 +60,7 @@ commands:
         option_type: path
         required: false
         default: ~
-        description: "Write simulation results to a CSV file."
+        description: "Write simulation results to a CSV file. Alternative to '--output csv file=...'."
         choices: []
 
       - name: output-plot
@@ -62,7 +69,7 @@ commands:
         option_type: path
         required: false
         default: ~
-        description: "Save chromatogram plot to a PNG or SVG file."
+        description: "Save chromatogram plot to a PNG or SVG file (format from extension). Alternative to '--output svg file=...' / '--output png file=...'."
         choices: []
 
       - name: export-json
@@ -71,9 +78,110 @@ commands:
         option_type: path
         required: false
         default: ~
-        description: "Export full simulation result to a JSON file."
+        description: "Export full simulation result to a JSON file. Alternative to '--output json file=...'."
         choices: []
 
+      # --- New repeatable options (dynamic-cli 0.6.0 repeatable/option_parameters feature, see biface/dcli#21) ---
+      - name: source
+        short: ~
+        long: source
+        option_type: string
+        required: false
+        default: ~
+        description: "Configuration source, repeatable: '--source <model|scenario|solver> file=<path>'. All three roles are required overall, each exactly once, via this option and/or its scalar equivalent above."
+        choices: [model, scenario, solver]
+        repeatable: true
+        option_parameters:
+          model:
+            - name: file
+              arg_type: path
+              required: true
+              description: "Model configuration file"
+          scenario:
+            - name: file
+              arg_type: path
+              required: true
+              description: "Scenario configuration file"
+          solver:
+            - name: file
+              arg_type: path
+              required: true
+              description: "Solver configuration file"
+
+      - name: output
+        short: ~
+        long: output
+        option_type: string
+        required: false
+        default: ~
+        description: "Output artifact, repeatable: '--output <csv|svg|png|json> file=<path>'. May be given multiple times, including several times for the same type."
+        choices: [csv, svg, png, json]
+        repeatable: true
+        option_parameters:
+          csv:
+            - name: file
+              arg_type: path
+              required: true
+              description: "CSV output file"
+          svg:
+            - name: file
+              arg_type: path
+              required: true
+              description: "SVG plot file (the 'file' value must end in .svg)"
+          png:
+            - name: file
+              arg_type: path
+              required: true
+              description: "PNG plot file (the 'file' value must end in .png)"
+          json:
+            - name: file
+              arg_type: path
+              required: true
+              description: "JSON export file"
+
     implementation: run_handler
+
+  - name: check
+    aliases: []
+    description: "Validate configuration files without running a simulation."
+    required: true
+    arguments: []
+    options:
+      - name: project-dir
+        short: "d"
+        long: project-dir
+        option_type: path
+        required: false
+        default: "."
+        description: "Directory to inventory, and root for '--source' file names (no '..' allowed)."
+        choices: []
+
+      - name: source
+        short: ~
+        long: source
+        option_type: string
+        required: false
+        default: ~
+        description: "Configuration file to validate, repeatable: '--source <model|scenario|solver> file=<path>'. Every role is optional — with none given, 'check' only lists the project directory's config-like files."
+        choices: [model, scenario, solver]
+        repeatable: true
+        option_parameters:
+          model:
+            - name: file
+              arg_type: path
+              required: true
+              description: "Model configuration file to validate"
+          scenario:
+            - name: file
+              arg_type: path
+              required: true
+              description: "Scenario configuration file to validate (requires 'model' to also be given, to check injections against)"
+          solver:
+            - name: file
+              arg_type: path
+              required: true
+              description: "Solver configuration file to validate"
+
+    implementation: check_handler
 
 global_options: []
