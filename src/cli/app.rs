@@ -191,7 +191,7 @@ impl ExecutionContext for ChromContext {
 /// This is the single conversion point used throughout [`RunHandler::execute`]
 /// to bridge `anyhow::Error` (and other error types) into the error type
 /// required by `CommandHandler::execute`.
-fn to_cli_err(e: impl Into<anyhow::Error>) -> DynamicCliError {
+pub(crate) fn to_cli_err(e: impl Into<anyhow::Error>) -> DynamicCliError {
     ExecutionError::CommandFailed(e.into()).into()
 }
 
@@ -398,10 +398,9 @@ impl CommandHandler for RunHandler {
         let project_dir: PathBuf = chrom_ctx.project_dir().to_path_buf();
 
         // ── 2. Resolve input file paths ──────────────────────────────────────
-        let model_path = resolve_input_path(&project_dir, args, "model").map_err(to_cli_err)?;
-        let scenario_path =
-            resolve_input_path(&project_dir, args, "scenario").map_err(to_cli_err)?;
-        let solver_path = resolve_input_path(&project_dir, args, "solver").map_err(to_cli_err)?;
+        let model_path = resolve_source(&project_dir, args, "model").map_err(to_cli_err)?;
+        let scenario_path = resolve_source(&project_dir, args, "scenario").map_err(to_cli_err)?;
+        let solver_path = resolve_source(&project_dir, args, "solver").map_err(to_cli_err)?;
 
         // ── 3. Detect species before Box<dyn PhysicalModel> erases the type ──
         let species_names = resolve_species_names(&model_path).map_err(to_cli_err)?;
@@ -447,11 +446,18 @@ impl CommandHandler for RunHandler {
         );
 
         // ── 6. Outputs ───────────────────────────────────────────────────────
+        // Each artifact type merges its legacy scalar option (0 or 1 path)
+        // with any number of `--output <type> file=...` occurrences.
+        // Multiple paths for the same type are allowed — write the same
+        // artifact to several files, not an error.
 
         // CSV
+        let mut csv_paths = resolve_new_outputs(&project_dir, args, "csv").map_err(to_cli_err)?;
         if let Some(csv_name) = args.get_scalar("output-csv") {
-            let csv_buf = project_dir.join(csv_name);
-            let csv_path = path_to_str(&csv_buf).map_err(to_cli_err)?;
+            csv_paths.push(project_dir.join(csv_name));
+        }
+        for csv_buf in &csv_paths {
+            let csv_path = path_to_str(csv_buf).map_err(to_cli_err)?;
             let exporter = CsvExporter::new(CsvConfig::default());
             if is_multi {
                 let name_refs: Vec<&str> = species_names.iter().map(|s| s.as_str()).collect();
@@ -466,10 +472,16 @@ impl CommandHandler for RunHandler {
             println!("CSV written → {csv_path}");
         }
 
-        // Plot
+        // Plot — legacy `--output-plot` keeps its existing extension-sniffed
+        // format detection unchanged; the new `svg`/`png` discriminants each
+        // enforce their own extension (see `resolve_new_outputs`).
+        let mut plot_paths = resolve_new_outputs(&project_dir, args, "svg").map_err(to_cli_err)?;
+        plot_paths.extend(resolve_new_outputs(&project_dir, args, "png").map_err(to_cli_err)?);
         if let Some(plot_name) = args.get_scalar("output-plot") {
-            let plot_buf = project_dir.join(plot_name);
-            let plot_path = path_to_str(&plot_buf).map_err(to_cli_err)?;
+            plot_paths.push(project_dir.join(plot_name));
+        }
+        for plot_buf in &plot_paths {
+            let plot_path = path_to_str(plot_buf).map_err(to_cli_err)?;
             if is_multi {
                 let name_refs: Vec<&str> = species_names.iter().map(|s| s.as_str()).collect();
                 plot_chromatogram_multi(&result, n_points, &name_refs, plot_path, None)
@@ -482,9 +494,12 @@ impl CommandHandler for RunHandler {
         }
 
         // JSON export
+        let mut json_paths = resolve_new_outputs(&project_dir, args, "json").map_err(to_cli_err)?;
         if let Some(json_name) = args.get_scalar("export-json") {
-            let json_buf = project_dir.join(json_name);
-            let json_path = path_to_str(&json_buf).map_err(to_cli_err)?;
+            json_paths.push(project_dir.join(json_name));
+        }
+        for json_buf in &json_paths {
+            let json_path = path_to_str(json_buf).map_err(to_cli_err)?;
             let map = resolve_export_map(&model_path, &result)
                 .map_err(|e| to_cli_err(anyhow!("building export map: {e}")))?;
             to_json(&map, json_path).map_err(|e| to_cli_err(anyhow!("JSON export: {e}")))?;
@@ -499,16 +514,116 @@ impl CommandHandler for RunHandler {
 // Private helpers
 // ============================================================================
 
-/// Resolves a required option to a [`PathBuf`] under `project_dir`.
-fn resolve_input_path(project_dir: &Path, args: &ParsedArgs, key: &str) -> anyhow::Result<PathBuf> {
-    let name = args
-        .get_scalar(key)
-        .ok_or_else(|| anyhow!("missing required option '--{key}'"))?;
-    Ok(project_dir.join(name))
+/// Resolves a required source role (`model`, `scenario`, or `solver`) to a
+/// [`PathBuf`] under `project_dir` — from *either* its legacy scalar option
+/// (`--model`/`--scenario`/`--solver`) *or* a `--source <role> file=...`
+/// occurrence, never both, never neither.
+///
+/// `role` doubles as the legacy option's long name — the two happen to be
+/// spelled identically (`model`, `scenario`, `solver`), which is what lets
+/// `args.get_scalar(role)` below stand in for the legacy lookup.
+pub(crate) fn resolve_source(
+    project_dir: &Path,
+    args: &ParsedArgs,
+    role: &str,
+) -> anyhow::Result<PathBuf> {
+    let legacy = args.get_scalar(role);
+
+    let mut via_source: Vec<&str> = Vec::new();
+    if let Some(occurrences) = args.get_repeated("source") {
+        for occ in occurrences {
+            if occ.discriminant == role {
+                let file = occ.params.get("file").ok_or_else(|| {
+                    anyhow!("'--source {role}' requires a 'file=...' sub-parameter")
+                })?;
+                via_source.push(file.as_str());
+            }
+        }
+    }
+
+    match via_source.len() {
+        0 => match legacy {
+            Some(path) => Ok(project_dir.join(path)),
+            None => Err(anyhow!(
+                "missing required source '{role}' — use '--{role} <file>' or '--source {role} file=<file>'"
+            )),
+        },
+        1 => match legacy {
+            Some(_) => Err(anyhow!(
+                "'{role}' was given both via '--{role}' and '--source {role}' — use only one"
+            )),
+            None => Ok(project_dir.join(via_source[0])),
+        },
+        _ => Err(anyhow!(
+            "'--source {role}' was given more than once — expected at most one"
+        )),
+    }
+}
+
+/// Like [`resolve_source`], but consults *only* `--source <role>
+/// file=...` (no legacy scalar fallback — commands other than `run` don't
+/// define one) and returns `Ok(None)` rather than erroring when `role`
+/// isn't given at all. Used by `check`, where every role is optional.
+pub(crate) fn resolve_source_optional(
+    args: &ParsedArgs,
+    role: &str,
+) -> anyhow::Result<Option<String>> {
+    let mut via_source: Vec<String> = Vec::new();
+    if let Some(occurrences) = args.get_repeated("source") {
+        for occ in occurrences {
+            if occ.discriminant == role {
+                let file = occ.params.get("file").ok_or_else(|| {
+                    anyhow!("'--source {role}' requires a 'file=...' sub-parameter")
+                })?;
+                via_source.push(file.clone());
+            }
+        }
+    }
+    match via_source.len() {
+        0 => Ok(None),
+        1 => Ok(Some(via_source.remove(0))),
+        _ => Err(anyhow!(
+            "'--source {role}' was given more than once — expected at most one"
+        )),
+    }
+}
+
+/// Collects every path requested for one `--output <discriminant>
+/// file=...` occurrence — zero or more, unlike [`resolve_source`]:
+/// writing the same artifact type to several files in one invocation is
+/// allowed, not an ambiguity. For `svg`/`png`, also rejects a `file=` value
+/// whose extension doesn't match the discriminant, so a typo in the
+/// extension fails immediately with a clear message instead of silently
+/// writing the "wrong" format for what the filename suggests.
+pub(crate) fn resolve_new_outputs(
+    project_dir: &Path,
+    args: &ParsedArgs,
+    discriminant: &str,
+) -> anyhow::Result<Vec<PathBuf>> {
+    let mut paths = Vec::new();
+    if let Some(occurrences) = args.get_repeated("output") {
+        for occ in occurrences {
+            if occ.discriminant != discriminant {
+                continue;
+            }
+            let file = occ.params.get("file").ok_or_else(|| {
+                anyhow!("'--output {discriminant}' requires a 'file=...' sub-parameter")
+            })?;
+            if (discriminant == "svg" && !file.ends_with(".svg"))
+                || (discriminant == "png" && !file.ends_with(".png"))
+            {
+                return Err(anyhow!(
+                    "'--output {discriminant}' requires a file ending in .{discriminant}, got '{file}'"
+                ));
+            }
+            paths.push(project_dir.join(file));
+        }
+    }
+    Ok(paths)
 }
 
 /// Converts a [`Path`] to `&str`, rejecting non-UTF-8 paths.
-fn path_to_str(path: &Path) -> anyhow::Result<&str> {
+pub(crate) fn path_to_str(path: &Path) -> anyhow::Result<&str> {
     path.to_str()
         .ok_or_else(|| anyhow!("path '{}' contains non-UTF-8 characters", path.display()))
 }
@@ -741,21 +856,92 @@ LangmuirMulti:
         assert!(path_to_str(&p).is_err());
     }
 
-    // ── resolve_input_path ────────────────────────────────────────────────────
+    // ── resolve_source / resolve_source_optional ──────────────────────
+
+    /// Builds a `ParsedArgs` with a single "source" key carrying the given
+    /// (discriminant, file) occurrences, for testing `resolve_source*`
+    /// without going through the full CLI parser.
+    fn source_args(occurrences: &[(&str, &str)]) -> ParsedArgs {
+        use dynamic_cli::parser::cli_parser::{OptionOccurrence, ParsedValue};
+
+        let occs: Vec<OptionOccurrence> = occurrences
+            .iter()
+            .map(|(discriminant, file)| OptionOccurrence {
+                discriminant: discriminant.to_string(),
+                params: HashMap::from([("file".to_string(), file.to_string())]),
+            })
+            .collect();
+        let mut map = HashMap::new();
+        map.insert("source".to_string(), ParsedValue::Repeated(occs));
+        ParsedArgs::new(map)
+    }
 
     #[test]
-    fn test_resolve_input_path_found() {
+    fn test_resolve_source_via_legacy_scalar() {
         let mut map = HashMap::new();
         map.insert("model".to_string(), "model.yml".to_string());
         let args = ParsedArgs::from_scalars(map);
-        let result = resolve_input_path(Path::new("/proj"), &args, "model").unwrap();
+        let result = resolve_source(Path::new("/proj"), &args, "model").unwrap();
         assert_eq!(result, PathBuf::from("/proj/model.yml"));
     }
 
     #[test]
-    fn test_resolve_input_path_missing_key() {
+    fn test_resolve_source_via_new_syntax() {
+        let args = source_args(&[("model", "model.yml")]);
+        let result = resolve_source(Path::new("/proj"), &args, "model").unwrap();
+        assert_eq!(result, PathBuf::from("/proj/model.yml"));
+    }
+
+    #[test]
+    fn test_resolve_source_missing_errors() {
         let args = ParsedArgs::from_scalars(HashMap::new());
-        assert!(resolve_input_path(Path::new("."), &args, "model").is_err());
+        assert!(resolve_source(Path::new("."), &args, "model").is_err());
+    }
+
+    #[test]
+    fn test_resolve_source_both_given_is_ambiguous() {
+        use dynamic_cli::parser::cli_parser::{OptionOccurrence, ParsedValue};
+        let mut combined = HashMap::new();
+        combined.insert(
+            "model".to_string(),
+            ParsedValue::Scalar("legacy.yml".to_string()),
+        );
+        combined.insert(
+            "source".to_string(),
+            ParsedValue::Repeated(vec![OptionOccurrence {
+                discriminant: "model".to_string(),
+                params: HashMap::from([("file".to_string(), "new.yml".to_string())]),
+            }]),
+        );
+        let args = ParsedArgs::new(combined);
+        assert!(resolve_source(Path::new("."), &args, "model").is_err());
+    }
+
+    #[test]
+    fn test_resolve_source_duplicate_new_syntax_errors() {
+        let args = source_args(&[("model", "a.yml"), ("model", "b.yml")]);
+        assert!(resolve_source(Path::new("."), &args, "model").is_err());
+    }
+
+    #[test]
+    fn test_resolve_source_optional_absent_is_none() {
+        let args = ParsedArgs::from_scalars(HashMap::new());
+        assert_eq!(resolve_source_optional(&args, "model").unwrap(), None);
+    }
+
+    #[test]
+    fn test_resolve_source_optional_present_is_some() {
+        let args = source_args(&[("model", "model.yml")]);
+        assert_eq!(
+            resolve_source_optional(&args, "model").unwrap(),
+            Some("model.yml".to_string())
+        );
+    }
+
+    #[test]
+    fn test_resolve_source_optional_duplicate_errors() {
+        let args = source_args(&[("model", "a.yml"), ("model", "b.yml")]);
+        assert!(resolve_source_optional(&args, "model").is_err());
     }
 
     // ── read_model_file ───────────────────────────────────────────────────────

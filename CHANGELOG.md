@@ -10,6 +10,8 @@ Versioning: [SemVer](https://semver.org/)
 ## [Unreleased]
 
 ### Added
+- `--source <model|scenario|solver> file=...` and `--output <csv|svg|png|json> file=...`, repeatable options with sub-parameters (built on `dynamic-cli` 0.6.0's `repeatable`/`option_parameters` — see [dcli#21](https://github.com/biface/dcli/issues/21) for that feature's own rationale), alongside the existing legacy scalar options (`--model`, `--output-csv`, etc.) — both syntaxes work, can be mixed across different roles/outputs in the same invocation, never both for the *same* role (ambiguity error). `svg`/`png` discriminants require a matching file extension, checked before any file is written.
+- New `check` command (aliases: none; `run` gains the alias `solve`): validates whichever `--source <role> file=...` are given, using the exact same `load_model`/`load_scenario`/`load_solver` functions `run` itself uses, plus a plain inventory of `--project-dir`'s config-like files. No file classification or cross-combination testing — only what's explicitly asked for is validated.
 - `benches/langmuir_performance.rs` — group 6, `bench_reference_cases`: Euler vs RK4 end-to-end `Solver::solve` time on the two real multi-species cases validated in #43/#44 (Ascorbic/Erythorbic, Glucose/Fructose), as opposed to groups 3/5 which explore synthetic n_species scaling ([#55](https://github.com/biface/chromatography/issues/55))
 - `examples/validation_report.rs` — per-solver wall-clock solve time (`solve_time_ms.euler`, `solve_time_ms.rk4`, `solve_time_ms.rk4_over_euler_ratio`) added to the JSON report and console summary, alongside the existing `rsf_euler_vs_rk4` ([#55](https://github.com/biface/chromatography/issues/55))
 - `examples/config/ascorbic_erythorbic/`, `examples/config/glucose_fructose/` — CLI-ready config directories (`model.yml`, `scenario.yml`, `solver_euler.yml`, `solver_rk4.yml`) exactly mirroring the physical and solver parameters of `MultiSpeciesCase::ascorbic_erythorbic()`/`glucose_fructose_linear()` in `validation/reference.rs` — usable directly with `chrom-rs run --output-plot` to produce a chromatogram matching the literature-validated cases ([#55](https://github.com/biface/chromatography/issues/55))
@@ -20,6 +22,7 @@ Versioning: [SemVer](https://semver.org/)
 - `tools/plot_stiffness_convergence.rs` (`[[bin]] plot_stiffness_convergence`) — log-log plot of $R_{sf}$(Euler, RK4) vs Δt per case, reading `stiffness_convergence.json` ([#55](https://github.com/biface/chromatography/issues/55))
 
 ### Changed
+- `src/cli/commands.yml` — `model`/`scenario`/`solver` on `run` moved from schema-level `required: true` to `required: false`; the "all three roles required, exactly once each" rule is now enforced in `RunHandler::execute` (`resolve_source`) rather than by `dynamic-cli` itself, since a role can now be satisfied by either syntax.
 - `tools/plot_parallelism_threshold.rs` — added a marker on the n_points=100 measured point: both real reference cases (Ascorbic/Erythorbic, Glucose/Fructose) operate there (ops=200), well inside the serial regime ([#55](https://github.com/biface/chromatography/issues/55))
 
 ### Verified
@@ -32,7 +35,7 @@ Versioning: [SemVer](https://semver.org/)
 ### Changed
 - `Cargo.toml` — `dynamic-cli` `0.2.0` → `0.6.0` ([#52](https://github.com/biface/chromatography/issues/52), DD-001)
 - `src/cli/mod.rs` — `register_handler` → `register_sync_handler` (renamed in dcli 0.5.0; the old name is `#[deprecated]`, which `cargo clippy -- -D warnings` turns into a build error)
-- `src/cli/app.rs` — `RunHandler::execute` and the internal `resolve_input_path` helper migrated from `&HashMap<String, String>` to `&ParsedArgs` (dcli 0.6.0, DD-024): `args.get("x")` → `args.get_scalar("x")` for all 4 fields read directly (`project-dir`, `output-csv`, `output-plot`, `export-json`) plus the 3 fields resolved via `resolve_input_path` (`model`, `scenario`, `solver`)
+- `src/cli/app.rs` — `RunHandler::execute` and the internal `resolve_input_path` helper migrated from `&HashMap<String, String>` to `&ParsedArgs` (dcli 0.6.0): `args.get("x")` → `args.get_scalar("x")` for all 4 fields read directly (`project-dir`, `output-csv`, `output-plot`, `export-json`) plus the 3 fields resolved via `resolve_input_path` (`model`, `scenario`, `solver`)
 - No user-facing CLI surface change — `src/cli/commands.yml` unchanged, no `repeatable` options introduced (see DD-016, deferred to v0.6.0)
 
 ### Docs
