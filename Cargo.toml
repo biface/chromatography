@@ -26,6 +26,11 @@ min-coverage = 80
 inherits = "test"
 opt-level = 0
 
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1
+
 [dependencies]
 dynamic-cli = "0.6.0"
 nalgebra = { version = "0.34.2", features = ["serde-serialize"] }
