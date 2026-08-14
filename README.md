@@ -20,7 +20,7 @@ A French version of this README is available: [README.fr.md](README.fr.md).
 - **Injection profiles**: Dirac, Gaussian, Rectangle, or custom closure
 - **Config-file interface**: three independent YAML/JSON files (`model.yml`, `scenario.yml`, `solver.yml`)
 - **Outputs**: CSV export, JSON export, chromatogram plots via `plotters`
-- **CLI**: `chrom-rs run` powered by `dynamic-cli`
+- **CLI**: `chrom-rs run` (aliases `simulate`, `solve`) and `chrom-rs check`, powered by `dynamic-cli`
 
 ---
 
@@ -28,7 +28,7 @@ A French version of this README is available: [README.fr.md](README.fr.md).
 
 ```toml
 [dependencies]
-chrom-rs = "0.2"
+chrom-rs = "0.5"
 ```
 
 ---
@@ -78,6 +78,30 @@ chrom-rs run \
   --output-csv  result.csv \
   --output-plot result.png \
   --export-json result.json
+```
+
+The three input files and every output artifact can also be given via a
+repeatable `--source`/`--output` syntax — equivalent, and mixable with the
+options above (never both for the same role in the same invocation):
+
+```bash
+chrom-rs solve \
+  --source model    file=examples/config/tfa/model.yml \
+  --source scenario file=examples/config/tfa/scenario_gaussian.yml \
+  --source solver   file=examples/config/tfa/solver_rk4.yml \
+  --output csv  file=result.csv \
+  --output png  file=result.png \
+  --output json file=result.json
+```
+
+Before running, `chrom-rs check` validates a set of configuration files —
+or, given no `--source` at all, just lists the config-like files present
+in `--project-dir`:
+
+```bash
+chrom-rs check \
+  --source model    file=examples/config/tfa/model.yml \
+  --source scenario file=examples/config/tfa/scenario_gaussian.yml
 ```
 
 See `examples/config/` for ready-to-use fixtures and `examples/tfa_from_config.rs` /
