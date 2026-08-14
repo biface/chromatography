@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["chromatogram","config","steady"]};
+window.SIDEBAR_ITEMS = {"mod":["chromatogram","config","fonts","steady"]};

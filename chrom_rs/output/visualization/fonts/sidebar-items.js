@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["register_fonts"],"static":["DEJAVU_SANS","REGISTER_ONCE"]};

@@ -196,21 +196,26 @@
 <a href=#196 id=196 data-nosnippet>196</a>// =================================================================================================
 <a href=#197 id=197 data-nosnippet>197</a>
 <a href=#198 id=198 data-nosnippet>198</a></span><span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
-<a href=#199 id=199 data-nosnippet>199</a>    <span class="kw">let </span>path = report_path();
-<a href=#200 id=200 data-nosnippet>200</a>    <span class="macro">println!</span>(<span class="string">"Reading {}..."</span>, path.display());
-<a href=#201 id=201 data-nosnippet>201</a>    <span class="kw">let </span>cases = read_report(<span class="kw-2">&amp;</span>path)<span class="question-mark">?</span>;
-<a href=#202 id=202 data-nosnippet>202</a>
-<a href=#203 id=203 data-nosnippet>203</a>    <span class="kw">for </span>(name, points) <span class="kw">in </span><span class="kw-2">&amp;</span>cases {
-<a href=#204 id=204 data-nosnippet>204</a>        <span class="macro">println!</span>(<span class="string">"\n{name}"</span>);
-<a href=#205 id=205 data-nosnippet>205</a>        <span class="macro">println!</span>(<span class="string">"  {:&gt;14} {:&gt;14}"</span>, <span class="string">"delta_t_s"</span>, <span class="string">"Rsf(Euler,RK4)"</span>);
-<a href=#206 id=206 data-nosnippet>206</a>        <span class="kw">for </span>p <span class="kw">in </span>points {
-<a href=#207 id=207 data-nosnippet>207</a>            <span class="macro">println!</span>(<span class="string">"  {:&gt;14.6} {:&gt;14.5}"</span>, p.delta_t_s, p.rsf);
-<a href=#208 id=208 data-nosnippet>208</a>        }
-<a href=#209 id=209 data-nosnippet>209</a>    }
-<a href=#210 id=210 data-nosnippet>210</a>
-<a href=#211 id=211 data-nosnippet>211</a>    <span class="kw">let </span>output_path = PathBuf::from(<span class="string">"target/plots/stiffness_convergence.svg"</span>);
-<a href=#212 id=212 data-nosnippet>212</a>    <span class="macro">println!</span>(<span class="string">"\nGenerating plot..."</span>);
-<a href=#213 id=213 data-nosnippet>213</a>    generate_plot(<span class="kw-2">&amp;</span>cases, <span class="kw-2">&amp;</span>output_path)<span class="question-mark">?</span>;
-<a href=#214 id=214 data-nosnippet>214</a>    <span class="prelude-val">Ok</span>(())
-<a href=#215 id=215 data-nosnippet>215</a>}
+<a href=#199 id=199 data-nosnippet>199</a>    <span class="comment">// Standalone binary variant (Variant B) — see
+<a href=#200 id=200 data-nosnippet>200</a>    // `chrom_rs::output::visualization::fonts` for why this call is needed
+<a href=#201 id=201 data-nosnippet>201</a>    // before any chart renders.
+<a href=#202 id=202 data-nosnippet>202</a>    </span>chrom_rs::output::register_fonts();
+<a href=#203 id=203 data-nosnippet>203</a>
+<a href=#204 id=204 data-nosnippet>204</a>    <span class="kw">let </span>path = report_path();
+<a href=#205 id=205 data-nosnippet>205</a>    <span class="macro">println!</span>(<span class="string">"Reading {}..."</span>, path.display());
+<a href=#206 id=206 data-nosnippet>206</a>    <span class="kw">let </span>cases = read_report(<span class="kw-2">&amp;</span>path)<span class="question-mark">?</span>;
+<a href=#207 id=207 data-nosnippet>207</a>
+<a href=#208 id=208 data-nosnippet>208</a>    <span class="kw">for </span>(name, points) <span class="kw">in </span><span class="kw-2">&amp;</span>cases {
+<a href=#209 id=209 data-nosnippet>209</a>        <span class="macro">println!</span>(<span class="string">"\n{name}"</span>);
+<a href=#210 id=210 data-nosnippet>210</a>        <span class="macro">println!</span>(<span class="string">"  {:&gt;14} {:&gt;14}"</span>, <span class="string">"delta_t_s"</span>, <span class="string">"Rsf(Euler,RK4)"</span>);
+<a href=#211 id=211 data-nosnippet>211</a>        <span class="kw">for </span>p <span class="kw">in </span>points {
+<a href=#212 id=212 data-nosnippet>212</a>            <span class="macro">println!</span>(<span class="string">"  {:&gt;14.6} {:&gt;14.5}"</span>, p.delta_t_s, p.rsf);
+<a href=#213 id=213 data-nosnippet>213</a>        }
+<a href=#214 id=214 data-nosnippet>214</a>    }
+<a href=#215 id=215 data-nosnippet>215</a>
+<a href=#216 id=216 data-nosnippet>216</a>    <span class="kw">let </span>output_path = PathBuf::from(<span class="string">"target/plots/stiffness_convergence.svg"</span>);
+<a href=#217 id=217 data-nosnippet>217</a>    <span class="macro">println!</span>(<span class="string">"\nGenerating plot..."</span>);
+<a href=#218 id=218 data-nosnippet>218</a>    generate_plot(<span class="kw-2">&amp;</span>cases, <span class="kw-2">&amp;</span>output_path)<span class="question-mark">?</span>;
+<a href=#219 id=219 data-nosnippet>219</a>    <span class="prelude-val">Ok</span>(())
+<a href=#220 id=220 data-nosnippet>220</a>}
 </code></pre></div></section></main></body></html>
