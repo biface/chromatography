@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["COMMANDS_YML","RUN_HANDLER_NAME"],"fn":["build_app"],"mod":["app"]};
+window.SIDEBAR_ITEMS = {"constant":["CHECK_HANDLER_NAME","COMMANDS_YML","RUN_HANDLER_NAME"],"fn":["build_app"],"mod":["app","check"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ContextError"],"fn":["deserialise_inner","path_to_str","peek_root_key","read_model_file","resolve_export_map","resolve_input_path","resolve_species_names","to_cli_err"],"struct":["ChromContext","RunHandler"]};
+window.SIDEBAR_ITEMS = {"enum":["ContextError"],"fn":["deserialise_inner","path_to_str","peek_root_key","read_model_file","resolve_export_map","resolve_new_outputs","resolve_source","resolve_source_optional","resolve_species_names","to_cli_err"],"struct":["ChromContext","RunHandler"]};
