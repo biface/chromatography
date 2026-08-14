@@ -9,6 +9,10 @@ Versioning: [SemVer](https://semver.org/)
 
 ## [Unreleased]
 
+---
+
+## [0.5.0] — 2026-08-14
+
 ### Added
 - `--source <model|scenario|solver> file=...` and `--output <csv|svg|png|json> file=...`, repeatable options with sub-parameters (built on `dynamic-cli` 0.6.0's `repeatable`/`option_parameters` — see [dcli#21](https://github.com/biface/dcli/issues/21) for that feature's own rationale), alongside the existing legacy scalar options (`--model`, `--output-csv`, etc.) — both syntaxes work, can be mixed across different roles/outputs in the same invocation, never both for the *same* role (ambiguity error). `svg`/`png` discriminants require a matching file extension, checked before any file is written.
 - New `check` command (aliases: none; `run` gains the alias `solve`): validates whichever `--source <role> file=...` are given, using the exact same `load_model`/`load_scenario`/`load_solver` functions `run` itself uses, plus a plain inventory of `--project-dir`'s config-like files. No file classification or cross-combination testing — only what's explicitly asked for is validated.
@@ -22,25 +26,18 @@ Versioning: [SemVer](https://semver.org/)
 - `tools/plot_stiffness_convergence.rs` (`[[bin]] plot_stiffness_convergence`) — log-log plot of $R_{sf}$(Euler, RK4) vs Δt per case, reading `stiffness_convergence.json` ([#55](https://github.com/biface/chromatography/issues/55))
 
 ### Changed
-- `src/cli/commands.yml` — `model`/`scenario`/`solver` on `run` moved from schema-level `required: true` to `required: false`; the "all three roles required, exactly once each" rule is now enforced in `RunHandler::execute` (`resolve_source`) rather than by `dynamic-cli` itself, since a role can now be satisfied by either syntax.
-- `tools/plot_parallelism_threshold.rs` — added a marker on the n_points=100 measured point: both real reference cases (Ascorbic/Erythorbic, Glucose/Fructose) operate there (ops=200), well inside the serial regime ([#55](https://github.com/biface/chromatography/issues/55))
-
-### Verified
-- Neither real reference case crosses the Rayon parallelism threshold: n_points × n_species = 100 × 2 = 200 for both Ascorbic/Erythorbic and Glucose/Fructose, against a threshold of 999 ([#55](https://github.com/biface/chromatography/issues/55))
-
----
-
-## [0.5.0] — dynamic-cli 0.6.0 Adaptation
-
-### Changed
 - `Cargo.toml` — `dynamic-cli` `0.2.0` → `0.6.0` ([#52](https://github.com/biface/chromatography/issues/52), DD-001)
 - `src/cli/mod.rs` — `register_handler` → `register_sync_handler` (renamed in dcli 0.5.0; the old name is `#[deprecated]`, which `cargo clippy -- -D warnings` turns into a build error)
 - `src/cli/app.rs` — `RunHandler::execute` and the internal `resolve_input_path` helper migrated from `&HashMap<String, String>` to `&ParsedArgs` (dcli 0.6.0): `args.get("x")` → `args.get_scalar("x")` for all 4 fields read directly (`project-dir`, `output-csv`, `output-plot`, `export-json`) plus the 3 fields resolved via `resolve_input_path` (`model`, `scenario`, `solver`)
-- No user-facing CLI surface change — `src/cli/commands.yml` unchanged, no `repeatable` options introduced (see DD-016, deferred to v0.6.0)
+- `src/cli/commands.yml` — `model`/`scenario`/`solver` on `run` moved from schema-level `required: true` to `required: false`; the "all three roles required, exactly once each" rule is now enforced in `RunHandler::execute` (`resolve_source`) rather than by `dynamic-cli` itself, since a role can now be satisfied by either syntax.
+- `tools/plot_parallelism_threshold.rs` — added a marker on the n_points=100 measured point: both real reference cases (Ascorbic/Erythorbic, Glucose/Fructose) operate there (ops=200), well inside the serial regime ([#55](https://github.com/biface/chromatography/issues/55))
 
 ### Docs
 - `benches/solver_performance.rs`, `benches/langmuir_performance.rs`, `tools/plot_parallelism_threshold.rs`, `tools/plot_species_response_curve.rs` — module-level rustdoc introductions rewritten to state the run command (`cargo bench --bench <name>` and, where applicable, the companion `cargo run --bin plot_*` invocation) up front ([#54](https://github.com/biface/chromatography/issues/54))
 - `benches/langmuir_performance.rs`, `tools/plot_parallelism_threshold.rs`, `tools/plot_species_response_curve.rs` — rustdoc converted from bilingual FR/EN to English only, per the project's rustdoc convention (bilingual prose belongs in `//` code comments and the wiki, not `///`/`//!` rustdoc)
+
+### Verified
+- Neither real reference case crosses the Rayon parallelism threshold: n_points × n_species = 100 × 2 = 200 for both Ascorbic/Erythorbic and Glucose/Fructose, against a threshold of 999 ([#55](https://github.com/biface/chromatography/issues/55))
 
 ---
 
