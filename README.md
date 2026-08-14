@@ -136,3 +136,10 @@ Full API documentation: [docs.rs/chrom-rs](https://docs.rs/chrom-rs)
 ## License
 
 Licensed under the [Apache License, Version 2.0](LICENSE-APACHE).
+
+The crate embeds [DejaVu Sans](https://dejavu-fonts.github.io/) (Regular
+weight, `assets/fonts/DejaVuSans.ttf`) for the standalone-binary font
+renderer — distributed unmodified under the Bitstream Vera Fonts license,
+see [`assets/fonts/LICENSE-DEJAVU.txt`](assets/fonts/LICENSE-DEJAVU.txt).
+This is a separate license from the crate's own Apache-2.0 terms above,
+covering only that one bundled font file.

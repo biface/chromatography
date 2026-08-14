@@ -52,10 +52,14 @@
 
 pub mod chromatogram;
 pub mod config;
+/// Embedded fallback font — see [`fonts::register_fonts`] for why this
+/// exists (standalone binary variant, no system font database required).
+pub mod fonts;
 /// Spatial concentration profile plots (steady-state and evolution over time).
 pub mod steady;
 
 pub use config::PlotConfig;
+pub use fonts::register_fonts;
 
 pub use steady::{
     plot_profile_evolution, plot_steady_state, plot_steady_state_comparison,

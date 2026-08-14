@@ -29,6 +29,12 @@
 //! any given, it validates exactly those.
 
 fn main() {
+    // Standalone binary variant (Variant B) — see
+    // `src/output/visualization/fonts.rs` for why this is needed before
+    // anything else runs: `ab_glyph` has no name-based font discovery, so
+    // "sans-serif" must be registered explicitly before any chart renders.
+    chrom_rs::output::register_fonts();
+
     let result = chrom_rs::cli::build_app()
         .map_err(|e| format!("initialisation error: {e}"))
         .and_then(|app| app.run().map_err(|e| format!("runtime error: {e}")));

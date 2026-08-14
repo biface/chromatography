@@ -196,6 +196,11 @@ fn generate_plot(cases: &[(String, Vec<CasePoint>)], output_path: &Path) -> anyh
 // =================================================================================================
 
 fn main() -> anyhow::Result<()> {
+    // Standalone binary variant (Variant B) — see
+    // `chrom_rs::output::visualization::fonts` for why this call is needed
+    // before any chart renders.
+    chrom_rs::output::register_fonts();
+
     let path = report_path();
     println!("Reading {}...", path.display());
     let cases = read_report(&path)?;

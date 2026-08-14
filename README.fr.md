@@ -138,3 +138,11 @@ Documentation complète de l'API : [docs.rs/chrom-rs](https://docs.rs/chrom-rs)
 ## Licence
 
 Distribué sous la licence [Apache License, Version 2.0](LICENSE-APACHE).
+
+Le crate embarque [DejaVu Sans](https://dejavu-fonts.github.io/) (graisse
+Regular, `assets/fonts/DejaVuSans.ttf`) pour le rendu de police du binaire
+autonome — distribuée sans modification sous la licence Bitstream Vera
+Fonts, voir
+[`assets/fonts/LICENSE-DEJAVU.txt`](assets/fonts/LICENSE-DEJAVU.txt).
+C'est une licence distincte des termes Apache-2.0 du crate lui-même
+ci-dessus, qui ne couvre que ce seul fichier de police embarqué.

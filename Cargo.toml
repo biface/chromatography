@@ -39,7 +39,11 @@ anyhow = "1"
 
 # Export and visualization
 chrono = "0.4"
-plotters = "0.3"
+plotters = { version = "0.3", default-features = false, features = [
+    "bitmap_backend", "bitmap_encoder", "bitmap_gif", "svg_backend",
+    "chrono", "ab_glyph", "image", "deprecated_items",
+    "all_series", "all_elements", "full_palette", "colormaps",
+] }
 
 # Parallelism (optional)
 rayon = { version = "1.11", optional = true }

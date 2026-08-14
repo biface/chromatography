@@ -80,6 +80,8 @@ pub fn plot_steady_state(
     output_path: &str,
     config: Option<&PlotConfig>,
 ) -> Result<(), Box<dyn Error>> {
+    super::register_fonts();
+
     // Extract final state
     let final_state = result.state_trajectory.last().ok_or("Empty trajectory")?;
 
@@ -236,6 +238,8 @@ pub fn plot_steady_state_comparison(
     output_path: &str,
     config: Option<&PlotConfig>,
 ) -> Result<(), Box<dyn Error>> {
+    super::register_fonts();
+
     if profiles.is_empty() {
         return Err("No profiles provided".into());
     }
@@ -365,6 +369,8 @@ pub fn plot_profile_evolution(
     output_path: &str,
     config: Option<&PlotConfig>,
 ) -> Result<(), Box<dyn Error>> {
+    super::register_fonts();
+
     if result.state_trajectory.is_empty() {
         return Err("Empty trajectory".into());
     }
@@ -452,6 +458,8 @@ pub fn plot_steady_state_multi(
     output_path: &str,
     config: Option<&PlotConfig>,
 ) -> Result<(), Box<dyn Error>> {
+    super::register_fonts();
+
     let final_state = result.state_trajectory.last().ok_or("Empty trajectory")?;
 
     let physical_data = final_state

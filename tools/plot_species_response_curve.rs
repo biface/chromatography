@@ -595,6 +595,11 @@ fn generate_plot(all_points: &[DataPoint], output_path: &Path) -> anyhow::Result
 // =================================================================================================
 
 fn main() -> anyhow::Result<()> {
+    // Standalone binary variant (Variant B) — see
+    // `chrom_rs::output::visualization::fonts` for why this call is needed
+    // before any chart renders.
+    chrom_rs::output::register_fonts();
+
     let criterion_dir = PathBuf::from("target/criterion");
     let output_path = PathBuf::from("target/plots/species_response_curve.svg");
 

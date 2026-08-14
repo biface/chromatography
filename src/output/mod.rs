@@ -72,7 +72,7 @@ pub mod visualization;
 // Re-export commonly used items for convenience
 pub use visualization::{
     PlotConfig, plot_chromatogram, plot_chromatogram_multi, plot_chromatograms_comparison,
-    plot_profile_evolution, plot_steady_state, plot_steady_state_comparison,
+    plot_profile_evolution, plot_steady_state, plot_steady_state_comparison, register_fonts,
 };
 
 pub use export::{CsvConfig, CsvError, CsvExporter, JsonError, from_json, to_json};

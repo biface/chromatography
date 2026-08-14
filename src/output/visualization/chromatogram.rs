@@ -197,6 +197,8 @@ pub fn plot_chromatogram(
     output_path: &str,
     config: Option<&PlotConfig>,
 ) -> Result<(), Box<dyn Error>> {
+    super::register_fonts();
+
     let outlet = extract_single_species_outlet(result, n_points);
     let time_points = &result.time_points;
 
@@ -284,6 +286,8 @@ pub fn plot_chromatogram_multi(
     output_path: &str,
     config: Option<&PlotConfig>,
 ) -> Result<(), Box<dyn Error>> {
+    super::register_fonts();
+
     let outlets = extract_multi_species_outlet(result, n_points, species_names.len());
 
     if outlets.is_empty() || outlets[0].is_empty() {
@@ -402,6 +406,8 @@ pub fn plot_chromatogram_envelope(
     output_path: &str,
     config: Option<&PlotConfig>,
 ) -> Result<(), Box<dyn Error>> {
+    super::register_fonts();
+
     let outlets = extract_multi_species_outlet(result, n_points, species_names.len());
 
     if outlets.is_empty() || outlets[0].is_empty() {
@@ -491,6 +497,8 @@ pub fn plot_chromatograms_comparison(
     output_path: &str,
     config: Option<&PlotConfig>,
 ) -> Result<(), Box<dyn Error>> {
+    super::register_fonts();
+
     if datasets.is_empty() {
         return Err("No datasets provided".into());
     }
