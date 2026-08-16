@@ -168,6 +168,8 @@ impl PhysicalModel for SimpleModel {
 /// - Memory allocation overhead
 /// - SIMD vectorization thresholds
 fn benchmark_euler_solver(c: &mut Criterion) {
+    chrom_rs::output::register_fonts();
+
     let mut group = c.benchmark_group("Forward Euler Solver");
 
     for points in [10, 50, 100, 500].iter() {
@@ -245,6 +247,8 @@ fn benchmark_euler_solver(c: &mut Criterion) {
 /// - Euler with dt=0.025 (for same accuracy): 4 steps × 1 evaluation = 4 evaluations
 /// - But RK4 needs less memory (fewer stored states)
 fn benchmark_rk4_solver(c: &mut Criterion) {
+    chrom_rs::output::register_fonts();
+
     let mut group = c.benchmark_group("Runge-Kutta (4 steps) Solver");
 
     for points in [10, 50, 100, 500].iter() {
@@ -337,6 +341,8 @@ fn benchmark_rk4_solver(c: &mut Criterion) {
 /// - Check CPU throttling: `cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor`
 /// - Close background applications
 fn benchmark_solver_comparison(c: &mut Criterion) {
+    chrom_rs::output::register_fonts();
+
     let mut group = c.benchmark_group("Solver Comparison");
 
     // Define test configurations: (points, time_steps, label)
@@ -458,6 +464,8 @@ fn benchmark_solver_comparison(c: &mut Criterion) {
 /// # Plot heatmap to see performance landscape
 /// ```
 fn benchmark_exhaustive_comparison(c: &mut Criterion) {
+    chrom_rs::output::register_fonts();
+
     let mut group = c.benchmark_group("Exhaustive Solver Comparison");
 
     // Configuration large treatments

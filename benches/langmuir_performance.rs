@@ -529,6 +529,8 @@ fn cubic_ratio(n: usize, n_ref: usize) -> f64 {
 /// *Fast group (single-species, nz=100): `measurement_time=10 s`,
 /// `sample_size=50`, `warm_up=3 s`.*
 fn bench_cfl_stability(c: &mut Criterion) {
+    chrom_rs::output::register_fonts();
+
     let mut group = c.benchmark_group("bench_cfl_stability");
 
     // Configuration Criterion pour groupe rapide
@@ -631,6 +633,8 @@ fn bench_cfl_stability(c: &mut Criterion) {
 ///
 /// TFA, nz=100, n_steps=1000 (CFL ≈ 0.15), Euler + RK4.
 fn bench_single_vs_multi_1species(c: &mut Criterion) {
+    chrom_rs::output::register_fonts();
+
     let mut group = c.benchmark_group("bench_single_vs_multi_1species");
 
     group.measurement_time(Duration::from_secs(10));
@@ -722,6 +726,8 @@ fn bench_single_vs_multi_1species(c: &mut Criterion) {
 /// *Slow group (n_species=50, nz=100): `measurement_time=20 s`,
 /// `sample_size=20`, `SamplingMode::Flat`, `warm_up=5 s`.*
 fn bench_multi_species_scaling(c: &mut Criterion) {
+    chrom_rs::output::register_fonts();
+
     let mut group = c.benchmark_group("bench_multi_species_scaling");
 
     // Configuration pour groupe potentiellement lent (n_species=50)
@@ -831,6 +837,8 @@ fn bench_multi_species_scaling(c: &mut Criterion) {
 /// *Slow group (n_points=5000): `measurement_time=20 s`, `sample_size=20`,
 /// `SamplingMode::Flat`, `warm_up=5 s`.*
 fn bench_parallelism_threshold(c: &mut Criterion) {
+    chrom_rs::output::register_fonts();
+
     let mut group = c.benchmark_group("bench_parallelism_threshold");
 
     group.measurement_time(Duration::from_secs(20));
@@ -1024,6 +1032,8 @@ fn bench_parallelism_threshold(c: &mut Criterion) {
 /// cargo bench --bench langmuir_performance -- "bench_species_response_curve_xl/rk4/n_sp_100"
 /// ```
 fn bench_species_response_curve(c: &mut Criterion) {
+    chrom_rs::output::register_fonts();
+
     // Ce point d'entrée délègue aux trois sous-groupes.
     // La séparation permet de changer sample_size indépendamment par tranche.
     // This entry point delegates to the three sub-groups.
@@ -1319,6 +1329,8 @@ impl RefCase {
 /// groups 4 and 5 does not benefit these two real cases, only cases with
 /// higher spatial resolution or more competing species.
 fn bench_reference_cases(c: &mut Criterion) {
+    chrom_rs::output::register_fonts();
+
     let cases = [
         RefCase::ascorbic_erythorbic(),
         RefCase::glucose_fructose_linear(),
@@ -1376,6 +1388,8 @@ fn bench_reference_cases(c: &mut Criterion) {
 /// measurement, and the RK4/Euler ratio difference observed in
 /// `bench_reference_cases` needs a different explanation.
 fn bench_isotherm_evaluation_cost(c: &mut Criterion) {
+    chrom_rs::output::register_fonts();
+
     struct EvalCase {
         name: &'static str,
         column_length: f64,
