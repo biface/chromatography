@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["collect_points","generate_comparison_plot","main","parse_n","print_comparison_table","read_estimates"],"struct":["ConfidenceInterval","DataPoint","Estimate","Estimates","LogLogRegression"]};

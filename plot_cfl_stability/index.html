@@ -1,0 +1,45 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Visualisation du balayage de stabilité CFL (`examples/cfl_stability_scan.rs`). Visualisation of the CFL stability scan (`examples/cfl_stability_scan.rs`)."><title>plot_cfl_stability - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="plot_cfl_stability" data-themes="" data-resource-suffix="" data-rustdoc-version="1.97.1 (8bab26f4f 2026-07-14)" data-channel="1.97.1" data-search-js="search-fd9372ac.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-fcd733ba.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate plot_cfl_stability</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../plot_cfl_stability/index.html">plot_<wbr>cfl_<wbr>stability</a><span class="version">0.5.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#visual-elements" title="Visual elements">Visual elements</a></li><li><a href="#cargotoml" title="Cargo.toml">Cargo.toml</a></li></ul><h3><a href="#structs">Crate Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1>Crate <span>plot_<wbr>cfl_<wbr>stability</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/plot_cfl_stability/plot_cfl_stability.rs.html#1-350">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Visualisation du balayage de stabilité CFL (<code>examples/cfl_stability_scan.rs</code>).
+<em>Visualisation of the CFL stability scan (<code>examples/cfl_stability_scan.rs</code>).</em></p>
+<p>Run with <code>cargo run --release --example cfl_stability_scan</code> then
+<code>cargo run --release --bin plot_cfl_stability</code>; output lands in
+<code>target/plots/cfl_stability.svg</code>.</p>
+<p>Reads <code>cfl_stability_scan.json</code> from the system temp directory — the
+same file <code>examples/cfl_stability_scan.rs</code> writes to.</p>
+<h2 id="visual-elements"><a class="doc-anchor" href="#visual-elements">§</a>Visual elements</h2>
+<p>Deux panneaux empilés, un par solveur (Euler=rouge, RK4=bleu, même
+convention de couleurs que <code>tools/plot_stiffness_convergence.rs</code>) :</p>
+<ol>
+<li><strong>Ordre de grandeur du profil final</strong> — <code>log10(max(|min|, |max|))</code>
+vs CFL (log). Montre où chaque solveur bascule d’un profil
+physiquement raisonnable vers des valeurs qui explosent.</li>
+<li><strong><code>tail_ratio</code></strong> — fraction de la norme non résorbée en fin de
+simulation, vs CFL (log). Reste proche de 0 tant que la simulation
+est saine, saute vers 1 à l’instabilité.</li>
+</ol>
+<p>Les points au verdict <code>OK</code> sont des cercles pleins de rayon 4 ; les
+points signalés (<code>SUSPECT (...)</code>ou <code>NaN/Inf</code>) sont des cercles pleins
+de rayon 7 — même famille de marqueur que le reste du dépôt (voir
+<code>tools/plot_stiffness_convergence.rs</code>), pas de nouvelle forme
+introduite pour rester sur des primitives déjà vérifiées ailleurs dans
+ce dépôt.
+<em>Two stacked panels, one per solver (Euler=red, RK4=blue, same color
+convention as <code>tools/plot_stiffness_convergence.rs</code>):</em></p>
+<p><em>1. <strong>Magnitude of the final profile</strong> — <code>log10(max(|min|, |max|))</code> vs
+CFL (log). Shows where each solver flips from a physically
+reasonable profile to blown-up values.</em>
+<em>2. <strong><code>tail_ratio</code></strong> — fraction of the norm left unresolved at the end
+of the simulation, vs CFL (log). Stays near 0 while the run is
+healthy, jumps to 1 at instability.</em></p>
+<p><em><code>OK</code>-verdict points are solid circles of radius 4; flagged points
+(<code>SUSPECT (...)</code> or <code>NaN/Inf</code>) are solid circles of radius 7 — same
+marker family as the rest of the repository (see
+<code>tools/plot_stiffness_convergence.rs</code>), no new shape introduced so as
+to stay on primitives already verified elsewhere in this repository.</em></p>
+<h2 id="cargotoml"><a class="doc-anchor" href="#cargotoml">§</a>Cargo.toml</h2><div class="example-wrap"><pre class="language-toml"><code>[[bin]]
+name = &quot;plot_cfl_stability&quot;
+path = &quot;tools/plot_cfl_stability.rs&quot;
+
+[dependencies]
+plotters   = &quot;0.3&quot;
+serde_json = &quot;1&quot;
+anyhow     = &quot;1&quot;</code></pre></div></div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Row.html" title="struct plot_cfl_stability::Row">Row</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.COLORS.html" title="constant plot_cfl_stability::COLORS">COLORS</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.generate_plot.html" title="fn plot_cfl_stability::generate_plot">generate_<wbr>plot</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.main.html" title="fn plot_cfl_stability::main">main</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.read_report.html" title="fn plot_cfl_stability::read_report">read_<wbr>report</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.report_path.html" title="fn plot_cfl_stability::report_path">report_<wbr>path</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl></section></div></main></body></html>

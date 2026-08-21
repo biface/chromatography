@@ -1,2 +1,2 @@
-window.ALL_CRATES = ["chrom_rs","plot_cost_accuracy","plot_parallelism_threshold","plot_reference_cases_timing","plot_species_response_curve","plot_stiffness_convergence"];
-//{"start":21,"fragment_lengths":[10,21,29,30,30,29]}
+window.ALL_CRATES = ["chrom_rs","plot_cfl_stability","plot_cost_accuracy","plot_fixed_steps_comparison","plot_parallelism_threshold","plot_reference_cases_timing","plot_species_response_curve","plot_stiffness_convergence"];
+//{"start":21,"fragment_lengths":[10,21,21,30,29,30,30,29]}

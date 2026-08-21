@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["COLORS"],"fn":["generate_plot","main","read_report","report_path"],"struct":["Row"]};
