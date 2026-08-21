@@ -31,6 +31,18 @@ strip = true
 lto = "thin"
 codegen-units = 1
 
+# Requis par iai-callgrind : `bench` hérite silencieusement de `release`
+# (Cargo Book, "Profiles"), donc strip=true s'appliquerait aussi à
+# iai_solver_comparison sans cette section — Valgrind ne peut pas localiser
+# les fonctions #[library_benchmark] sans symboles de debug (--toggle-collect
+# a besoin du symbole). Vérifié via la doc officielle d'iai-callgrind
+# (Prerequisites), pas supposé. Sans effet indésirable sur les bancs
+# Criterion existants (langmuir_performance, solver_performance).
+[profile.bench]
+inherits = "release"
+debug = true
+strip = false
+
 [dependencies]
 dynamic-cli = "0.6.0"
 nalgebra = { version = "0.34.2", features = ["serde-serialize"] }
@@ -112,6 +124,14 @@ path = "tools/plot_cost_accuracy.rs"
 [[bin]]
 name = "plot_stiffness_convergence"
 path = "tools/plot_stiffness_convergence.rs"
+
+[[bin]]
+name = "plot_fixed_steps_comparison"
+path = "tools/plot_fixed_steps_comparison.rs"
+
+[[bin]]
+name = "plot_cfl_stability"
+path = "tools/plot_cfl_stability.rs"
 
 [[test]]
 name = "scientific_validation"
