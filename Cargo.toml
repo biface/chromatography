@@ -72,6 +72,7 @@ cargo-llvm-cov = "0.8.5"
 criterion = { version = "0.8", features = ["html_reports", "plotters"] }
 tempfile = "3.25.0"
 rand = "0.10"
+iai-callgrind = "0.14"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "docs/katex-header.html"]
@@ -82,6 +83,10 @@ harness = false
 
 [[bench]]
 name = "langmuir_performance"
+harness = false
+
+[[bench]]
+name = "iai_solver_comparison"
 harness = false
 
 [[example]]
