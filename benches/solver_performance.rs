@@ -50,18 +50,33 @@
 //! Example output interpretation:
 //!
 //! ```text
-//! solver_comparison/euler
-//!   Time: [15.234 ms 15.456 ms 15.678 ms]
+//! solver_comparison/Forward Euler 100 points & 1000 steps
+//!   Time: [678.9 µs 678.9 µs 678.9 µs]   (measured, 2026-08-16)
 //!
-//! solver_comparison/rk4
-//!   Time: [61.123 ms 61.456 ms 61.789 ms]
+//! solver_comparison/Runge-Kutta 4 100 points & 1000 steps
+//!   Time: [1.922 ms 1.922 ms 1.922 ms]   (measured, 2026-08-16)
 //!
-//! Ratio: 61.456 / 15.456 ≈ 3.98 ≈ 4.0× (expected!)
+//! Ratio: 1.922 / 0.679 ≈ 2.83 — NOT 4.0×; see "Measured Reality" below.
 //! ```
 //!
-//! If ratio differs significantly from 4.0×:
+//! If ratio differs significantly from 4.0× (it does, systematically — see
+//! "Measured Reality" below before troubleshooting):
 //! - > 5×: Extra overhead in RK4 (cache misses, allocations)
 //! - < 3×: Unexpected optimization (check black_box usage)
+//!
+//! # Measured Reality (2026-08-16, 3 runs, all four benchmark groups below)
+//!
+//! The ratio never approaches 4.0× on this model and decreases steadily
+//! with problem size across every group in this file — from ~3.9× on the
+//! smallest configurations down to ~2.2× on the largest (`Exhaustive Solver
+//! Comparison`, 200×5000). It is not explained by the parallel-dispatch
+//! threshold: `SimpleModel` never exercises the species dimension, and no
+//! configuration measured so far reaches `points ≥ 999` (fixed in the
+//! `benchmark_euler_solver`/`benchmark_rk4_solver` pair; see the 1000/1500/
+//! 2000-point additions there). Direction is consistent with the
+//! cache/bandwidth hypothesis in the troubleshooting note above, but this
+//! has not been confirmed by profiling. Full group-by-group figures and
+//! cross-analysis are in the chrom-rs performance article, §3.10-3.16.
 
 use chrom_rs::physics::{PhysicalData, PhysicalModel, PhysicalQuantity, PhysicalState};
 use chrom_rs::solver::{DomainBoundaries, Scenario, Solver, SolverConfiguration};
@@ -140,21 +155,27 @@ impl PhysicalModel for SimpleModel {
 ///
 /// # Test Configuration
 ///
-/// - **Points**: 10, 50, 100, 500 (spatial discretization)
+/// - **Points**: 10, 50, 100, 500, 1000, 1500, 2000 (spatial discretization)
 /// - **Time steps**: 100 (fixed for fair comparison)
 /// - **Total time**: 10.0 seconds
 /// - **dt**: 0.1 seconds per step
 ///
-/// # Expected Scaling
-///
-/// Time should scale linearly with points:
+/// # Measured Scaling (2026-08-16 session, 3 runs)
 ///
 /// ```text
-/// points=10:   baseline (e.g., 0.5 ms)
-/// points=50:   ~5× slower (e.g., 2.5 ms)
-/// points=100:  ~10× slower (e.g., 5.0 ms)
-/// points=500:  ~50× slower (e.g., 25 ms)
+/// points=10:   24.5 µs
+/// points=50:   45.7 µs
+/// points=100:  67.7 µs
+/// points=500:  252.8 µs
 /// ```
+///
+/// Sub-linear over this range (×10.3 in time for ×50 in points) — see the
+/// RK4/Euler ratio analysis in the performance article (chrom-rs, §3.10) for
+/// the interpretation. Points 1000/1500/2000 have no measured baseline yet;
+/// they were added to check whether `PhysicalData::apply()`'s own parallel
+/// dispatch (threshold on `v.len()` alone, no species dimension on this
+/// model — see `PhysicalData::apply()`) ever triggers on `SimpleModel` and
+/// disrupts the decreasing RK4/Euler ratio observed up to points=500.
 ///
 /// # Why These Sizes?
 ///
@@ -162,6 +183,11 @@ impl PhysicalModel for SimpleModel {
 /// - **50 points**: Small but realistic
 /// - **100 points**: Standard medium size
 /// - **500 points**: Large problem (may exceed L1 cache)
+/// - **1000/1500/2000 points**: straddle the `v.len() ≥ 999` parallel
+///   dispatch threshold — untested until now, added to close a gap
+///   explicitly flagged in the performance article (chrom-rs, §3.16): no
+///   group previously exercised both solvers on a configuration crossing
+///   the parallelism threshold.
 ///
 /// If scaling is **not linear**, investigate:
 /// - Cache effects (L1 → L2 → L3 → RAM)
@@ -172,7 +198,7 @@ fn benchmark_euler_solver(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Forward Euler Solver");
 
-    for points in [10, 50, 100, 500].iter() {
+    for points in [10, 50, 100, 500, 1000, 1500, 2000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(points), points, |b, &points| {
             // Setup phase (NOT measured by criterion)
             // ==========================================
@@ -218,21 +244,24 @@ fn benchmark_euler_solver(c: &mut Criterion) {
 ///
 /// # Test Configuration
 ///
-/// - **Points**: 10, 50, 100, 500 (spatial discretization)
+/// - **Points**: 10, 50, 100, 500, 1000, 1500, 2000 (spatial discretization)
 /// - **Time steps**: 100 (fixed, same as Euler for comparison)
 /// - **Total time**: 10.0 seconds
 /// - **dt**: 0.1 seconds per step
 ///
-/// # Expected Scaling
-///
-/// Time should scale linearly with points, but ~4× slower than Euler:
+/// # Measured Scaling and RK4/Euler Ratio (2026-08-16 session, 3 runs)
 ///
 /// ```text
-/// points=10:   ~4× Euler baseline (e.g., 2.0 ms)
-/// points=50:   ~4× Euler at 50 (e.g., 10 ms)
-/// points=100:  ~4× Euler at 100 (e.g., 20 ms)
-/// points=500:  ~4× Euler at 500 (e.g., 100 ms)
+/// points=10:   95.4 µs   (ratio vs Euler: 3.90)
+/// points=50:   144.2 µs  (ratio vs Euler: 3.16)
+/// points=100:  193.4 µs  (ratio vs Euler: 2.86)
+/// points=500:  632.1 µs  (ratio vs Euler: 2.50)
 /// ```
+///
+/// The ratio decreases steadily with problem size — never close to the 4.0×
+/// documented at the top of this file. Points 1000/1500/2000 have no
+/// measured baseline yet; see the matching note in
+/// [`benchmark_euler_solver`] for why they were added.
 ///
 /// # RK4 Characteristics
 ///
@@ -251,7 +280,7 @@ fn benchmark_rk4_solver(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Runge-Kutta (4 steps) Solver");
 
-    for points in [10, 50, 100, 500].iter() {
+    for points in [10, 50, 100, 500, 1000, 1500, 2000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(points), points, |b, &points| {
             let model = Box::new(SimpleModel { points });
             let initial = model.setup_initial_state();
@@ -318,25 +347,31 @@ fn benchmark_rk4_solver(c: &mut Criterion) {
 /// Ratio: 4.956 / 1.256 = 3.95 ≈ 4.0 ✅
 /// ```
 ///
-/// # Performance Targets
-///
-/// Expected times (approximate, hardware-dependent):
+/// # Measured Times (2026-08-16 session, 3 runs — replaces the earlier
+/// hardware-guessed targets, which overstated actual cost by roughly an
+/// order of magnitude on this machine)
 ///
 /// | Config | Euler | RK4 | Ratio |
 /// |--------|-------|-----|-------|
-/// | 50×100 | 1-2 ms | 4-8 ms | 4.0 |
-/// | 100×1000 | 15-20 ms | 60-80 ms | 4.0 |
-/// | 200×5000 | 150-200 ms | 600-800 ms | 4.0 |
-/// | 500×10000 | 1.5-2 s | 6-8 s | 4.0 |
+/// | 50×100 | 43.9 µs | 144.1 µs | 3.28 |
+/// | 100×1000 | 678.9 µs | 1.922 ms | 2.83 |
+/// | 200×5000 | 8.663 ms | 18.943 ms | 2.19 |
+///
+/// (500×10000 is not run in this group — see `benchmark_exhaustive_comparison`
+/// for the closest covered configuration, 200×5000, and its 12-point grid.)
 ///
 /// # Troubleshooting
 ///
-/// **If ratio ≠ 4.0 for large problems**:
+/// **If ratio ≠ 4.0 for large problems**: this is the observed norm here,
+/// not the exception — see the file-level "Measured Reality" note above
+/// before assuming something is wrong. If investigating further:
 /// - Check L3 cache size (maybe exceeding)
 /// - Profile with `perf stat` to see cache misses
 /// - Consider memory bandwidth limitations
 ///
-/// **If times are much slower than expected**:
+/// **If times are much slower than expected**: "expected" now means the
+/// measured table above, not the old hardware-guessed targets. If still
+/// much slower:
 /// - Verify `cargo bench` runs in release mode (it should)
 /// - Check CPU throttling: `cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor`
 /// - Close background applications
@@ -463,6 +498,20 @@ fn benchmark_solver_comparison(c: &mut Criterion) {
 /// # Create matrix: rows=points, cols=time_steps
 /// # Plot heatmap to see performance landscape
 /// ```
+///
+/// # Measured RK4/Euler Ratio Heatmap (2026-08-16 session, 3 runs)
+///
+/// ```text
+///            steps=100  steps=500  steps=1000  steps=5000
+/// points=50    3.27       3.18       3.20        2.51
+/// points=100   2.86       2.86       2.88        2.32
+/// points=200   2.69       2.71       2.68        2.20
+/// ```
+///
+/// The ratio correlates more with `time_steps` (drop within a row, e.g.
+/// 100 points: 2.86 → 2.32) than with `points` at fixed `time_steps` (e.g.
+/// 5000 steps: 2.51 → 2.32 → 2.20). Never approaches the 4.0× documented
+/// at the top of this file. See the performance article, §3.13.
 fn benchmark_exhaustive_comparison(c: &mut Criterion) {
     chrom_rs::output::register_fonts();
 

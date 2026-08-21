@@ -11,15 +11,20 @@
 //! `chrom-rs`:
 //!
 //! 1. **`bench_cfl_stability`** — Numerical stability as a function of CFL
-//!    (Euler and RK4).
+//!    (Euler and RK4). Grid extended 2026-08-16 (see "Corrections" below).
 //! 2. **`bench_single_vs_multi_1species`** — Overhead of [`LangmuirMulti`]
 //!    on a single-species problem (Euler and RK4).
 //! 3. **`bench_multi_species_scaling`** — O(n³) scalability of Jacobian
-//!    inversion for n_species ∈ {1, 2, 5, 10, 20, 50} (Euler only).
+//!    inversion for n_species ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15,
+//!    18, 20, 50} (Euler only). Densified 2026-08-16 to separate the O(n³)
+//!    law from the parallelism jump at n_species = 10 (see "Corrections").
 //! 4. **`bench_parallelism_threshold`** — Rayon parallelism trigger around
-//!    the threshold n_points × n_species ≥ 1000.
+//!    the threshold n_points × n_species ≥ 1000 (Euler, canonical 27-point
+//!    grid, unchanged). An RK4 probe on a 7-point subset was added
+//!    2026-08-16 (see "Corrections").
 //! 5. **`bench_species_response_curve`** — Full response curve from
-//!    n_species = 2 to 100, **Euler and RK4**, with n_points = 100 fixed.
+//!    n_species = 2 to 100, **Euler and RK4** (RK4 now included at
+//!    n_species = 100 too, see "Corrections"), with n_points = 100 fixed.
 //!    This group simultaneously observes:
 //!    - the O(n³) scaling law of LU inversion,
 //!    - the parallelism threshold (crossed at n_species = 10 with
@@ -35,6 +40,24 @@
 //!    matched n_points/n_species. Tests whether the RK4/Euler cost ratio
 //!    difference observed in group 6 is actually explained by isotherm
 //!    evaluation cost (issue #55).
+//!
+//! # Corrections (2026-08-16 session — see per-function docstrings for detail)
+//!
+//! The original in-code duration estimates for groups 3, 4 and 5 were not
+//! validated against real runs and turned out to be wrong by roughly an
+//! order of magnitude in both directions (`_xl` overstated ~40×, `_medium`
+//! overstated ~7×, `_small` slightly understated). All duration figures in
+//! this file now distinguish **measured** (from the 2026-08-16 session and
+//! same-day re-check) from **extrapolated** (from measured ratios/rates,
+//! not yet run) — extrapolated figures should be validated with a single
+//! run before committing to a full 3-run batch. Four changes were made:
+//! RK4 enabled at n_species=100 in group 5 (§`bench_species_response_curve_xl`),
+//! group 3's n_species grid densified around the group-5-shared parallelism
+//! threshold, group 1's CFL grid extended (the original never reached
+//! instability — see "Note on NaN/Inf detection" below), and an RK4 probe
+//! added to group 4 on a subset of its existing points (canonical Euler
+//! grid untouched). None of these changes remove or alter previously
+//! collected benchmark ids — all are additive.
 //!
 //! # Physical parameters
 //!
@@ -61,10 +84,17 @@
 //!
 //! # Note on NaN/Inf detection
 //!
-//! For CFL ≥ 1.0 the Euler solver typically produces NaN values. The
-//! [`is_numerically_stable`] function inspects the final state after each
-//! probe iteration and prints a warning — without interrupting the timing
-//! (so that Criterion records even unstable cases).
+//! For CFL ≥ 1.0 the Euler solver was *expected* to typically produce NaN
+//! values. This was not observed in practice: across two full sessions on
+//! 2026-08-16 (6 runs total), `is_numerically_stable` returned `true` for
+//! every CFL value tested, including 1.2 — see `bench_cfl_stability`'s
+//! docstring for the corrected table. The CFL grid was extended to 1.5,
+//! 2.0 and 3.0 to locate the actual instability boundary on this TFA case.
+//! The [`is_numerically_stable`] function itself is unchanged: it inspects
+//! the final state after each probe iteration and prints a warning —
+//! without interrupting the timing (so that Criterion records even
+//! unstable cases) — its detection path just has not yet been exercised by
+//! an actually-unstable case in this file.
 
 use std::hint::black_box;
 use std::time::Duration;
@@ -515,12 +545,20 @@ fn cubic_ratio(n: usize, n_ref: usize) -> f64 {
 /// is varied to target different CFL values.  A CFL above 1 causes numerical
 /// instability detected by NaN/Inf in the final state.*
 ///
-/// | CFL cible / *Target CFL* | Comportement / *Behaviour*                  |
-/// |--------------------------|---------------------------------------------|
-/// | 0.3                      | Stable et précis / *Stable and accurate*    |
-/// | 0.8                      | Stable, proche limite / *Stable, near limit*|
-/// | 1.0                      | Limite exacte / *Exact limit (unstable)*    |
-/// | 1.2                      | Instable / *Unstable (NaN/Inf expected)*    |
+/// | CFL cible / *Target CFL* | Comportement attendu / *Expected* | Observé, 6 runs / *Observed, 6 runs* |
+/// |----------------------------|--------------------------------------|------------------------------------------|
+/// | 0.3                        | Stable et précis / *Stable, accurate* | Stable                                    |
+/// | 0.8                        | Stable, proche limite / *Stable, near limit* | Stable                             |
+/// | 1.0                        | Limite exacte / *Exact limit (unstable)* | Stable (contrairement à l'attente / *contrary to expectation*) |
+/// | 1.2                        | Instable / *Unstable (NaN/Inf expected)* | Stable (contrairement à l'attente / *contrary to expectation*) |
+/// | 1.5, 2.0, 3.0 *(ajoutés / added, 2026-08-16)* | — | Pas encore mesuré / *Not yet measured* |
+///
+/// Aucune instabilité n'a été observée jusqu'à CFL=1,2 sur les deux
+/// sessions du 2026-08-16 (6 runs au total, 0 `stable=false`) — voir la
+/// note sur `cfl_targets` ci-dessous pour le détail.
+/// *No instability was observed up to CFL=1.2 across the two 2026-08-16
+/// sessions (6 runs total, 0 `stable=false`) — see the note on
+/// `cfl_targets` below for detail.*
 ///
 /// # Configuration Criterion
 ///
@@ -528,6 +566,14 @@ fn cubic_ratio(n: usize, n_ref: usize) -> f64 {
 /// `sample_size=50`, `warm_up=3 s`.
 /// *Fast group (single-species, nz=100): `measurement_time=10 s`,
 /// `sample_size=50`, `warm_up=3 s`.*
+///
+/// # Durée / *Duration*
+///
+/// Grille d'origine (4 CFL) : 9 min 16 s mesurées pour 3 runs (session du
+/// 2026-08-16). Grille étendue (7 CFL, ci-dessous) : ~16 min extrapolées
+/// pour 3 runs.
+/// *Original grid (4 CFL): 9 min 16 s measured for 3 runs (2026-08-16
+/// session). Extended grid (7 CFL, below): ~16 min extrapolated for 3 runs.*
 fn bench_cfl_stability(c: &mut Criterion) {
     chrom_rs::output::register_fonts();
 
@@ -539,9 +585,24 @@ fn bench_cfl_stability(c: &mut Criterion) {
     group.sample_size(50);
     group.warm_up_time(Duration::from_secs(3));
 
-    // CFL cibles à tester — couvre régime stable, limite et régime instable
-    // Target CFL values — covers stable regime, limit, and unstable regime
-    let cfl_targets: &[f64] = &[0.3, 0.8, 1.0, 1.2];
+    // CFL cibles à tester. La grille d'origine (0.3, 0.8, 1.0, 1.2) ne
+    // franchit jamais l'instabilité en pratique : sur les 2 sessions du
+    // 2026-08-16 (6 runs), `is_numerically_stable` a renvoyé `true` pour
+    // les 4 CFL sans exception, y compris à 1.2 — contrairement à l'attente
+    // documentée plus bas ("For CFL ≥ 1.0 the Euler solver typically
+    // produces NaN values"). Ajout de 1.5, 2.0 et 3.0 pour trouver la
+    // limite réelle d'instabilité sur ce cas TFA, et vérifier que le
+    // chemin de détection NaN/Inf se déclenche bien quand elle est
+    // franchie.
+    // Target CFL values. The original grid (0.3, 0.8, 1.0, 1.2) never
+    // actually crosses into instability in practice: across the two
+    // 2026-08-16 sessions (6 runs), `is_numerically_stable` returned `true`
+    // for all 4 CFL values without exception, including at 1.2 — contrary
+    // to the expectation documented below ("For CFL ≥ 1.0 the Euler solver
+    // typically produces NaN values"). Added 1.5, 2.0 and 3.0 to locate the
+    // actual instability boundary on this TFA case, and to verify that the
+    // NaN/Inf detection path does trigger once it is crossed.
+    let cfl_targets: &[f64] = &[0.3, 0.8, 1.0, 1.2, 1.5, 2.0, 3.0];
 
     for &cfl in cfl_targets {
         // Nombre de pas de temps correspondant à ce CFL
@@ -719,12 +780,44 @@ fn bench_single_vs_multi_1species(c: &mut Criterion) {
 /// Euler uniquement — on isole l'effet du nombre d'espèces, pas du solveur.
 /// *Euler only — we isolate the effect of the number of species, not the solver.*
 ///
+/// # Confound avec le seuil de parallélisme / *Confound with the parallelism threshold*
+///
+/// n_points=100 (`N_POINTS_REF`) est fixe dans ce groupe, donc le seuil de
+/// parallélisme (ops = n_points × n_species ≥ 999) est franchi à
+/// n_species=10 — pile dans la plage testée. La grille d'origine (1, 2, 5,
+/// 10, 20, 50) mesurait donc, sans le signaler, le passage du régime série
+/// au régime parallèle en même temps que la loi O(n³) : le temps à n=10
+/// (régime parallèle) peut être inférieur à celui à n=5 (régime série),
+/// ce qui n'est pas un défaut de mesure mais l'effet du dispatch Rayon.
+/// La grille densifiée ci-dessous vise à ajuster deux pentes log-log
+/// séparées, une par régime, plutôt qu'une seule loi de puissance sur
+/// l'ensemble de la plage.
+/// *n_points=100 (`N_POINTS_REF`) is fixed in this group, so the
+/// parallelism threshold (ops = n_points × n_species ≥ 999) is crossed at
+/// n_species=10 — right inside the tested range. The original grid (1, 2,
+/// 5, 10, 20, 50) therefore measured, without flagging it, the transition
+/// from serial to parallel regime at the same time as the O(n³) law: time
+/// at n=10 (parallel regime) can be lower than at n=5 (serial regime),
+/// which is not a measurement defect but the effect of Rayon dispatch. The
+/// densified grid below aims to fit two separate log-log slopes, one per
+/// regime, rather than a single power law across the whole range.*
+///
 /// # Configuration Criterion
 ///
 /// Groupe lent (n_species=50, nz=100) : `measurement_time=20 s`,
 /// `sample_size=20`, `SamplingMode::Flat`, `warm_up=5 s`.
 /// *Slow group (n_species=50, nz=100): `measurement_time=20 s`,
 /// `sample_size=20`, `SamplingMode::Flat`, `warm_up=5 s`.*
+///
+/// # Durée / *Duration*
+///
+/// Grille d'origine (6 points) : 11 min 44 s mesurées pour 3 runs (session
+/// du 2026-08-16). Grille densifiée (16 points, ci-dessous) : ~30-32 min
+/// extrapolées pour 3 runs — à valider par un premier run avant de lancer
+/// les trois.
+/// *Original grid (6 points): 11 min 44 s measured for 3 runs (2026-08-16
+/// session). Densified grid (16 points, below): ~30-32 min extrapolated
+/// for 3 runs — validate with a single run before committing to all three.*
 fn bench_multi_species_scaling(c: &mut Criterion) {
     chrom_rs::output::register_fonts();
 
@@ -737,9 +830,22 @@ fn bench_multi_species_scaling(c: &mut Criterion) {
     group.sampling_mode(SamplingMode::Flat);
     group.warm_up_time(Duration::from_secs(5));
 
-    // Plage n_species : de 1 à 50 pour observer la courbure O(n³)
-    // n_species range: from 1 to 50 to observe O(n³) curvature
-    let n_species_list: &[usize] = &[1, 2, 5, 10, 20, 50];
+    // Plage n_species : densifiée le 2026-08-16 pour séparer la loi O(n³)
+    // du saut de parallélisme (n_points=100 fixé, seuil franchi à
+    // n_species=10 — voir la note "Confound avec le seuil de parallélisme"
+    // sur le docstring de la fonction). Les 6 points d'origine (1,2,5,10,
+    // 20,50) étaient trop espacés pour distinguer les deux effets : ajout
+    // de points série (3,4,6,7,8,9) et parallèle (11,12,15,18) de part et
+    // d'autre du seuil, pour ajuster deux pentes log-log séparées.
+    //
+    // n_species range: densified 2026-08-16 to separate the O(n³) law from
+    // the parallelism jump (n_points=100 fixed, threshold crossed at
+    // n_species=10 — see the "Confound with the parallelism threshold" note
+    // on the function's docstring). The original 6 points (1,2,5,10,20,50)
+    // were too sparse to tell the two effects apart: added serial-side
+    // points (3,4,6,7,8,9) and parallel-side points (11,12,15,18) either
+    // side of the threshold, to fit two separate log-log slopes.
+    let n_species_list: &[usize] = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 18, 20, 50];
 
     for &n_species in n_species_list {
         let params = generate_multi_params(n_species, 42);
@@ -818,17 +924,49 @@ fn bench_multi_species_scaling(c: &mut Criterion) {
 /// | 500      | 1000               | Parallèle / *Parallel* ←|
 /// | 5000     | 10 000             | Parallèle / *Parallel*  |
 ///
-/// # Résultat attendu / *Expected result*
+/// # Résultat attendu, résultat mesuré / *Expected vs measured result*
 ///
-/// Deux segments linéaires avec un saut initial au passage du seuil (coût
-/// de spawn du pool rayon).
-/// *Two linear segments with an initial jump at the threshold crossing (Rayon
-/// thread-pool spawn cost).*
+/// Attendu : deux segments linéaires avec un saut initial au passage du
+/// seuil (coût de spawn du pool rayon) — le sens du saut n'était pas
+/// précisé. Mesuré (2026-08-16, 3 runs, cohérent run par run) : une chute
+/// nette d'un facteur ~2,8 entre n_points=499 (98,0 ms) et n_points=500
+/// (35,4 ms) — le gain de parallélisation l'emporte largement sur le coût
+/// de spawn dès la première configuration qui franchit le seuil. Une
+/// dérive de mesure existe dans la zone n_points≈500-520 (jusqu'à ~18 %
+/// d'écart entre runs), sans remettre en cause le sens ni l'existence du
+/// saut — voir la section méthode de l'article de performance.
+/// *Expected: two linear segments with an initial jump at the threshold
+/// crossing (Rayon thread-pool spawn cost) — the jump's direction was not
+/// specified. Measured (2026-08-16, 3 runs, consistent run to run): a sharp
+/// ~2.8× drop between n_points=499 (98.0 ms) and n_points=500 (35.4 ms) —
+/// the parallelization gain far outweighs the spawn cost from the very
+/// first configuration that crosses the threshold. A measurement drift
+/// exists in the n_points≈500-520 zone (up to ~18% spread between runs),
+/// without changing the direction or existence of the jump — see the
+/// performance article's methodology section.*
 ///
 /// # n_steps adaptatif / *Adaptive n_steps*
 ///
 /// dz diminue quand n_points augmente → dt_max = 0.5 × dz / u_eff.
 /// *dz shrinks as n_points grows → dt_max = 0.5 × dz / u_eff.*
+///
+/// # RK4 (sonde ajoutée, 2026-08-16) / *RK4 (probe added, 2026-08-16)*
+///
+/// La boucle Euler ci-dessous reste la grille canonique (27 points),
+/// inchangée par rapport à la version utilisée dans l'article de
+/// performance, §3.4. Une seconde boucle, plus bas dans le corps de la
+/// fonction, ajoute RK4 sur un sous-ensemble de 7 points déjà présents
+/// dans `n_points_list` (480, 490, 499, 500, 501, 510, 600), pour
+/// documenter le ratio RK4/Euler de part et d'autre du seuil — question
+/// laissée ouverte en §3.16 de l'article (aucun groupe n'y croisait les
+/// deux solveurs avec le franchissement du seuil).
+/// *The Euler loop below remains the canonical grid (27 points), unchanged
+/// from the version used in the performance article, §3.4. A second loop,
+/// further down in the function body, adds RK4 on a 7-point subset already
+/// present in `n_points_list` (480, 490, 499, 500, 501, 510, 600), to
+/// document the RK4/Euler ratio either side of the threshold — a question
+/// left open in the article's §3.16 (no group there crossed both solvers
+/// with the threshold crossing).*
 ///
 /// # Configuration Criterion
 ///
@@ -836,6 +974,21 @@ fn bench_multi_species_scaling(c: &mut Criterion) {
 /// `SamplingMode::Flat`, `warm_up=5 s`.
 /// *Slow group (n_points=5000): `measurement_time=20 s`, `sample_size=20`,
 /// `SamplingMode::Flat`, `warm_up=5 s`.*
+///
+/// # Durée / *Duration*
+///
+/// Grille Euler canonique (27 points) : 41 min 43 s mesurées pour 3 runs
+/// (session du 2026-08-16 ; 41 min 14 s en re-vérification le même jour).
+/// Sonde RK4 (7 points supplémentaires) : non mesurée, extrapolée à
+/// ~10-15 min pour 3 runs à partir des temps Euler déjà mesurés à ces
+/// points (35-98 ms) et du ratio RK4/Euler observé ailleurs (3,1-3,8×).
+/// Valider avec un run unique avant de lancer les 3.
+/// *Canonical Euler grid (27 points): 41 min 43 s measured for 3 runs
+/// (2026-08-16 session; 41 min 14 s on same-day re-check). RK4 probe (7
+/// additional points): not measured, extrapolated to ~10-15 min for 3 runs
+/// from the already-measured Euler times at these points (35-98 ms) and
+/// the RK4/Euler ratio observed elsewhere (3.1-3.8×). Validate with a
+/// single run before committing to all three.*
 fn bench_parallelism_threshold(c: &mut Criterion) {
     chrom_rs::output::register_fonts();
 
@@ -899,6 +1052,55 @@ fn bench_parallelism_threshold(c: &mut Criterion) {
                 let model = tfa_multi_2species(npts);
                 let (scenario, config) = build_scenario(model, n_steps);
                 black_box(EulerSolver::new().solve(&scenario, &config).ok())
+            })
+        });
+    }
+
+    // ── Sonde RK4 autour du seuil (ajout 2026-08-16) ────────────────────────
+    // Aucun groupe de cet article ne mesurait RK4 et Euler sur une
+    // configuration franchissant le seuil de parallélisme (limite explicite
+    // signalée dans l'article de performance, §3.16). On ajoute ici RK4 sur
+    // un sous-ensemble de `n_points_list` déjà couvert par Euler ci-dessus
+    // — la grille canonique n'est pas modifiée, seule une sonde
+    // supplémentaire est ajoutée sous des identifiants distincts
+    // (`rk4/npts_*`).
+    //
+    // Durée : non mesurée pour ce sous-ensemble précis. Extrapolation à
+    // partir du ratio RK4/Euler mesuré ailleurs (3,1-3,8×, voir
+    // `bench_cfl_stability`/`bench_reference_cases`) appliqué aux temps
+    // Euler déjà mesurés à ces points (35-98 ms) : ~10-15 min pour les 7
+    // points × 3 runs. À valider par un run unique avant de lancer les 3.
+    //
+    // ── RK4 crossing probe (added 2026-08-16) ───────────────────────────────
+    // No group in this article measured both RK4 and Euler on a
+    // configuration crossing the parallelism threshold (explicit gap
+    // flagged in the performance article, §3.16). RK4 is added here on a
+    // subset of `n_points_list` already covered by Euler above — the
+    // canonical grid is not modified, only an additional probe is added
+    // under distinct benchmark ids (`rk4/npts_*`).
+    //
+    // Duration: not measured for this specific subset. Extrapolated from
+    // the RK4/Euler ratio measured elsewhere (3.1-3.8×, see
+    // `bench_cfl_stability`/`bench_reference_cases`) applied to the
+    // already-measured Euler times at these points (35-98 ms): ~10-15 min
+    // for the 7 points × 3 runs. Validate with a single run before
+    // committing to all three.
+    let rk4_probe_points: &[usize] = &[480, 490, 499, 500, 501, 510, 600];
+
+    for &n_points in rk4_probe_points {
+        let dz = COLUMN_LENGTH / n_points as f64;
+        let n_steps = {
+            let dt_max = 0.5 * dz / U_EFF_C0;
+            (TOTAL_TIME / dt_max).ceil() as usize
+        };
+
+        let id = BenchmarkId::new("rk4", format!("npts_{n_points}"));
+
+        group.bench_with_input(id, &n_points, |b, &npts| {
+            b.iter(|| {
+                let model = tfa_multi_2species(npts);
+                let (scenario, config) = build_scenario(model, n_steps);
+                black_box(RK4Solver::new().solve(&scenario, &config).ok())
             })
         });
     }
@@ -1003,33 +1205,47 @@ fn bench_parallelism_threshold(c: &mut Criterion) {
 /// With `SamplingMode::Flat`, Criterion runs exactly `sample_size` iterations
 /// regardless of elapsed time.*
 ///
-/// Budgets estimés / *Estimated budgets*:
+/// Budgets mesurés / *Measured budgets* (session du 2026-08-16, 3 runs
+/// chacun — remplace les estimations d'origine, qui surestimaient le coût
+/// réel d'un facteur ~7 à ~40× selon le groupe) :
+/// *(2026-08-16 session, 3 runs each — replaces the original estimates,
+/// which overstated actual cost by roughly ~7× to ~40× depending on the
+/// group)*
 ///
-/// | Groupe / *Group*       | n_species      | sample_size | Budget estimé |
-/// |------------------------|----------------|-------------|---------------|
-/// | `_small`               | 2 → 30         | 20          | ~15 min       |
-/// | `_medium`              | 50, 75         | 10          | ~1 h          |
-/// | `_xl`  (nuit / night)  | 100 (Euler)    | 10          | ~2 h          |
+/// | Groupe / *Group*      | n_species   | sample_size | Estimé d'origine | Mesuré (3 runs) |
+/// |------------------------|-------------|-------------|--------------------|--------------------|
+/// | `_small`               | 2 → 30      | 20          | ~15 min            | 24 min 11 s        |
+/// | `_medium`               | 50, 75      | 10          | ~1 h               | 7 min 51 s         |
+/// | `_xl`                   | 100, Euler+RK4 | 10       | ~2 h (Euler only)  | ~14-15 min (extrapolé, RK4 inclus) |
 ///
-/// RK4 à n=100 (~2 300 s/iter × 10 = 6 h) est volontairement exclu — à lancer
-/// manuellement avec un filtre si besoin.
-/// *RK4 at n=100 (~2,300 s/iter × 10 = 6 h) is intentionally excluded — run
-/// manually with a filter if needed.*
+/// `_small` est le seul groupe où l'estimation d'origine était optimiste
+/// (dérive résiduelle en run soutenu — voir section méthode de l'article) ;
+/// `_medium` et `_xl` étaient au contraire largement surestimés. RK4 à
+/// n=100 est réactivé par défaut depuis la correction ci-dessus
+/// (`bench_species_response_curve_xl`) — plus besoin de filtre manuel.
+/// *`_small` is the only group where the original estimate was optimistic
+/// (residual drift under sustained run — see the article's methodology
+/// section); `_medium` and `_xl` were, on the contrary, substantially
+/// overstated. RK4 at n=100 is now enabled by default per the correction
+/// above (`bench_species_response_curve_xl`) — no manual filter needed.*
 ///
-/// Exécution recommandée / *Recommended execution*:
+/// Exécution recommandée / *Recommended execution* (durées mesurées, 3 runs
+/// chacune — voir tableau ci-dessus) :
 ///
 /// ```bash
-/// # Rapide (quelques minutes) / Fast (a few minutes)
+/// # ~24 min (3 runs) — plus long que prévu à l'origine
+/// # ~24 min (3 runs) — longer than originally estimated
 /// cargo bench --bench langmuir_performance -- bench_species_response_curve_small
 ///
-/// # Moyen (prévoir ~1h) / Medium (~1 h)
+/// # ~8 min (3 runs) — bien plus court que l'estimation d'origine (~1h)
+/// # ~8 min (3 runs) — much shorter than the original ~1h estimate
 /// cargo bench --bench langmuir_performance -- bench_species_response_curve_medium
 ///
-/// # Lent, lancer le soir / Slow, run overnight
+/// # ~14-15 min (3 runs, Euler + RK4) — RK4 inclus par défaut, plus besoin
+/// # de filtre manuel ni de créneau nuit dédié
+/// # ~14-15 min (3 runs, Euler + RK4) — RK4 included by default, no manual
+/// # filter or dedicated overnight slot needed anymore
 /// cargo bench --bench langmuir_performance -- bench_species_response_curve_xl
-///
-/// # RK4 n=100 uniquement si machine dédiée / RK4 n=100 only on dedicated machine
-/// cargo bench --bench langmuir_performance -- "bench_species_response_curve_xl/rk4/n_sp_100"
 /// ```
 fn bench_species_response_curve(c: &mut Criterion) {
     chrom_rs::output::register_fonts();
@@ -1088,19 +1304,34 @@ fn bench_species_response_curve_medium(c: &mut Criterion) {
     );
 }
 
-/// Groupe lourd — n_species=100, Euler uniquement, `sample_size=10`
-/// *Heavy group — n_species=100, Euler only, `sample_size=10`*
+/// Groupe lourd — n_species=100, Euler + RK4, `sample_size=10`
+/// *Heavy group — n_species=100, Euler + RK4, `sample_size=10`*
 ///
-/// Euler à n=100 : ~586 s/iter × 10 ≈ 1 h 37.
-/// RK4   à n=100 : ~2 300 s/iter × 10 ≈ 6 h 24 → exclu par défaut.
+/// # Correction des estimations / *Estimate correction*
 ///
-/// *Euler at n=100: ~586 s/iter × 10 ≈ 1 h 37.*
-/// *RK4   at n=100: ~2,300 s/iter × 10 ≈ 6 h 24 → excluded by default.*
+/// Les estimations initiales (« Euler ~586 s/iter × 10 ≈ 1 h 37 », « RK4
+/// ~2 300 s/iter × 10 ≈ 6 h 24 → exclu par défaut ») étaient très largement
+/// surestimées et ont été invalidées par la mesure réelle : le groupe
+/// complet (Euler seul, 3 runs) a pris 5 min 22 s en session du
+/// 2026-08-16 — soit ~1 s/iter réel contre ~586 s/iter supposé. RK4 a donc
+/// été réactivé : coût par itération extrapolé à partir du ratio RK4/Euler
+/// mesuré sur `bench_species_response_curve_medium` (n=75, ratio ≈ 4,45)
+/// appliqué au temps Euler mesuré à n=100 (3,95 s/iter) → ~17,6 s/iter, soit
+/// ~3 min par run (10 échantillons + warm-up), ~9-10 min pour les 3 runs.
+/// Ne pas se fier aux commentaires de durée sans les valider par un run réel
+/// — voir l'article de performance chrom-rs, section « logs vs estimations ».
 ///
-/// Pour lancer RK4 explicitement / *To run RK4 explicitly*:
-/// ```bash
-/// cargo bench --bench langmuir_performance -- "bench_species_response_curve_xl/rk4"
-/// ```
+/// *The original estimates ("Euler ~586 s/iter × 10 ≈ 1 h 37", "RK4
+/// ~2,300 s/iter × 10 ≈ 6 h 24 → excluded by default") were grossly
+/// overstated and invalidated by measurement: the full group (Euler only,
+/// 3 runs) took 5 min 22 s in the 2026-08-16 session — ~1 s/iter actual vs
+/// ~586 s/iter assumed. RK4 has therefore been re-enabled: per-iteration
+/// cost extrapolated from the RK4/Euler ratio measured on
+/// `bench_species_response_curve_medium` (n=75, ratio ≈ 4.45) applied to
+/// the measured Euler time at n=100 (3.95 s/iter) → ~17.6 s/iter, i.e.
+/// ~3 min per run (10 samples + warm-up), ~9-10 min for all 3 runs. Do not
+/// trust duration comments without validating against a real run — see the
+/// chrom-rs performance article, "logs vs estimates" note.*
 fn bench_species_response_curve_xl(c: &mut Criterion) {
     run_species_curve_group(
         c,
@@ -1108,7 +1339,7 @@ fn bench_species_response_curve_xl(c: &mut Criterion) {
         &[100],
         10,
         1,
-        false, // RK4 exclu par défaut / RK4 excluded by default
+        true, // RK4 réactivé — voir correction ci-dessus / RK4 re-enabled — see correction above
     );
 }
 
@@ -1207,17 +1438,16 @@ fn run_species_curve_group(
     group.finish();
 }
 
-// Fonction fantôme — ne compile pas si appelée, sert uniquement de
-// documentation pour le cas RK4/n=100.
-// Ghost function — does not compile if called, serves only as
-// documentation for the RK4/n=100 case.
-#[allow(dead_code)]
-fn _note_rk4_n100() {
-    // Pour lancer RK4 à n=100 explicitement :
-    // To run RK4 at n=100 explicitly:
-    //   cargo bench --bench langmuir_performance -- "bench_species_response_curve_xl/rk4/n_sp_100"
-    // Budget estimé / Estimated budget : ~6 h 24 (10 samples × ~2 300 s)
-}
+// L'ancienne fonction fantôme _note_rk4_n100 (workaround documentaire pour
+// lancer RK4/n=100 manuellement, faute d'estimation fiable) est retirée :
+// RK4 est maintenant actif par défaut dans bench_species_response_curve_xl
+// (voir correction de durée ci-dessus), le filtre CLI manuel n'est plus
+// nécessaire.
+//
+// The former _note_rk4_n100 ghost function (documentation-only workaround
+// for running RK4/n=100 manually, for lack of a reliable estimate) has been
+// removed: RK4 now runs by default in bench_species_response_curve_xl (see
+// duration correction above), the manual CLI filter is no longer needed.
 
 // =================================================================================================
 // Group 6 — real reference-case end-to-end solve time (issue #55)
@@ -1460,6 +1690,111 @@ fn bench_isotherm_evaluation_cost(c: &mut Criterion) {
 // Criterion registration
 // =================================================================================================
 
+// =================================================================================================
+// Groupe 8 — bench_multi_species_scaling_fixed_steps (ajout 2026-08-17)
+// Group  8 — bench_multi_species_scaling_fixed_steps (added 2026-08-17)
+// =================================================================================================
+
+/// Rejoue `bench_multi_species_scaling` à n_steps **fixe**, au lieu de le
+/// recalculer par tirage via `safe_nsteps_for_multi`. Isole directement la
+/// loi O(n³) du saut de parallélisme à n_species=10 (n_points=100 fixé).
+/// *Replays `bench_multi_species_scaling` at **fixed** n_steps, instead of
+/// recomputing it per draw via `safe_nsteps_for_multi`. Directly isolates
+/// the O(n³) law from the parallelism jump at n_species=10 (n_points=100
+/// fixed).*
+///
+/// # N_STEPS_FIXED = 500
+///
+/// Au-dessus du maximum observé en adaptatif sur ce groupe (438 à
+/// n_species=50, session du 2026-08-16) → CFL toujours ≤ celui de
+/// l'adaptatif, aucun risque d'instabilité supplémentaire.
+/// *Above the maximum observed under the adaptive scheme for this group
+/// (438 at n_species=50, 2026-08-16 session) → CFL always ≤ the adaptive
+/// one, no added instability risk.*
+fn bench_multi_species_scaling_fixed_steps(c: &mut Criterion) {
+    chrom_rs::output::register_fonts();
+
+    let mut group = c.benchmark_group("bench_multi_species_scaling_fixed_steps");
+    group.measurement_time(Duration::from_secs(20));
+    group.sample_size(20);
+    group.sampling_mode(SamplingMode::Flat);
+    group.warm_up_time(Duration::from_secs(5));
+
+    const N_STEPS_FIXED: usize = 500;
+
+    // Même grille densifiée que bench_multi_species_scaling.
+    let n_species_list: &[usize] = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 18, 20, 50];
+
+    for &n_species in n_species_list {
+        eprintln!(
+            "[multi_scaling_fixed] n_species={n_species} → n_steps={N_STEPS_FIXED} (fixe/fixed)"
+        );
+
+        let id = BenchmarkId::new("euler", format!("n_species_{n_species}"));
+
+        group.bench_with_input(id, &n_species, |b, &n_sp| {
+            b.iter(|| {
+                let p = generate_multi_params(n_sp, 42);
+                let model = build_multi_from_params(&p, N_POINTS_REF);
+                let (scenario, config) = build_scenario(model, N_STEPS_FIXED);
+                black_box(EulerSolver::new().solve(&scenario, &config).ok())
+            })
+        });
+    }
+
+    group.finish();
+}
+
+// =================================================================================================
+// Groupe 9 — bench_species_response_curve_fixed_steps (ajout 2026-08-17)
+// Group  9 — bench_species_response_curve_fixed_steps (added 2026-08-17)
+// =================================================================================================
+
+/// Même principe que le groupe 8, sur le segment `_small` (n_points=100,
+/// seuil de parallélisme franchi à n_species=10). Euler + RK4.
+fn bench_species_response_curve_fixed_steps(c: &mut Criterion) {
+    chrom_rs::output::register_fonts();
+
+    const N_STEPS_FIXED: usize = 500;
+    let n_species_list: &[usize] = &[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 18, 20, 25, 30];
+
+    let mut group = c.benchmark_group("bench_species_response_curve_fixed_steps");
+    group.sampling_mode(SamplingMode::Flat);
+    group.sample_size(20);
+    group.warm_up_time(Duration::from_secs(3));
+
+    for &n_sp in n_species_list {
+        eprintln!("[species_curve_fixed] n_species={n_sp} → n_steps={N_STEPS_FIXED} (fixe/fixed)");
+
+        let euler_id = BenchmarkId::new("euler", format!("n_sp_{n_sp}"));
+        group.bench_with_input(euler_id, &n_sp, |b, &n| {
+            b.iter(|| {
+                let p = generate_multi_params(n, 42);
+                let model = build_multi_from_params(&p, N_POINTS_REF);
+                let (scenario, config) = build_scenario(model, N_STEPS_FIXED);
+                black_box(EulerSolver::new().solve(&scenario, &config).ok())
+            })
+        });
+
+        let rk4_id = BenchmarkId::new("rk4", format!("n_sp_{n_sp}"));
+        group.bench_with_input(rk4_id, &n_sp, |b, &n| {
+            b.iter(|| {
+                let p = generate_multi_params(n, 42);
+                let model = build_multi_from_params(&p, N_POINTS_REF);
+                let (scenario, config) = build_scenario(model, N_STEPS_FIXED);
+                black_box(RK4Solver::new().solve(&scenario, &config).ok())
+            })
+        });
+    }
+
+    group.finish();
+}
+
+// =================================================================================================
+// Enregistrement Criterion
+// Criterion registration
+// =================================================================================================
+
 criterion_group!(
     langmuir_benches,
     bench_cfl_stability,
@@ -1469,6 +1804,8 @@ criterion_group!(
     bench_species_response_curve,
     bench_reference_cases,
     bench_isotherm_evaluation_cost,
+    bench_multi_species_scaling_fixed_steps,
+    bench_species_response_curve_fixed_steps,
 );
 
 criterion_main!(langmuir_benches);
