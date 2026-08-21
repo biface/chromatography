@@ -151,20 +151,31 @@ fn collect_solver_points(solver_dir: &Path, solver: Solver) -> anyhow::Result<Ve
 /// Collecte Euler et RK4 depuis `target/criterion/<group_name>/`
 /// *Collects Euler and RK4 from `target/criterion/<group_name>/`*
 ///
-/// Accepte plusieurs noms de groupe pour compatibilité avec l'ancienne
-/// (`bench_species_response_curve`) et la nouvelle architecture
-/// (`bench_species_response_curve_small`, `bench_species_response_curve_large`).
+/// Correction 2026-08-18 : la liste citait `bench_species_response_curve_large`,
+/// qui n'a jamais existé — le fichier de bancs (`langmuir_performance.rs`)
+/// scinde en trois segments (`_small`, `_medium`, `_xl`), pas deux. Ce tool
+/// tournait donc silencieusement sur `_small` seul depuis la refonte à trois
+/// segments, sans erreur pour le signaler (les trois autres noms de la liste
+/// ne matchaient simplement jamais). Corrigé pour citer les trois vrais noms.
 ///
-/// *Accepts several group names for compatibility with both the old
-/// (`bench_species_response_curve`) and new split architecture.*
+/// *2026-08-18 correction: the list named `bench_species_response_curve_large`,
+/// which never existed — the bench file (`langmuir_performance.rs`) splits
+/// into three segments (`_small`, `_medium`, `_xl`), not two. This tool had
+/// therefore been silently running on `_small` alone since the three-way
+/// split, with no error to flag it (the other list entries simply never
+/// matched). Fixed to name the three real segments.*
 fn collect_all_points(criterion_dir: &Path) -> anyhow::Result<Vec<DataPoint>> {
-    // Groupes à essayer dans l'ordre de préférence
-    // Groups to try in order of preference
+    // Groupes à essayer — tous ceux qui existent sont agrégés (pas un choix
+    // du premier trouvé), donc les trois segments se recomposent en une
+    // seule courbe n_species=2→100.
+    // Groups to try — all that exist are aggregated (not first-match-wins),
+    // so the three segments recompose into a single n_species=2→100 curve.
     let group_names = [
-        // Architecture scindée (nouvelle) / Split architecture (new)
+        // Architecture scindée (actuelle, 3 segments) / Split architecture (current, 3 segments)
         "bench_species_response_curve_small",
-        "bench_species_response_curve_large",
-        // Architecture monolithique (ancienne) / Monolithic architecture (old)
+        "bench_species_response_curve_medium",
+        "bench_species_response_curve_xl",
+        // Architecture monolithique (ancienne, si jamais rencontrée) / Monolithic architecture (old, if ever encountered)
         "bench_species_response_curve",
     ];
 
