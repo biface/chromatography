@@ -112,7 +112,48 @@ fn merge_grids(t1: &[f64], t2: &[f64], tol: f64) -> Vec<f64> {
 }
 
 /// Surface resolution $R_{sf}$ between two concentration profiles (Nicoud, 2015, §7.1).
-fn rsf(t1: &[f64], c1: &[f64], t2: &[f64], c2: &[f64]) -> f64 {
+fn rsf(label: &str, t1: &[f64], c1: &[f64], t2: &[f64], c2: &[f64]) -> f64 {
+    // Diagnostic ciblé (2026-08-22) : le solveur renvoie des valeurs finies
+    // (vérifié séparément par le contrôle NaN sur c_euler/c_rk4 avant
+    // l'appel à rsf), mais self(E)/self(RK4) ressortent NaN pour les cas à
+    // 2 espèces à n_points=800. Suspect : l'aire sous la courbe
+    // (trapezoid) utilisée par normalize() tombe à zéro (ou négative, ou
+    // NaN) pour une des deux courbes, produisant du NaN par division —
+    // sans qu'aucune valeur individuelle ne soit elle-même NaN/Inf.
+    // *Targeted diagnostic (2026-08-22): the solver returns finite values
+    // (checked separately by the NaN check on c_euler/c_rk4 before calling
+    // rsf), but self(E)/self(RK4) come out NaN for the 2-species cases at
+    // n_points=800. Suspect: the area under the curve (trapezoid) used by
+    // normalize() drops to zero (or negative, or NaN) for one of the two
+    // curves, producing NaN through division — without any individual
+    // value itself being NaN/Inf.*
+    let area1 = trapezoid(t1, c1);
+    let area2 = trapezoid(t2, c2);
+    // Formulation explicite plutôt que `!(area > 0.0)` : ce dernier
+    // déclenche clippy::neg_cmp_op_on_partial_ord (la négation d'une
+    // comparaison sur un type partiellement ordonné comme f64/NaN est
+    // jugée fragile, même si le résultat est correct ici). area1/area2
+    // sont "mauvaises" si NaN OU non strictement positives.
+    // Explicit formulation instead of `!(area > 0.0)`: the latter trips
+    // clippy::neg_cmp_op_on_partial_ord (negating a comparison on a
+    // partially-ordered type like f64/NaN is considered fragile, even
+    // though the result is correct here). area1/area2 are "bad" if NaN
+    // OR not strictly positive.
+    let area1_bad = area1.is_nan() || area1 <= 0.0;
+    let area2_bad = area2.is_nan() || area2 <= 0.0;
+    if area1_bad || area2_bad {
+        eprintln!(
+            "    !!! rsf[{label}]: aire non-positive détectée — area1={area1:.6e} area2={area2:.6e} \
+             (len c1={}, c2={}, min(c1)={:.6e}, max(c1)={:.6e}, min(c2)={:.6e}, max(c2)={:.6e})",
+            c1.len(),
+            c2.len(),
+            c1.iter().cloned().fold(f64::INFINITY, f64::min),
+            c1.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
+            c2.iter().cloned().fold(f64::INFINITY, f64::min),
+            c2.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
+        );
+    }
+
     let y1 = normalize(t1, c1);
     let y2 = normalize(t2, c2);
     let min_dt = t1
@@ -313,6 +354,31 @@ struct Point {
     c_rk4: Vec<Vec<f64>>,
 }
 
+/// `fold(f64::MIN, f64::max)` avale silencieusement un NaN : `f64::max`
+/// renvoie l'opérande non-NaN, donc la graine `f64::MIN` survit et
+/// s'affiche comme une valeur normale au lieu de signaler l'échec (bug
+/// trouvé sur les données du 2026-08-22 : lignes affichant
+/// `-1.797...e308`, exactement `f64::MIN` en notation décimale complète).
+/// Cette fonction propage le NaN au lieu de l'ignorer.
+/// *`fold(f64::MIN, f64::max)` silently swallows a NaN: `f64::max`
+/// returns the non-NaN operand, so the `f64::MIN` seed survives and
+/// prints as a normal value instead of signaling failure (bug found on
+/// the 2026-08-22 data: rows showing `-1.797...e308`, exactly `f64::MIN`
+/// in full decimal notation). This function propagates NaN instead of
+/// ignoring it.*
+fn max_or_nan(iter: impl Iterator<Item = f64>) -> f64 {
+    let mut max = f64::NEG_INFINITY;
+    for v in iter {
+        if v.is_nan() {
+            return f64::NAN;
+        }
+        if v > max {
+            max = v;
+        }
+    }
+    max
+}
+
 fn sweep_axis(
     case: &SweepCase,
     swept_values: &[usize],
@@ -326,6 +392,23 @@ fn sweep_axis(
             let n_steps = n_steps_for(swept_value);
             let (t_euler, c_euler) = run(case, n_points, n_steps, &EulerSolver::new());
             let (t_rk4, c_rk4) = run(case, n_points, n_steps, &RK4Solver::new());
+
+            // Contrôle direct, indépendant de toute comparaison avec le
+            // point suivant — isole la dégénérescence au point exact
+            // plutôt que de la découvrir seulement via rsf(400, 800).
+            // Direct check, independent of any comparison with the next
+            // point — isolates the degeneracy to the exact point rather
+            // than only discovering it via rsf(400, 800).
+            let euler_nan = c_euler.iter().flatten().any(|v| !v.is_finite());
+            let rk4_nan = c_rk4.iter().flatten().any(|v| !v.is_finite());
+            if euler_nan || rk4_nan {
+                eprintln!(
+                    "  !!! {} n_points={} n_species={} n_steps={} : NaN/Inf détecté (euler={} rk4={}) — seuil n_points*n_species={} ({} le seuil 999)",
+                    case.name, n_points, case.species.len(), n_steps, euler_nan, rk4_nan,
+                    n_points * case.species.len(),
+                    if n_points * case.species.len() > 999 { "au-dessus de" } else { "sous" },
+                );
+            }
             Point {
                 swept_value,
                 n_points,
@@ -344,12 +427,26 @@ fn sweep_axis(
         .map(|(i, p)| {
             let (rsf_euler_self, rsf_rk4_self) = match points.get(i + 1) {
                 Some(next) => {
-                    let e = (0..case.species.len())
-                        .map(|s| rsf(&p.t_euler, &p.c_euler[s], &next.t_euler, &next.c_euler[s]))
-                        .fold(f64::MIN, f64::max);
-                    let k = (0..case.species.len())
-                        .map(|s| rsf(&p.t_rk4, &p.c_rk4[s], &next.t_rk4, &next.c_rk4[s]))
-                        .fold(f64::MIN, f64::max);
+                    let e = max_or_nan((0..case.species.len()).map(|s| {
+                        let label = format!(
+                            "{}/euler/espece{s}/pts{}vs{}/steps{}vs{}",
+                            case.name, p.n_points, next.n_points, p.n_steps, next.n_steps
+                        );
+                        rsf(
+                            &label,
+                            &p.t_euler,
+                            &p.c_euler[s],
+                            &next.t_euler,
+                            &next.c_euler[s],
+                        )
+                    }));
+                    let k = max_or_nan((0..case.species.len()).map(|s| {
+                        let label = format!(
+                            "{}/rk4/espece{s}/pts{}vs{}/steps{}vs{}",
+                            case.name, p.n_points, next.n_points, p.n_steps, next.n_steps
+                        );
+                        rsf(&label, &p.t_rk4, &p.c_rk4[s], &next.t_rk4, &next.c_rk4[s])
+                    }));
                     (Some(e), Some(k))
                 }
                 None => (None, None),
