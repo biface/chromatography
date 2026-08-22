@@ -162,21 +162,59 @@ const F_E: f64 = (1.0 - POROSITY) / POROSITY; // 1.5
 /// *Interstitial velocity.*
 const U_E: f64 = VELOCITY / POROSITY; // 0.0025
 
-/// u_eff à C=0 = u_e / (1 + F_e · (λ + N·K̃)) ≈ 0.000625 m/s
-/// *u_eff at C=0 = u_e / (1 + F_e · (λ + N·K̃)) ≈ 0.000625 m/s*
+/// N̄ = (1 − ε) · N = 1.2 \[mol/L\]
+///
+/// Nombre de sites d'adsorption pondéré par la porosité — la même
+/// quantité que `n_bar` dans `LangmuirSingle::derivative_isotherm`
+/// (`src/models/langmuir_single.rs`). Distincte de `PORT_NUMBER` (N brut) :
+/// nécessaire pour que `U_EFF_C0` ci-dessous corresponde à la dérivée
+/// d'isotherme *réellement* utilisée par le solveur.
+/// *Adsorption site count weighted by porosity — the same quantity as
+/// `n_bar` in `LangmuirSingle::derivative_isotherm`
+/// (`src/models/langmuir_single.rs`). Distinct from `PORT_NUMBER` (raw N):
+/// needed so that `U_EFF_C0` below matches the isotherm derivative
+/// *actually* used by the solver.*
+///
+/// # Correction 2026-08-2X
+///
+/// `U_EFF_C0` utilisait `PORT_NUMBER` (N) brut au lieu de `N_BAR`
+/// (N̄=(1-ε)N) — écart de 14% sur σ(0) (0,25 vs 0,2841 correct),
+/// découvert en vérifiant l'hypothèse σ(C_pic)/σ(0) pour l'article
+/// (session du 2026-08-20). N'affectait aucune simulation — seul le
+/// label CFL utilisé pour construire `n_steps` était décalé (~0,88× le
+/// label affiché). Toute session antérieure à cette date utilise
+/// l'ancienne formule ; les `n_steps` pour un même label CFL changent
+/// légèrement à partir d'ici.
+/// *`U_EFF_C0` used raw `PORT_NUMBER` (N) instead of `N_BAR`
+/// (N̄=(1-ε)N) — a 14% discrepancy on σ(0) (0.25 vs the correct
+/// 0.2841), discovered while checking the σ(C_peak)/σ(0) hypothesis for
+/// the article (2026-08-20 session). Affected no simulation — only the
+/// CFL label used to build `n_steps` was offset (~0.88× the displayed
+/// label). Any session predating this date uses the old formula; `n_steps`
+/// for a given CFL label shifts slightly from here on.*
+const N_BAR: f64 = (1.0 - POROSITY) * PORT_NUMBER;
+
+/// u_eff à C=0 = u_e / (1 + F_e · (λ + N̄·K̃)) ≈ 0.000710 m/s
+/// *u_eff at C=0 = u_e / (1 + F_e · (λ + N̄·K̃)) ≈ 0.000710 m/s*
 ///
 /// Vitesse effective du front de concentration à concentration nulle.
 /// *Effective velocity of the concentration front at zero concentration.*
-/// C'est la vitesse maximale du front → détermine le CFL le plus contraignant.
-/// *This is the maximum front velocity → sets the most restrictive CFL constraint.*
+/// C'est la vitesse minimale du front (σ croît avec C, voir
+/// `derivative_isotherm`) — le choix la plus permissive pour un label
+/// CFL donné, pas la plus contraignante ; voir la note de la session
+/// 2026-08-20 dans l'article pour la discussion de ce point.
+/// *This is the front's minimum velocity (σ increases with C, see
+/// `derivative_isotherm`) — the most permissive choice for a given CFL
+/// label, not the most restrictive one; see the 2026-08-20 session note
+/// in the article for a discussion of this point.*
 ///
 /// # Calcul détaillé / *Detailed calculation*
 ///
-/// dérivée isotherm à C=0 : λ + N·K̃ = 1.2 + 2.0 × 0.4 = 2.0
-/// *isotherm derivative at C=0 : λ + N·K̃ = 1.2 + 2.0 × 0.4 = 2.0*
-/// σ(0) = 1 / (1 + F_e × 2.0) = 1 / 4.0 = 0.25
-/// u_eff = σ(0) × u_e = 0.25 × 0.0025 = 0.000625 m/s
-const U_EFF_C0: f64 = U_E / (1.0 + F_E * (LAMBDA + PORT_NUMBER * LANGMUIR_K));
+/// dérivée isotherm à C=0 : λ + N̄·K̃ = 1.2 + 1.2 × 0.4 = 1.68
+/// *isotherm derivative at C=0 : λ + N̄·K̃ = 1.2 + 1.2 × 0.4 = 1.68*
+/// σ(0) = 1 / (1 + F_e × 1.68) = 1 / 3.52 ≈ 0.2841
+/// u_eff = σ(0) × u_e = 0.2841 × 0.0025 ≈ 0.000710 m/s
+const U_EFF_C0: f64 = U_E / (1.0 + F_E * (LAMBDA + N_BAR * LANGMUIR_K));
 
 // Dimensions du domaine de référence (groupes 1 et 2)
 // Reference domain dimensions (groups 1 and 2)

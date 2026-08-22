@@ -105,7 +105,26 @@ const COLUMN_LENGTH: f64 = 0.25;
 
 const F_E: f64 = (1.0 - POROSITY) / POROSITY;
 const U_E: f64 = VELOCITY / POROSITY;
-const U_EFF_C0: f64 = U_E / (1.0 + F_E * (LAMBDA + PORT_NUMBER * LANGMUIR_K));
+
+/// N̄ = (1 − ε) · N — voir la note de correction sur `U_EFF_C0` juste en
+/// dessous.
+/// *N̄ = (1 − ε) · N — see the correction note on `U_EFF_C0` just below.*
+const N_BAR: f64 = (1.0 - POROSITY) * PORT_NUMBER;
+
+/// Correction 2026-08-2X : utilisait `PORT_NUMBER` (N) brut au lieu de
+/// `N_BAR` (N̄=(1-ε)N) — écart de 14% sur σ(0) (0,25 vs 0,2841 correct),
+/// copié depuis `benches/langmuir_performance.rs` avant correction. Voir
+/// le commentaire détaillé sur la constante `U_EFF_C0` de ce fichier pour
+/// l'historique complet. N'affectait aucune simulation, seulement le
+/// label CFL utilisé pour construire `n_steps` (~0,88× le label affiché
+/// avant correction).
+/// *2026-08-2X correction: used raw `PORT_NUMBER` (N) instead of `N_BAR`
+/// (N̄=(1-ε)N) — a 14% discrepancy on σ(0) (0.25 vs the correct 0.2841),
+/// copied from `benches/langmuir_performance.rs` before the fix. See that
+/// file's `U_EFF_C0` constant for the full history. Affected no
+/// simulation, only the CFL label used to build `n_steps` (~0.88× the
+/// displayed label before the fix).*
+const U_EFF_C0: f64 = U_E / (1.0 + F_E * (LAMBDA + N_BAR * LANGMUIR_K));
 
 const N_POINTS_REF: usize = 100;
 const TOTAL_TIME: f64 = 600.0;
