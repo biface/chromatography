@@ -811,16 +811,39 @@ mod tests {
         assert!((1_000_000.0_f64 / 1e6 - 1.0).abs() < 1e-12);
     }
 
-    /// Les données de ta mesure réelle servent de test de régression
-    /// *Your actual measurement data serves as a regression test*
+    /// Les données de ta mesure réelle servent de test de régression.
+    ///
+    /// Valeurs V6 (28/08, session unique disponible au moment de l'écriture
+    /// de ce test — pas de moyenne multi-run). Post-correction du bug de
+    /// dispatch parallèle (`LangmuirMulti::compute_physics`), franchir le
+    /// seuil est légèrement DÉFAVORABLE, pas un gain : ce test remplace un
+    /// ancien littéral (117.98 / 38.13, un gain ×2-6 jamais reproduit après
+    /// correction) qui documentait un artefact du bug, pas un comportement
+    /// réel. Fourchette resserrée à dessein (issue #55) : elle cassera au
+    /// prochain run si le comportement change significativement — c'est
+    /// voulu, pas une fragilité à corriger silencieusement.
+    ///
+    /// *Your actual measurement data serves as a regression test.
+    ///
+    /// V6 values (28/08, only session available when this test was written
+    /// — no multi-run average). Post-fix (parallel dispatch bug in
+    /// `LangmuirMulti::compute_physics`), crossing the threshold is
+    /// slightly UNFAVOURABLE, not a gain: this replaces a stale literal
+    /// (117.98 / 38.13, a ×2-6 gain never reproduced post-fix) that
+    /// documented the bug's artefact, not real behaviour. Tolerance
+    /// deliberately tight (issue #55): it will break on the next run if
+    /// behaviour changes meaningfully — that's intentional, not fragility
+    /// to silently patch over.*
     #[test]
     fn test_speedup_regression_from_actual_data() {
-        let time_499 = 117.98_f64;
-        let time_500 = 38.13_f64;
+        let time_499 = 101_452.076_965_f64 / 1e6; // ms
+        let time_500 = 116_492.842_583_33_f64 / 1e6; // ms
         let speedup = time_499 / time_500;
         assert!(
-            speedup > 2.0 && speedup < 6.0,
-            "Gain improbable / Implausible speedup: {speedup:.2}"
+            speedup > 0.80 && speedup < 0.95,
+            "Gain au seuil hors fourchette attendue post-correction \
+             (bug de dispatch parallèle) / Threshold gain outside expected \
+             post-fix range (parallel dispatch bug): {speedup:.3}"
         );
     }
 }

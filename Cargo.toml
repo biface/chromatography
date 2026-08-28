@@ -131,6 +131,14 @@ name = "plot_stiffness_convergence"
 path = "tools/plot_stiffness_convergence.rs"
 
 [[bin]]
+name = "plot_convergence_order"
+path = "tools/plot_convergence_order.rs"
+
+[[bin]]
+name = "plot_single_vs_multi"
+path = "tools/plot_single_vs_multi.rs"
+
+[[bin]]
 name = "plot_fixed_steps_comparison"
 path = "tools/plot_fixed_steps_comparison.rs"
 
