@@ -192,8 +192,14 @@ fn generate_plot(case: &str, points: &[StepPoint], output_path: &Path) -> anyhow
         .filter_map(|p| p.rsf_rk4_self_vs_next.map(|e| (p.n_steps as f64, e)))
         .collect();
 
-    anyhow::ensure!(euler_xy.len() >= 2, "case '{case}': not enough Euler points to plot");
-    anyhow::ensure!(rk4_xy.len() >= 2, "case '{case}': not enough RK4 points to plot");
+    anyhow::ensure!(
+        euler_xy.len() >= 2,
+        "case '{case}': not enough Euler points to plot"
+    );
+    anyhow::ensure!(
+        rk4_xy.len() >= 2,
+        "case '{case}': not enough RK4 points to plot"
+    );
 
     let ref_order1 = theoretical_slope(
         euler_xy[0].0,
@@ -224,7 +230,11 @@ fn generate_plot(case: &str, points: &[StepPoint], output_path: &Path) -> anyhow
     // without a local build against the pinned `plotters` version).*
     let n_min = all_n.iter().cloned().fold(f64::INFINITY, f64::min);
     let n_max = all_n.iter().cloned().fold(0.0f64, f64::max);
-    let err_min = all_err.iter().cloned().fold(f64::INFINITY, f64::min).max(1e-12);
+    let err_min = all_err
+        .iter()
+        .cloned()
+        .fold(f64::INFINITY, f64::min)
+        .max(1e-12);
     let err_max = all_err.iter().cloned().fold(0.0f64, f64::max);
 
     let x_log_min = n_min.log10() - 0.1;
@@ -263,16 +273,29 @@ fn generate_plot(case: &str, points: &[StepPoint], output_path: &Path) -> anyhow
     let ref4_log = log_pts(&ref_order4);
 
     chart
-        .draw_series(LineSeries::new(euler_log.iter().copied(), BLUE.stroke_width(2)))?
+        .draw_series(LineSeries::new(
+            euler_log.iter().copied(),
+            BLUE.stroke_width(2),
+        ))?
         .label("Euler mesuré")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLUE.stroke_width(2)));
-    chart.draw_series(euler_log.iter().map(|&(x, y)| Circle::new((x, y), 4, BLUE.filled())))?;
+    chart.draw_series(
+        euler_log
+            .iter()
+            .map(|&(x, y)| Circle::new((x, y), 4, BLUE.filled())),
+    )?;
 
     chart
-        .draw_series(LineSeries::new(rk4_log.iter().copied(), RGBColor(217, 95, 2).stroke_width(2)))?
+        .draw_series(LineSeries::new(
+            rk4_log.iter().copied(),
+            RGBColor(217, 95, 2).stroke_width(2),
+        ))?
         .label("RK4 mesuré")
         .legend(|(x, y)| {
-            PathElement::new(vec![(x, y), (x + 20, y)], RGBColor(217, 95, 2).stroke_width(2))
+            PathElement::new(
+                vec![(x, y), (x + 20, y)],
+                RGBColor(217, 95, 2).stroke_width(2),
+            )
         });
     chart.draw_series(
         rk4_log
@@ -339,12 +362,18 @@ fn main() -> anyhow::Result<()> {
         println!(
             "{:>10} {:>16} {:>16}",
             p.n_steps,
-            p.rsf_euler_vs_rk4.map(|v| format!("{v:.6}")).unwrap_or_else(|| "—".into()),
-            p.rsf_rk4_self_vs_next.map(|v| format!("{v:.6}")).unwrap_or_else(|| "—".into()),
+            p.rsf_euler_vs_rk4
+                .map(|v| format!("{v:.6}"))
+                .unwrap_or_else(|| "—".into()),
+            p.rsf_rk4_self_vs_next
+                .map(|v| format!("{v:.6}"))
+                .unwrap_or_else(|| "—".into()),
         );
     }
 
-    println!("\nOrdre empirique entre paliers consécutifs / Empirical order between consecutive steps:");
+    println!(
+        "\nOrdre empirique entre paliers consécutifs / Empirical order between consecutive steps:"
+    );
     let euler_xy: Vec<(f64, f64)> = points
         .iter()
         .filter_map(|p| p.rsf_euler_vs_rk4.map(|e| (p.n_steps as f64, e)))
@@ -382,13 +411,23 @@ mod tests {
 
     #[test]
     fn test_parse_case_arg_equals_form() {
-        let args = vec!["bin".to_string(), "--case=glucose_fructose_linear".to_string()];
-        assert_eq!(parse_case_arg(&args), Some("glucose_fructose_linear".to_string()));
+        let args = vec![
+            "bin".to_string(),
+            "--case=glucose_fructose_linear".to_string(),
+        ];
+        assert_eq!(
+            parse_case_arg(&args),
+            Some("glucose_fructose_linear".to_string())
+        );
     }
 
     #[test]
     fn test_parse_case_arg_space_form() {
-        let args = vec!["bin".to_string(), "--case".to_string(), "erythorbic_alone".to_string()];
+        let args = vec![
+            "bin".to_string(),
+            "--case".to_string(),
+            "erythorbic_alone".to_string(),
+        ];
         assert_eq!(parse_case_arg(&args), Some("erythorbic_alone".to_string()));
     }
 
@@ -408,8 +447,16 @@ mod tests {
     fn test_theoretical_slope_order1() {
         let ns = vec![1000.0, 2000.0, 4000.0];
         let slope = theoretical_slope(1000.0, 0.1, 1.0, &ns);
-        assert!((slope[1].1 - 0.05).abs() < 1e-9, "attendu 0.05, obtenu {}", slope[1].1);
-        assert!((slope[2].1 - 0.025).abs() < 1e-9, "attendu 0.025, obtenu {}", slope[2].1);
+        assert!(
+            (slope[1].1 - 0.05).abs() < 1e-9,
+            "attendu 0.05, obtenu {}",
+            slope[1].1
+        );
+        assert!(
+            (slope[2].1 - 0.025).abs() < 1e-9,
+            "attendu 0.025, obtenu {}",
+            slope[2].1
+        );
     }
 
     /// Une pente d'ordre 4 doit diviser l'erreur par 16 quand n_steps double.
@@ -418,7 +465,12 @@ mod tests {
     fn test_theoretical_slope_order4() {
         let ns = vec![1000.0, 2000.0];
         let slope = theoretical_slope(1000.0, 1.0, 4.0, &ns);
-        assert!((slope[1].1 - 1.0 / 16.0).abs() < 1e-9, "attendu {}, obtenu {}", 1.0 / 16.0, slope[1].1);
+        assert!(
+            (slope[1].1 - 1.0 / 16.0).abs() < 1e-9,
+            "attendu {}, obtenu {}",
+            1.0 / 16.0,
+            slope[1].1
+        );
     }
 
     // ── empirical_order ──────────────────────────────────────────────────

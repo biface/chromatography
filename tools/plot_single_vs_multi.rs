@@ -104,8 +104,16 @@ fn collect_data(criterion_dir: &Path) -> anyhow::Result<Vec<SolverGroup>> {
         ("euler", "single_euler", "multi_1sp_euler"),
         ("rk4", "single_rk4", "multi_1sp_rk4"),
     ] {
-        let single_path = criterion_dir.join(GROUP).join(single_fn).join("new").join("estimates.json");
-        let multi_path = criterion_dir.join(GROUP).join(multi_fn).join("new").join("estimates.json");
+        let single_path = criterion_dir
+            .join(GROUP)
+            .join(single_fn)
+            .join("new")
+            .join("estimates.json");
+        let multi_path = criterion_dir
+            .join(GROUP)
+            .join(multi_fn)
+            .join("new")
+            .join("estimates.json");
 
         let single = read_estimates(&single_path)?;
         let multi = read_estimates(&multi_path)?;
@@ -189,11 +197,17 @@ fn generate_plot(groups: &[SolverGroup], output_path: &Path) -> anyhow::Result<(
 
         // Barres d'IC 95% / 95% CI whiskers
         chart.draw_series(std::iter::once(PathElement::new(
-            vec![(single_center, g.single_ci_us.0), (single_center, g.single_ci_us.1)],
+            vec![
+                (single_center, g.single_ci_us.0),
+                (single_center, g.single_ci_us.1),
+            ],
             BLACK.stroke_width(1),
         )))?;
         chart.draw_series(std::iter::once(PathElement::new(
-            vec![(multi_center, g.multi_ci_us.0), (multi_center, g.multi_ci_us.1)],
+            vec![
+                (multi_center, g.multi_ci_us.0),
+                (multi_center, g.multi_ci_us.1),
+            ],
             BLACK.stroke_width(1),
         )))?;
 
