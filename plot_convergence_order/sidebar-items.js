@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_CASE"],"fn":["empirical_order","generate_plot","main","parse_case_arg","read_case","report_path","theoretical_slope"],"struct":["StepPoint"]};

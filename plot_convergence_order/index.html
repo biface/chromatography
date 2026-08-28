@@ -1,0 +1,56 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Diagramme travail-précision : ordre de convergence mesuré vs théorique (issue #55, point 4 — “analyse par rapport aux grandeurs théoriques”). Work-precision diagram: measured vs theoretical convergence order."><title>plot_convergence_order - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="plot_convergence_order" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.0 (88d9e12ae 2026-08-18)" data-channel="1.98.0" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate plot_convergence_order</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../plot_convergence_order/index.html">plot_<wbr>convergence_<wbr>order</a><span class="version">0.5.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#cli" title="CLI">CLI</a></li><li><a href="#visual-elements" title="Visual elements">Visual elements</a></li><li><a href="#cargotoml" title="Cargo.toml">Cargo.toml</a></li></ul><h3><a href="#structs">Crate Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1>Crate <span>plot_<wbr>convergence_<wbr>order</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/plot_convergence_order/plot_convergence_order.rs.html#1-519">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Diagramme travail-précision : ordre de convergence mesuré vs théorique
+(issue #55, point 4 — “analyse par rapport aux grandeurs théoriques”).
+<em>Work-precision diagram: measured vs theoretical convergence order.</em></p>
+<p>Run with <code>cargo run --release --example stiffness_convergence</code> then
+<code>cargo run --release --bin plot_convergence_order -- [--case=NAME]</code>;
+output lands in <code>target/plots/convergence_order_&lt;case&gt;.svg</code>.</p>
+<p>Reads <code>stiffness_convergence.json</code> from the system temp directory — the
+same file <code>examples/stiffness_convergence.rs</code> writes to, and the same
+file <code>plot_stiffness_convergence.rs</code> reads. This tool answers a
+different question than that one: <code>plot_stiffness_convergence.rs</code> shows
+<code>Rsf(Euler, RK4)</code> (Euler’s error, RK4 taken as reference) across the 3
+validation cases. This tool isolates a <em>single</em> case and adds RK4’s own
+self-convergence (<code>rsf_rk4_self_vs_next</code>) plus the two theoretical
+reference slopes side by side, to answer: does RK4 actually show 4th
+order convergence here, or not?</p>
+<h2 id="cli"><a class="doc-anchor" href="#cli">§</a>CLI</h2>
+<p><code>--case=&lt;name&gt;</code> selects the case (default: <code>ascorbic_erythorbic</code>).
+Available names are whatever keys exist in <code>stiffness_convergence.json</code>
+(currently <code>ascorbic_erythorbic</code>, <code>erythorbic_alone</code>,
+<code>glucose_fructose_linear</code>) — an invalid name prints the available list
+and exits, it does not fall back silently.</p>
+<h2 id="visual-elements"><a class="doc-anchor" href="#visual-elements">§</a>Visual elements</h2>
+<ol>
+<li><strong>Euler measured</strong> (blue): <code>rsf_euler_vs_rk4</code> vs <code>n_steps</code>, log-log</li>
+<li><strong>RK4 measured</strong> (orange): <code>rsf_rk4_self_vs_next</code> vs <code>n_steps</code>, log-log</li>
+<li><strong>Theoretical order-1 slope</strong> (blue, dashed): anchored on Euler’s
+first point, <code>err = err_0 × (n/n_0)^-1</code></li>
+<li><strong>Theoretical order-4 slope</strong> (orange, dashed): anchored on RK4’s
+first point, <code>err = err_0 × (n/n_0)^-4</code></li>
+</ol>
+<p>A method that matches its theoretical order tracks its own reference
+slope. Euler is expected to. RK4’s measured curve visibly failing to
+approach its order-4 reference is the open question this tool exists
+to keep visible, not to resolve — see the article’s §4.</p>
+<h2 id="cargotoml"><a class="doc-anchor" href="#cargotoml">§</a>Cargo.toml</h2><div class="example-wrap"><pre class="language-toml"><code>[[bin]]
+name = &quot;plot_convergence_order&quot;
+path = &quot;tools/plot_convergence_order.rs&quot;
+
+[dependencies]
+plotters   = &quot;0.3&quot;
+serde_json = &quot;1&quot;
+anyhow     = &quot;1&quot;</code></pre></div></div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.StepPoint.html" title="struct plot_convergence_order::StepPoint">Step<wbr>Point</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Un palier de résolution temporelle pour un cas donné.
+<em>One temporal-resolution step for a given case.</em></dd></dl><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.DEFAULT_CASE.html" title="constant plot_convergence_order::DEFAULT_CASE">DEFAULT_<wbr>CASE</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.empirical_order.html" title="fn plot_convergence_order::empirical_order">empirical_<wbr>order</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Ordre empirique entre deux points consécutifs :
+<code>p = ln(err1/err2) / ln(n2/n1)</code>.
+<em>Empirical order between two consecutive points.</em></dd><dt><a class="fn" href="fn.generate_plot.html" title="fn plot_convergence_order::generate_plot">generate_<wbr>plot</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.main.html" title="fn plot_convergence_order::main">main</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.parse_case_arg.html" title="fn plot_convergence_order::parse_case_arg">parse_<wbr>case_<wbr>arg</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Extrait <code>--case=NAME</code> (ou <code>--case NAME</code>) des arguments, sans dépendance
+supplémentaire (aucun de ces outils n’utilise <code>dynamic-cli</code>, réservé à
+la CLI applicative principale — voir <code>src/cli/</code>).
+<em>Extracts <code>--case=NAME</code> (or <code>--case NAME</code>) from arguments, no extra
+dependency (none of these tools use <code>dynamic-cli</code>, reserved for the main
+application CLI — see <code>src/cli/</code>).</em></dd><dt><a class="fn" href="fn.read_case.html" title="fn plot_convergence_order::read_case">read_<wbr>case</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Lit <code>stiffness_convergence.json</code> et retourne les noms de cas disponibles
+ainsi que les points du cas demandé.
+<em>Reads <code>stiffness_convergence.json</code> and returns the available case names
+plus the requested case’s points.</em></dd><dt><a class="fn" href="fn.report_path.html" title="fn plot_convergence_order::report_path">report_<wbr>path</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.theoretical_slope.html" title="fn plot_convergence_order::theoretical_slope">theoretical_<wbr>slope</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Génère une droite <code>err = err_0 × (n / n_0)^-order</code> ancrée sur le premier
+point de la série fournie.
+<em>Generates a line <code>err = err_0 × (n / n_0)^-order</code> anchored on the
+series’ first point.</em></dd></dl></section></div></main></body></html>

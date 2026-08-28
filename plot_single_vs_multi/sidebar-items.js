@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["GROUP"],"fn":["collect_data","generate_plot","main","read_estimates"],"struct":["ConfidenceInterval","Estimate","Estimates","SolverGroup"]};
