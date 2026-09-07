@@ -27,6 +27,10 @@ use anyhow::anyhow;
 use dynamic_cli::error::ExecutionError;
 use dynamic_cli::{CommandHandler, DynamicCliError, ExecutionContext, ParsedArgs};
 
+use crate::cli::builders::{
+    InjectionBuilder, ModelBuilder, MultiModelBuilder, ScenarioBuilder, ShapeSwitch,
+    SingleModelBuilder, SolverBuilder, SpeciesBuilder,
+};
 use crate::config::{model::load_model, scenario::load_scenario, solver::load_solver};
 use crate::models::{LangmuirMulti, LangmuirSingle};
 use crate::output::export::{CsvConfig, CsvExporter, Exporter, to_json};
@@ -88,9 +92,16 @@ impl std::error::Error for ContextError {
 
 /// Runtime state shared across all `chrom-rs` command handlers.
 ///
-/// In v0.2.0 the only piece of state is `project_dir`: the directory
-/// relative to which `--model`, `--scenario`, `--solver`, and all output
-/// file names are resolved.
+/// `project_dir` is the directory relative to which `--model`,
+/// `--scenario`, `--solver`, and all output file names are resolved.
+///
+/// Since v0.6.0, `ChromContext` also holds three optional builder slots —
+/// `pending_model`, `pending_solver`, `pending_scenario` — one per
+/// `config`/`build` target (DD-016, issue #53). Each slot is filled in
+/// field by field across one or more `config` occurrences, whether given in
+/// a single invocation or spread across a chained sequence (`dynamic-cli`
+/// 0.9.0 command chaining). Nothing in a slot is validated until it is
+/// turned into a real model/solver/scenario by `save` or `run`.
 ///
 /// # Example
 ///
@@ -107,6 +118,16 @@ pub struct ChromContext {
     /// Invariants enforced by [`set_project_dir`](Self::set_project_dir):
     /// no `..` component; existing, readable, writable directory.
     project_dir: PathBuf,
+
+    /// Pending model under construction via `config --model ...`.
+    /// `None` until the first `single`/`multi`/`species` occurrence.
+    pending_model: Option<ModelBuilder>,
+
+    /// Pending solver under construction via `config --solver ...`.
+    pending_solver: Option<SolverBuilder>,
+
+    /// Pending scenario under construction via `config --scenario ...`.
+    pending_scenario: Option<ScenarioBuilder>,
 }
 
 impl ChromContext {
@@ -115,12 +136,136 @@ impl ChromContext {
     pub fn new() -> Self {
         Self {
             project_dir: PathBuf::from("."),
+            pending_model: None,
+            pending_solver: None,
+            pending_scenario: None,
         }
     }
 
     /// Returns the current project directory.
     pub fn project_dir(&self) -> &Path {
         &self.project_dir
+    }
+
+    /// Returns the pending model slot, if any.
+    pub fn pending_model(&self) -> Option<&ModelBuilder> {
+        self.pending_model.as_ref()
+    }
+
+    /// Returns the pending solver slot, if any.
+    pub fn pending_solver(&self) -> Option<&SolverBuilder> {
+        self.pending_solver.as_ref()
+    }
+
+    /// Returns the pending scenario slot, if any.
+    pub fn pending_scenario(&self) -> Option<&ScenarioBuilder> {
+        self.pending_scenario.as_ref()
+    }
+
+    /// Merges `fields` into the pending model as a single-species build.
+    ///
+    /// - If the slot is empty, locks it to `Single(fields)`.
+    /// - If the slot already holds `Single`, merges field by field
+    ///   (last-write-wins per field, see [`SingleModelBuilder::merge`]).
+    /// - If the slot holds `Multi`, resets it to `Single(fields)` and
+    ///   returns [`ShapeSwitch::ToSingle`] so the caller can print a
+    ///   visible warning — the previously accumulated multi-species state
+    ///   (including any species list) is discarded, not merged.
+    pub fn merge_model_single(&mut self, fields: SingleModelBuilder) -> Option<ShapeSwitch> {
+        match &mut self.pending_model {
+            None => {
+                self.pending_model = Some(ModelBuilder::Single(fields));
+                None
+            }
+            Some(ModelBuilder::Single(existing)) => {
+                existing.merge(fields);
+                None
+            }
+            Some(ModelBuilder::Multi(_)) => {
+                self.pending_model = Some(ModelBuilder::Single(fields));
+                Some(ShapeSwitch::ToSingle)
+            }
+        }
+    }
+
+    /// Merges the scalar fields of `fields` into the pending model as a
+    /// multi-species build. Mirrors [`Self::merge_model_single`]'s
+    /// switch/merge/lock logic, in the opposite direction. `fields.species`
+    /// is ignored here — add species via [`Self::add_species`] instead.
+    pub fn merge_model_multi(&mut self, fields: MultiModelBuilder) -> Option<ShapeSwitch> {
+        match &mut self.pending_model {
+            None => {
+                self.pending_model = Some(ModelBuilder::Multi(fields));
+                None
+            }
+            Some(ModelBuilder::Multi(existing)) => {
+                existing.merge_scalars(fields);
+                None
+            }
+            Some(ModelBuilder::Single(_)) => {
+                self.pending_model = Some(ModelBuilder::Multi(fields));
+                Some(ShapeSwitch::ToMulti)
+            }
+        }
+    }
+
+    /// Appends one species to the pending multi-species model, in call
+    /// order. A `species` occurrence alone is enough to lock the slot into
+    /// `Multi` — a scalar `multi` occurrence is not required first.
+    ///
+    /// If the slot currently holds `Single`, it is reset to an empty
+    /// `Multi` (species list starting with just this one) and
+    /// [`ShapeSwitch::ToMulti`] is returned as a visible-warning signal.
+    pub fn add_species(&mut self, species: SpeciesBuilder) -> Option<ShapeSwitch> {
+        match &mut self.pending_model {
+            None => {
+                let mut multi = MultiModelBuilder::default();
+                multi.push_species(species);
+                self.pending_model = Some(ModelBuilder::Multi(multi));
+                None
+            }
+            Some(ModelBuilder::Multi(existing)) => {
+                existing.push_species(species);
+                None
+            }
+            Some(ModelBuilder::Single(_)) => {
+                let mut multi = MultiModelBuilder::default();
+                multi.push_species(species);
+                self.pending_model = Some(ModelBuilder::Multi(multi));
+                Some(ShapeSwitch::ToMulti)
+            }
+        }
+    }
+
+    /// Merges `fields` into the pending solver, field by field
+    /// (last-write-wins per field). Locks the slot on first call.
+    pub fn merge_solver(&mut self, fields: SolverBuilder) {
+        match &mut self.pending_solver {
+            Some(existing) => existing.merge(fields),
+            None => self.pending_solver = Some(fields),
+        }
+    }
+
+    /// Sets or merges the pending scenario's initial condition.
+    pub fn set_scenario_initial_condition(&mut self, value: impl Into<String>) {
+        self.pending_scenario
+            .get_or_insert_with(ScenarioBuilder::default)
+            .set_initial_condition(value.into());
+    }
+
+    /// Merges `injection` into the pending scenario's default injection.
+    pub fn merge_scenario_default_injection(&mut self, injection: InjectionBuilder) {
+        self.pending_scenario
+            .get_or_insert_with(ScenarioBuilder::default)
+            .merge_default_injection(injection);
+    }
+
+    /// Merges `injection` into the pending scenario's override for
+    /// `species` (creating the override on first mention of that species).
+    pub fn merge_scenario_species_override(&mut self, species: &str, injection: InjectionBuilder) {
+        self.pending_scenario
+            .get_or_insert_with(ScenarioBuilder::default)
+            .merge_species_override(species, injection);
     }
 
     /// Sets the project directory after validating the path.
@@ -640,6 +785,154 @@ mod tests {
     use dynamic_cli::downcast_ref;
     use std::collections::HashMap;
     use std::io::Write;
+
+    // ── ChromContext pending-model/solver/scenario slots (issue #67) ────────
+
+    #[test]
+    fn test_pending_model_starts_empty() {
+        let ctx = ChromContext::new();
+        assert!(ctx.pending_model().is_none());
+        assert!(ctx.pending_solver().is_none());
+        assert!(ctx.pending_scenario().is_none());
+    }
+
+    #[test]
+    fn test_merge_model_single_locks_then_merges() {
+        let mut ctx = ChromContext::new();
+
+        let warning = ctx.merge_model_single(SingleModelBuilder {
+            lambda: Some(1.2),
+            ..Default::default()
+        });
+        assert!(warning.is_none());
+
+        let warning = ctx.merge_model_single(SingleModelBuilder {
+            langmuir_k: Some(0.4),
+            ..Default::default()
+        });
+        assert!(warning.is_none());
+
+        match ctx.pending_model() {
+            Some(ModelBuilder::Single(single)) => {
+                assert_eq!(single.lambda, Some(1.2));
+                assert_eq!(single.langmuir_k, Some(0.4));
+            }
+            other => panic!("expected Single, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_add_species_alone_locks_multi_shape() {
+        let mut ctx = ChromContext::new();
+
+        let warning = ctx.add_species(SpeciesBuilder {
+            name: Some("Ascorbic".to_string()),
+            ..Default::default()
+        });
+        assert!(warning.is_none(), "no multi occurrence needed first");
+
+        match ctx.pending_model() {
+            Some(ModelBuilder::Multi(multi)) => {
+                assert_eq!(multi.species.len(), 1);
+                assert_eq!(multi.species[0].name.as_deref(), Some("Ascorbic"));
+            }
+            other => panic!("expected Multi, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_switching_single_to_multi_resets_and_warns() {
+        let mut ctx = ChromContext::new();
+        ctx.merge_model_single(SingleModelBuilder {
+            lambda: Some(1.2),
+            ..Default::default()
+        });
+
+        let warning = ctx.merge_model_multi(MultiModelBuilder {
+            n_points: Some(100),
+            ..Default::default()
+        });
+        assert_eq!(warning, Some(ShapeSwitch::ToMulti));
+
+        match ctx.pending_model() {
+            Some(ModelBuilder::Multi(multi)) => {
+                assert_eq!(multi.n_points, Some(100));
+            }
+            other => panic!("expected Multi after switch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_switching_multi_to_single_resets_and_warns() {
+        let mut ctx = ChromContext::new();
+        ctx.add_species(SpeciesBuilder {
+            name: Some("A".to_string()),
+            ..Default::default()
+        });
+
+        let warning = ctx.merge_model_single(SingleModelBuilder {
+            lambda: Some(1.2),
+            ..Default::default()
+        });
+        assert_eq!(warning, Some(ShapeSwitch::ToSingle));
+
+        match ctx.pending_model() {
+            Some(ModelBuilder::Single(single)) => {
+                assert_eq!(single.lambda, Some(1.2));
+            }
+            other => panic!("expected Single after switch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_merge_solver_accumulates_across_calls() {
+        let mut ctx = ChromContext::new();
+        ctx.merge_solver(SolverBuilder {
+            solver_type: Some("RK4".to_string()),
+            ..Default::default()
+        });
+        ctx.merge_solver(SolverBuilder {
+            total_time: Some(600.0),
+            time_steps: Some(10_000),
+            ..Default::default()
+        });
+
+        let solver = ctx.pending_solver().expect("must be set");
+        assert_eq!(solver.solver_type.as_deref(), Some("RK4"));
+        assert_eq!(solver.total_time, Some(600.0));
+        assert_eq!(solver.time_steps, Some(10_000));
+    }
+
+    #[test]
+    fn test_scenario_calls_before_model_do_not_touch_pending_model() {
+        let mut ctx = ChromContext::new();
+        ctx.set_scenario_initial_condition("zero");
+        ctx.merge_scenario_default_injection(InjectionBuilder {
+            injection_type: Some("Gaussian".to_string()),
+            center: Some(10.0),
+            ..Default::default()
+        });
+        ctx.merge_scenario_species_override(
+            "Erythorbic",
+            InjectionBuilder {
+                injection_type: Some("Dirac".to_string()),
+                ..Default::default()
+            },
+        );
+
+        // No pending model was ever set — scenario builds independently,
+        // ordering/existence checks belong to the future `config scenario`
+        // handler (#71), not to ChromContext itself.
+        assert!(ctx.pending_model().is_none());
+
+        let scenario = ctx.pending_scenario().expect("must be set");
+        assert_eq!(scenario.initial_condition.as_deref(), Some("zero"));
+        assert_eq!(
+            scenario.default_injection.as_ref().unwrap().center,
+            Some(10.0)
+        );
+        assert_eq!(scenario.species_overrides.len(), 1);
+    }
 
     // ── Fixtures YAML ─────────────────────────────────────────────────────────
 
