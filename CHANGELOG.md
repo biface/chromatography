@@ -9,6 +9,14 @@ Versioning: [SemVer](https://semver.org/)
 
 ## [Unreleased]
 
+### Added
+- `src/cli/builders.rs` — pending-configuration builder types (`ModelBuilder`, `SingleModelBuilder`, `MultiModelBuilder`, `SpeciesBuilder`, `SolverBuilder`, `ScenarioBuilder`, `InjectionBuilder`) for the interactive `config`/`build` command surface (DD-016, [#53](https://github.com/biface/chromatography/issues/53), [#67](https://github.com/biface/chromatography/issues/67)). Every field is optional and unvalidated at this stage; validation is deferred to `save`/`run`.
+- `ChromContext` gains three builder slots (`pending_model`, `pending_solver`, `pending_scenario`) plus accessors and merge methods (`merge_model_single`, `merge_model_multi`, `add_species`, `merge_solver`, `set_scenario_initial_condition`, `merge_scenario_default_injection`, `merge_scenario_species_override`). Repeated calls into the same target merge field by field (last-write-wins per field); a `species` occurrence alone is enough to lock the model slot into multi-species shape, no prior scalar `multi` call required ([#67](https://github.com/biface/chromatography/issues/67)).
+- `ShapeSwitch` — returned by `merge_model_single`/`merge_model_multi`/`add_species` when switching the pending model between single- and multi-species shape, so a future command handler can surface a visible warning instead of resetting silently ([#67](https://github.com/biface/chromatography/issues/67)).
+
+### Changed
+- `Cargo.toml` — `dynamic-cli` `0.6.0` → `0.9.0`: unblocks DD-016 (multi-command chaining, DD-026, shipped in dcli 0.8.0 "Chain Reaction"; 0.9.0 chosen over 0.8.0 to avoid a second migration, since issue #73 already assumes 0.9.0's `ReplInterface`). No breaking change identified for `CommandHandler`/`ParsedArgs`/`OptionOccurrence`, the only dcli-facing surface `chrom-rs` currently uses.
+
 ---
 
 ## [0.5.0] — 2026-08-14

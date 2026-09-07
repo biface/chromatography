@@ -50,6 +50,12 @@ pub mod app;
 /// validates configuration files without running a simulation.
 pub mod check;
 
+/// Pending-configuration builder types for the interactive `config`/`build`
+/// command — accumulated, unvalidated state held in
+/// [`ChromContext`](crate::cli::app::ChromContext) across chained
+/// invocations. See DD-016 (issue #53) and issue #67.
+pub mod builders;
+
 use anyhow::anyhow;
 use dynamic_cli::config::loader::load_yaml;
 use dynamic_cli::{CliApp, CliBuilder};
