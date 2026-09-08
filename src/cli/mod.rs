@@ -12,7 +12,7 @@
 //!     .run();
 //! ```
 //!
-//! # Command surface (v0.5.0)
+//! # Command surface (v0.6.0, in progress)
 //!
 //! ```text
 //! chrom-rs run [--project-dir <dir>]
@@ -28,6 +28,10 @@
 //!                [--source model    file=<file.yml>]
 //!                [--source scenario file=<file.yml>]
 //!                [--source solver   file=<file.yml>]
+//!
+//! chrom-rs config (alias build)
+//!                  [--model single lambda=... langmuir-k=... port-number=...
+//!                                  column-length=... n-points=... dz=... fe=... ue=...]
 //! ```
 //!
 //! `run` accepts either the legacy scalar options or the repeatable
@@ -38,6 +42,16 @@
 //! those. Both draw on `dynamic-cli` 0.6.0's repeatable-option-with-
 //! sub-parameters feature (see [dcli#21](https://github.com/biface/dcli/issues/21)
 //! for that feature's own design rationale on the `dynamic-cli` side).
+//!
+//! `config` (DD-016, [#53](https://github.com/biface/chromatography/issues/53))
+//! accumulates unvalidated configuration state across one or more
+//! occurrences — in a single invocation or across a chained sequence
+//! (`dynamic-cli` 0.9.0 command chaining, DD-026) — into
+//! [`ChromContext`](crate::cli::app::ChromContext)'s pending slots.
+//! `--model single` is the only discriminant wired up so far
+//! ([#68](https://github.com/biface/chromatography/issues/68)); `multi`,
+//! `species`, `--solver`, and `--scenario` land in later commits
+//! (#69–#72), and nothing is validated until a future `save`/`run`.
 
 /// Execution context, command handlers, and simulation helpers.
 ///
@@ -56,12 +70,19 @@ pub mod check;
 /// invocations. See DD-016 (issue #53) and issue #67.
 pub mod builders;
 
+/// The `config`/`build` command handler
+/// ([`ConfigHandler`](crate::cli::config_handler::ConfigHandler)) — builds
+/// model/solver/scenario configuration interactively. See issue #68 (and
+/// #69–72 for the parts not wired up yet).
+pub mod config_handler;
+
 use anyhow::anyhow;
 use dynamic_cli::config::loader::load_yaml;
 use dynamic_cli::{CliApp, CliBuilder};
 
 use app::{ChromContext, RunHandler};
 use check::CheckHandler;
+use config_handler::ConfigHandler;
 
 // ============================================================================
 // Embedded command configuration
@@ -82,6 +103,10 @@ const RUN_HANDLER_NAME: &str = "run_handler";
 /// Handler name that must match the `implementation:` field of the `check`
 /// command in `commands.yml`.
 const CHECK_HANDLER_NAME: &str = "check_handler";
+
+/// Handler name that must match the `implementation:` field of the `config`
+/// command in `commands.yml`.
+const CONFIG_HANDLER_NAME: &str = "config_handler";
 
 // ============================================================================
 // build_app
@@ -107,6 +132,7 @@ pub fn build_app() -> anyhow::Result<CliApp> {
         .context(Box::new(ChromContext::new()))
         .register_sync_handler(RUN_HANDLER_NAME, Box::new(RunHandler))
         .register_sync_handler(CHECK_HANDLER_NAME, Box::new(CheckHandler))
+        .register_sync_handler(CONFIG_HANDLER_NAME, Box::new(ConfigHandler))
         .build()
         .map_err(|e| anyhow!("CLI builder error: {e}"))
 }
@@ -130,5 +156,6 @@ mod tests {
         let config = load_yaml(COMMANDS_YML).expect("COMMANDS_YML must be valid");
         assert!(config.commands.iter().any(|c| c.name == "run"));
         assert!(config.commands.iter().any(|c| c.name == "check"));
+        assert!(config.commands.iter().any(|c| c.name == "config"));
     }
 }
