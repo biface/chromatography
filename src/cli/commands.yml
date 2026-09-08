@@ -192,17 +192,16 @@ commands:
     arguments: []
     options:
       # --- --model, repeatable (DD-016, biface/chromatography#53) ---
-      # Only the `single` discriminant is wired up so far (#68). `multi` and
-      # `species` are added by #69 — extending this same option's `choices`
-      # and `option_parameters`, not a new option.
+      # `single` wired up by #68. `multi`/`species` wired up by #69 —
+      # same option, extended choices/option_parameters, not a new option.
       - name: model
         short: ~
         long: model
         option_type: string
         required: false
         default: ~
-        description: "Model fields, repeatable: '--model single lambda=... langmuir-k=... port-number=... column-length=... n-points=... dz=... fe=... ue=...'. Every field is optional; repeated occurrences merge field by field into the pending model (last write wins per field)."
-        choices: [single]
+        description: "Model fields, repeatable: '--model single lambda=...', '--model multi n-points=...', or '--model species name=... lambda=... langmuir-k=... port-number=...'. Every field is optional; repeated occurrences merge field by field into the pending model (last write wins per field). A 'species' occurrence alone is enough to lock the pending model into multi-species shape — 'multi' is not required first."
+        choices: [single, multi, species]
         repeatable: true
         option_parameters:
           single:
@@ -238,6 +237,56 @@ commands:
               arg_type: float
               required: false
               description: "Interstitial velocity, velocity / porosity [m/s] — precomputed in model.yml, not derived here"
+          multi:
+            - name: n-points
+              arg_type: integer
+              required: false
+              description: "Number of spatial discretisation points Nz, shared across all species"
+            - name: porosity
+              arg_type: float
+              required: false
+              description: "Bed porosity ε [dimensionless], in (0, 1)"
+            - name: velocity
+              arg_type: float
+              required: false
+              description: "Superficial velocity u [m/s]"
+            - name: column-length
+              arg_type: float
+              required: false
+              description: "Column length L [m]"
+            - name: dz
+              arg_type: float
+              required: false
+              description: "Cell width, L / Nz [m] — precomputed in model.yml, not derived here"
+            - name: fe
+              arg_type: float
+              required: false
+              description: "Phase ratio, (1 - porosity) / porosity [dimensionless] — precomputed in model.yml, not derived here"
+            - name: ue
+              arg_type: float
+              required: false
+              description: "Interstitial velocity, velocity / porosity [m/s] — precomputed in model.yml, not derived here"
+            - name: stationary-fraction
+              arg_type: float
+              required: false
+              description: "Fraction of stationary-phase sites shared across species [dimensionless]"
+          species:
+            - name: name
+              arg_type: string
+              required: true
+              description: "Species name (used for plot legends and CSV headers)"
+            - name: lambda
+              arg_type: float
+              required: false
+              description: "Isotherm intercept λ [dimensionless] for this species, must be >= 0"
+            - name: langmuir-k
+              arg_type: float
+              required: false
+              description: "Langmuir equilibrium constant K [L/mol] for this species, must be > 0"
+            - name: port-number
+              arg_type: integer
+              required: false
+              description: "Number of adsorption sites occupied N for this species, must be > 0"
 
     implementation: config_handler
 

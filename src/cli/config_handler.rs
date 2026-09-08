@@ -9,14 +9,12 @@
 //!
 //! # Scope of this file today
 //!
-//! Only `--model single ...` is wired up
-//! ([#68](https://github.com/biface/chromatography/issues/68)). `--model
-//! multi`/`--model species` ([#69](https://github.com/biface/chromatography/issues/69)),
-//! `--solver` ([#70](https://github.com/biface/chromatography/issues/70)),
+//! `--model single` (#68) and `--model multi`/`--model species` (#69) are
+//! wired up. `--solver` ([#70](https://github.com/biface/chromatography/issues/70))
 //! and `--scenario`
 //! ([#71](https://github.com/biface/chromatography/issues/71)) land in
-//! later, separate commits — this handler grows in place, `commands.yml`'s
-//! `model` option gains more `choices` alongside it.
+//! later, separate commits — this handler grows in place, `commands.yml`
+//! gains a `solver`/`scenario` option alongside `model`.
 
 use std::collections::HashMap;
 
@@ -25,7 +23,7 @@ use dynamic_cli::error::ExecutionError;
 use dynamic_cli::{CommandHandler, DynamicCliError, ExecutionContext, ParsedArgs};
 
 use super::app::{ChromContext, to_cli_err};
-use super::builders::SingleModelBuilder;
+use super::builders::{MultiModelBuilder, SingleModelBuilder, SpeciesBuilder};
 
 /// `config`/`build` command handler.
 ///
@@ -57,10 +55,23 @@ impl CommandHandler for ConfigHandler {
                             eprintln!("{warning}");
                         }
                     }
+                    "multi" => {
+                        let fields = parse_multi_fields(&occurrence.params).map_err(to_cli_err)?;
+                        if let Some(warning) = chrom_ctx.merge_model_multi(fields) {
+                            eprintln!("{warning}");
+                        }
+                    }
+                    "species" => {
+                        let species =
+                            parse_species_fields(&occurrence.params).map_err(to_cli_err)?;
+                        if let Some(warning) = chrom_ctx.add_species(species) {
+                            eprintln!("{warning}");
+                        }
+                    }
                     other => {
-                        // Defensive only: commands.yml's `choices: [single]`
-                        // means dcli itself rejects anything else before
-                        // this handler ever runs.
+                        // Defensive only: commands.yml's `choices` list means
+                        // dcli itself rejects anything else before this
+                        // handler ever runs.
                         return Err(to_cli_err(anyhow!(
                             "unsupported --model discriminant '{other}'"
                         )));
@@ -93,12 +104,45 @@ fn parse_single_fields(params: &HashMap<String, String>) -> anyhow::Result<Singl
     })
 }
 
+/// Reads the eight `LangmuirMulti`-shaped scalar sub-parameters of a
+/// `--model multi ...` occurrence into a [`MultiModelBuilder`]. `species` is
+/// always empty here — species are added exclusively through
+/// [`parse_species_fields`] / [`ChromContext::add_species`], never through
+/// this occurrence, so ordering across chained occurrences stays
+/// predictable (see [`MultiModelBuilder::merge_scalars`]).
+fn parse_multi_fields(params: &HashMap<String, String>) -> anyhow::Result<MultiModelBuilder> {
+    Ok(MultiModelBuilder {
+        n_points: parse_optional_usize(params, "n-points")?,
+        porosity: parse_optional_f64(params, "porosity")?,
+        velocity: parse_optional_f64(params, "velocity")?,
+        column_length: parse_optional_f64(params, "column-length")?,
+        dz: parse_optional_f64(params, "dz")?,
+        fe: parse_optional_f64(params, "fe")?,
+        ue: parse_optional_f64(params, "ue")?,
+        stationary_fraction: parse_optional_f64(params, "stationary-fraction")?,
+        species: Vec::new(),
+    })
+}
+
+/// Reads one `--model species name=... ...` occurrence into a
+/// [`SpeciesBuilder`]. `name` is required by `commands.yml` (`required:
+/// true` in `option_parameters.species`), so `dynamic-cli` itself rejects
+/// an occurrence missing it before this function ever runs.
+fn parse_species_fields(params: &HashMap<String, String>) -> anyhow::Result<SpeciesBuilder> {
+    Ok(SpeciesBuilder {
+        name: params.get("name").cloned(),
+        lambda: parse_optional_f64(params, "lambda")?,
+        langmuir_k: parse_optional_f64(params, "langmuir-k")?,
+        port_number: parse_optional_u32(params, "port-number")?,
+    })
+}
+
 fn parse_optional_f64(params: &HashMap<String, String>, key: &str) -> anyhow::Result<Option<f64>> {
     params
         .get(key)
         .map(|raw| {
             raw.parse::<f64>()
-                .map_err(|e| anyhow!("invalid float for '--model single {key}=...': '{raw}' ({e})"))
+                .map_err(|e| anyhow!("invalid float for '--model ... {key}=...': '{raw}' ({e})"))
         })
         .transpose()
 }
@@ -110,8 +154,18 @@ fn parse_optional_usize(
     params
         .get(key)
         .map(|raw| {
-            raw.parse::<usize>().map_err(|e| {
-                anyhow!("invalid integer for '--model single {key}=...': '{raw}' ({e})")
+            raw.parse::<usize>()
+                .map_err(|e| anyhow!("invalid integer for '--model ... {key}=...': '{raw}' ({e})"))
+        })
+        .transpose()
+}
+
+fn parse_optional_u32(params: &HashMap<String, String>, key: &str) -> anyhow::Result<Option<u32>> {
+    params
+        .get(key)
+        .map(|raw| {
+            raw.parse::<u32>().map_err(|e| {
+                anyhow!("invalid integer for '--model species {key}=...': '{raw}' ({e})")
             })
         })
         .transpose()
@@ -136,8 +190,12 @@ mod tests {
     }
 
     fn single_occurrence(pairs: &[(&str, &str)]) -> OptionOccurrence {
+        occurrence("single", pairs)
+    }
+
+    fn occurrence(discriminant: &str, pairs: &[(&str, &str)]) -> OptionOccurrence {
         OptionOccurrence {
-            discriminant: "single".to_string(),
+            discriminant: discriminant.to_string(),
             params: pairs
                 .iter()
                 .map(|(k, v)| (k.to_string(), v.to_string()))
@@ -246,5 +304,120 @@ mod tests {
             .execute(&mut ctx, &args)
             .expect_err("must fail");
         assert!(err.to_string().contains("lambda"));
+    }
+
+    // ── #69: --model multi / --model species ────────────────────────────
+
+    #[test]
+    fn test_multi_scalar_fields_are_set() {
+        let mut ctx = ChromContext::new();
+        let args = model_args(vec![occurrence(
+            "multi",
+            &[
+                ("n-points", "100"),
+                ("porosity", "0.4"),
+                ("velocity", "0.001"),
+                ("column-length", "0.25"),
+                ("dz", "0.0025"),
+                ("fe", "1.5"),
+                ("ue", "0.0025"),
+                ("stationary-fraction", "0.6"),
+            ],
+        )]);
+
+        ConfigHandler
+            .execute(&mut ctx, &args)
+            .expect("must succeed");
+
+        match ctx.pending_model() {
+            Some(ModelBuilder::Multi(multi)) => {
+                assert_eq!(multi.n_points, Some(100));
+                assert_eq!(multi.porosity, Some(0.4));
+                assert_eq!(multi.stationary_fraction, Some(0.6));
+                assert!(multi.species.is_empty());
+            }
+            other => panic!("expected Multi, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_two_chained_species_occurrences_produce_a_two_element_list_in_order() {
+        let mut ctx = ChromContext::new();
+
+        ConfigHandler
+            .execute(
+                &mut ctx,
+                &model_args(vec![occurrence(
+                    "species",
+                    &[
+                        ("name", "Ascorbic"),
+                        ("lambda", "1.0"),
+                        ("langmuir-k", "1.1"),
+                        ("port-number", "2"),
+                    ],
+                )]),
+            )
+            .expect("must succeed");
+
+        ConfigHandler
+            .execute(
+                &mut ctx,
+                &model_args(vec![occurrence(
+                    "species",
+                    &[("name", "Erythorbic"), ("lambda", "0.9")],
+                )]),
+            )
+            .expect("must succeed");
+
+        match ctx.pending_model() {
+            Some(ModelBuilder::Multi(multi)) => {
+                assert_eq!(multi.species.len(), 2);
+                assert_eq!(multi.species[0].name.as_deref(), Some("Ascorbic"));
+                assert_eq!(multi.species[0].port_number, Some(2));
+                assert_eq!(multi.species[1].name.as_deref(), Some("Erythorbic"));
+            }
+            other => panic!("expected Multi, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_species_occurrence_alone_locks_multi_shape_without_prior_multi_call() {
+        let mut ctx = ChromContext::new();
+        let args = model_args(vec![occurrence("species", &[("name", "A")])]);
+
+        ConfigHandler
+            .execute(&mut ctx, &args)
+            .expect("must succeed");
+
+        assert!(matches!(ctx.pending_model(), Some(ModelBuilder::Multi(_))));
+    }
+
+    #[test]
+    fn test_duplicate_species_name_accepted_at_this_construction_stage() {
+        let mut ctx = ChromContext::new();
+        let args = model_args(vec![
+            occurrence("species", &[("name", "A")]),
+            occurrence("species", &[("name", "A")]),
+        ]);
+
+        ConfigHandler
+            .execute(&mut ctx, &args)
+            .expect("must succeed");
+
+        match ctx.pending_model() {
+            Some(ModelBuilder::Multi(multi)) => assert_eq!(multi.species.len(), 2),
+            other => panic!("expected Multi, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_species_missing_required_name_is_rejected_by_dcli_before_the_handler() {
+        // dcli validates `option_parameters.species`'s `required: true` on
+        // `name` before ParsedArgs ever reaches a handler — this test only
+        // documents that our own parser fills a missing name with `None`
+        // rather than panicking, in case that guarantee ever changes.
+        let params: HashMap<String, String> = HashMap::new();
+        let species = parse_species_fields(&params).expect("parsing itself does not fail");
+        assert_eq!(species.name, None);
     }
 }

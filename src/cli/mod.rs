@@ -32,6 +32,9 @@
 //! chrom-rs config (alias build)
 //!                  [--model single lambda=... langmuir-k=... port-number=...
 //!                                  column-length=... n-points=... dz=... fe=... ue=...]
+//!                  [--model multi n-points=... porosity=... velocity=...
+//!                                 column-length=... dz=... fe=... ue=... stationary-fraction=...]
+//!                  [--model species name=... lambda=... langmuir-k=... port-number=...]
 //! ```
 //!
 //! `run` accepts either the legacy scalar options or the repeatable
@@ -48,10 +51,11 @@
 //! occurrences — in a single invocation or across a chained sequence
 //! (`dynamic-cli` 0.9.0 command chaining, DD-026) — into
 //! [`ChromContext`](crate::cli::app::ChromContext)'s pending slots.
-//! `--model single` is the only discriminant wired up so far
-//! ([#68](https://github.com/biface/chromatography/issues/68)); `multi`,
-//! `species`, `--solver`, and `--scenario` land in later commits
-//! (#69–#72), and nothing is validated until a future `save`/`run`.
+//! `--model single`/`multi`/`species` are wired up
+//! ([#68](https://github.com/biface/chromatography/issues/68),
+//! [#69](https://github.com/biface/chromatography/issues/69)); `--solver`
+//! and `--scenario` land in later commits (#70–#72), and nothing is
+//! validated until a future `save`/`run`.
 
 /// Execution context, command handlers, and simulation helpers.
 ///
