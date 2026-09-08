@@ -37,6 +37,9 @@
 //!                  [--model species name=... lambda=... langmuir-k=... port-number=...]
 //!                  [--solver RK4 total-time=... time-steps=... [step=...]]
 //!                  [--solver Euler total-time=... time-steps=... [step=...]]
+//!                  [--initial-condition zero]
+//!                  [--injection default type=... center=... width=... peak-concentration=... time=... amount=...]
+//!                  [--injection species-override species=... type=... ...]
 //! ```
 //!
 //! `run` accepts either the legacy scalar options or the repeatable
@@ -53,12 +56,13 @@
 //! occurrences — in a single invocation or across a chained sequence
 //! (`dynamic-cli` 0.9.0 command chaining, DD-026) — into
 //! [`ChromContext`](crate::cli::app::ChromContext)'s pending slots.
-//! `--model single`/`multi`/`species` and `--solver` are wired up
+//! `--model single`/`multi`/`species`, `--solver`, and
+//! `--initial-condition`/`--injection` are all wired up
 //! ([#68](https://github.com/biface/chromatography/issues/68),
 //! [#69](https://github.com/biface/chromatography/issues/69),
-//! [#70](https://github.com/biface/chromatography/issues/70)); `--scenario`
-//! lands in a later commit (#71), and nothing is validated until a future
-//! `save`/`run`.
+//! [#70](https://github.com/biface/chromatography/issues/70),
+//! [#71](https://github.com/biface/chromatography/issues/71)); `save`
+//! lands in a later commit (#72), and nothing is validated until then.
 
 /// Execution context, command handlers, and simulation helpers.
 ///
