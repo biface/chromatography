@@ -9,11 +9,10 @@
 //!
 //! # Scope of this file today
 //!
-//! `--model single`/`multi`/`species` (#68, #69) and `--solver` (#70) are
-//! wired up. `--scenario`
-//! ([#71](https://github.com/biface/chromatography/issues/71)) lands in a
-//! later, separate commit — this handler grows in place, `commands.yml`
-//! gains a `scenario` option alongside `model`/`solver`.
+//! `--model single`/`multi`/`species` (#68, #69), `--solver` (#70), and
+//! `--initial-condition`/`--injection` (#71) are all wired up. `save`
+//! ([#72](https://github.com/biface/chromatography/issues/72)) lands in a
+//! later, separate commit.
 
 use std::collections::HashMap;
 
@@ -22,7 +21,10 @@ use dynamic_cli::error::ExecutionError;
 use dynamic_cli::{CommandHandler, DynamicCliError, ExecutionContext, ParsedArgs};
 
 use super::app::{ChromContext, to_cli_err};
-use super::builders::{MultiModelBuilder, SingleModelBuilder, SolverBuilder, SpeciesBuilder};
+use super::builders::{
+    InjectionBuilder, ModelBuilder, MultiModelBuilder, SingleModelBuilder, SolverBuilder,
+    SpeciesBuilder,
+};
 
 /// `config`/`build` command handler.
 ///
@@ -91,7 +93,81 @@ impl CommandHandler for ConfigHandler {
             }
         }
 
+        let scenario_requested = args.get_scalar("initial-condition").is_some()
+            || args.get_repeated("injection").is_some();
+        if scenario_requested && chrom_ctx.pending_model().is_none() {
+            return Err(to_cli_err(anyhow!(
+                "config --initial-condition/--injection requires a pending model \
+                 (config --model single/multi/species) earlier in the session — \
+                 without one there is no species list to validate a \
+                 species-override against"
+            )));
+        }
+
+        if let Some(value) = args.get_scalar("initial-condition") {
+            chrom_ctx.set_scenario_initial_condition(value);
+        }
+
+        if let Some(occurrences) = args.get_repeated("injection") {
+            // Snapshot before the loop: an immutable borrow of `chrom_ctx`
+            // that must end before the loop's mutable calls, not one held
+            // across it. Species added by an earlier occurrence in the
+            // *same* execute() call are not yet visible here — only
+            // species from prior, already-applied `config` invocations
+            // are, which matches the sequential nature of dcli's command
+            // chaining (each chained command is a separate execute() call).
+            let known_species = known_species_names(chrom_ctx);
+
+            for occurrence in occurrences {
+                match occurrence.discriminant.as_str() {
+                    "default" => {
+                        let injection =
+                            parse_injection_fields(&occurrence.params).map_err(to_cli_err)?;
+                        chrom_ctx.merge_scenario_default_injection(injection);
+                    }
+                    "species-override" => {
+                        let species = occurrence.params.get("species").ok_or_else(|| {
+                            to_cli_err(anyhow!(
+                                "--injection species-override requires a 'species' sub-parameter"
+                            ))
+                        })?;
+                        if !known_species.iter().any(|name| name == species) {
+                            return Err(to_cli_err(anyhow!(
+                                "--injection species-override names species '{species}', \
+                                 which is not in the pending model's species list {known_species:?}"
+                            )));
+                        }
+                        let injection =
+                            parse_injection_fields(&occurrence.params).map_err(to_cli_err)?;
+                        chrom_ctx.merge_scenario_species_override(species, injection);
+                    }
+                    other => {
+                        // Defensive only: commands.yml's `choices` list
+                        // means dcli itself rejects anything else before
+                        // this handler ever runs.
+                        return Err(to_cli_err(anyhow!(
+                            "unsupported --injection discriminant '{other}'"
+                        )));
+                    }
+                }
+            }
+        }
+
         Ok(())
+    }
+}
+
+/// Species names already present in the pending model, if any — `Multi`
+/// only; `Single` and an empty slot both have none. Used to validate
+/// `--injection species-override species=...` before accepting it.
+fn known_species_names(ctx: &ChromContext) -> Vec<String> {
+    match ctx.pending_model() {
+        Some(ModelBuilder::Multi(multi)) => multi
+            .species
+            .iter()
+            .filter_map(|s| s.name.clone())
+            .collect(),
+        _ => Vec::new(),
     }
 }
 
@@ -167,6 +243,23 @@ fn parse_solver_fields(
     })
 }
 
+/// Reads the shared sub-parameters of an `--injection <default|species-override>
+/// ...` occurrence into an [`InjectionBuilder`]. `species` (for
+/// `species-override`) is read and validated separately by the caller, not
+/// here — this function only knows about the fields an injection itself
+/// carries (`type`, `center`, `width`, `peak-concentration`, `time`,
+/// `amount`), regardless of discriminant.
+fn parse_injection_fields(params: &HashMap<String, String>) -> anyhow::Result<InjectionBuilder> {
+    Ok(InjectionBuilder {
+        injection_type: params.get("type").cloned(),
+        center: parse_optional_f64(params, "center")?,
+        width: parse_optional_f64(params, "width")?,
+        peak_concentration: parse_optional_f64(params, "peak-concentration")?,
+        time: parse_optional_f64(params, "time")?,
+        amount: parse_optional_f64(params, "amount")?,
+    })
+}
+
 fn parse_optional_f64(params: &HashMap<String, String>, key: &str) -> anyhow::Result<Option<f64>> {
     params
         .get(key)
@@ -208,7 +301,6 @@ fn parse_optional_u32(params: &HashMap<String, String>, key: &str) -> anyhow::Re
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli::builders::ModelBuilder;
     use dynamic_cli::parser::cli_parser::{OptionOccurrence, ParsedValue};
 
     /// Builds a `ParsedArgs` with a single "model" key carrying the given
@@ -535,5 +627,167 @@ mod tests {
         let solver = ctx.pending_solver().expect("must be set");
         assert_eq!(solver.total_time, Some(600.0));
         assert_eq!(solver.time_steps, Some(10_000));
+    }
+
+    // ── #71: --initial-condition / --injection ──────────────────────────
+
+    fn scenario_args(
+        initial_condition: Option<&str>,
+        occurrences: Vec<OptionOccurrence>,
+    ) -> ParsedArgs {
+        let mut map = HashMap::new();
+        if let Some(value) = initial_condition {
+            map.insert(
+                "initial-condition".to_string(),
+                ParsedValue::Scalar(value.to_string()),
+            );
+        }
+        if !occurrences.is_empty() {
+            map.insert("injection".to_string(), ParsedValue::Repeated(occurrences));
+        }
+        ParsedArgs::new(map)
+    }
+
+    fn model_with_one_species(ctx: &mut ChromContext) {
+        ConfigHandler
+            .execute(
+                ctx,
+                &model_args(vec![occurrence("species", &[("name", "Ascorbic")])]),
+            )
+            .expect("must succeed");
+    }
+
+    #[test]
+    fn test_scenario_before_any_model_is_an_explicit_error() {
+        let mut ctx = ChromContext::new();
+        let args = scenario_args(Some("zero"), vec![]);
+
+        let err = ConfigHandler
+            .execute(&mut ctx, &args)
+            .expect_err("must fail without a pending model");
+        assert!(err.to_string().contains("pending model"));
+    }
+
+    #[test]
+    fn test_initial_condition_is_set_once_a_model_exists() {
+        let mut ctx = ChromContext::new();
+        model_with_one_species(&mut ctx);
+
+        ConfigHandler
+            .execute(&mut ctx, &scenario_args(Some("zero"), vec![]))
+            .expect("must succeed");
+
+        assert_eq!(
+            ctx.pending_scenario().unwrap().initial_condition.as_deref(),
+            Some("zero")
+        );
+    }
+
+    #[test]
+    fn test_default_injection_merges() {
+        let mut ctx = ChromContext::new();
+        model_with_one_species(&mut ctx);
+
+        ConfigHandler
+            .execute(
+                &mut ctx,
+                &scenario_args(
+                    None,
+                    vec![occurrence(
+                        "default",
+                        &[
+                            ("type", "Gaussian"),
+                            ("center", "10.0"),
+                            ("width", "3.0"),
+                            ("peak-concentration", "0.1"),
+                        ],
+                    )],
+                ),
+            )
+            .expect("must succeed");
+
+        let default_injection = ctx
+            .pending_scenario()
+            .unwrap()
+            .default_injection
+            .as_ref()
+            .expect("must be set");
+        assert_eq!(
+            default_injection.injection_type.as_deref(),
+            Some("Gaussian")
+        );
+        assert_eq!(default_injection.center, Some(10.0));
+    }
+
+    #[test]
+    fn test_species_override_naming_a_known_species_succeeds() {
+        let mut ctx = ChromContext::new();
+        model_with_one_species(&mut ctx); // "Ascorbic"
+
+        ConfigHandler
+            .execute(
+                &mut ctx,
+                &scenario_args(
+                    None,
+                    vec![occurrence(
+                        "species-override",
+                        &[("species", "Ascorbic"), ("type", "Dirac"), ("time", "5.0")],
+                    )],
+                ),
+            )
+            .expect("must succeed");
+
+        let overrides = &ctx.pending_scenario().unwrap().species_overrides;
+        assert_eq!(overrides.len(), 1);
+        assert_eq!(overrides[0].0, "Ascorbic");
+    }
+
+    #[test]
+    fn test_species_override_naming_an_unknown_species_is_an_explicit_error() {
+        let mut ctx = ChromContext::new();
+        model_with_one_species(&mut ctx); // "Ascorbic" only
+
+        let err = ConfigHandler
+            .execute(
+                &mut ctx,
+                &scenario_args(
+                    None,
+                    vec![occurrence(
+                        "species-override",
+                        &[
+                            ("species", "Erythorbic"),
+                            ("type", "Dirac"),
+                            ("time", "5.0"),
+                        ],
+                    )],
+                ),
+            )
+            .expect_err("must fail — 'Erythorbic' is not in the pending model");
+        assert!(err.to_string().contains("Erythorbic"));
+    }
+
+    #[test]
+    fn test_species_override_against_a_single_species_model_is_an_explicit_error() {
+        let mut ctx = ChromContext::new();
+        ConfigHandler
+            .execute(
+                &mut ctx,
+                &model_args(vec![single_occurrence(&[("lambda", "1.2")])]),
+            )
+            .expect("must succeed");
+
+        let err = ConfigHandler
+            .execute(
+                &mut ctx,
+                &scenario_args(
+                    None,
+                    vec![occurrence(
+                        "species-override",
+                        &[("species", "Anything"), ("type", "Dirac"), ("time", "5.0")],
+                    )],
+                ),
+            )
+            .expect_err("a single-species model has no species list to override against");
+        assert!(err.to_string().contains("Anything"));
     }
 }
