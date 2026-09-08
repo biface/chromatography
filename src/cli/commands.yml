@@ -329,6 +329,85 @@ commands:
               required: false
               description: "Keep every Nth time step in the trajectory. Omitted means the full trajectory."
 
+      # --- --initial-condition and --injection (DD-016, #53) ---
+      # Wired up by #71. Both require a pending model (config --model
+      # single/multi/species) earlier in the session — ConfigHandler
+      # rejects them otherwise, since a species-override has no species
+      # list to validate against without one.
+      - name: initial-condition
+        short: ~
+        long: initial-condition
+        option_type: string
+        required: false
+        default: ~
+        description: "Scenario initial condition. 'zero' is the only supported value today."
+        choices: [zero]
+
+      - name: injection
+        short: ~
+        long: injection
+        option_type: string
+        required: false
+        default: ~
+        description: "Injection profile, repeatable: '--injection default type=... center=... width=... peak-concentration=... time=... amount=...' or '--injection species-override species=... type=... ...'. Field relevance depends on 'type' (Gaussian uses center/width/peak-concentration, Dirac uses time/amount) — not enforced here, left to save/run."
+        choices: [default, species-override]
+        repeatable: true
+        option_parameters:
+          default:
+            - name: type
+              arg_type: string
+              required: true
+              description: "Injection kind: Gaussian, Dirac, or None"
+            - name: center
+              arg_type: float
+              required: false
+              description: "Gaussian center (injection time) [s]"
+            - name: width
+              arg_type: float
+              required: false
+              description: "Gaussian width [s]"
+            - name: peak-concentration
+              arg_type: float
+              required: false
+              description: "Gaussian peak concentration [mol/L]"
+            - name: time
+              arg_type: float
+              required: false
+              description: "Dirac injection time [s]"
+            - name: amount
+              arg_type: float
+              required: false
+              description: "Dirac injected amount [mol]"
+          species-override:
+            - name: species
+              arg_type: string
+              required: true
+              description: "Name of the species this override applies to — must already exist in the pending model's species list"
+            - name: type
+              arg_type: string
+              required: true
+              description: "Injection kind: Gaussian, Dirac, or None"
+            - name: center
+              arg_type: float
+              required: false
+              description: "Gaussian center (injection time) [s]"
+            - name: width
+              arg_type: float
+              required: false
+              description: "Gaussian width [s]"
+            - name: peak-concentration
+              arg_type: float
+              required: false
+              description: "Gaussian peak concentration [mol/L]"
+            - name: time
+              arg_type: float
+              required: false
+              description: "Dirac injection time [s]"
+            - name: amount
+              arg_type: float
+              required: false
+              description: "Dirac injected amount [mol]"
+
     implementation: config_handler
 
 global_options: []
