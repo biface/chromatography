@@ -9,12 +9,11 @@
 //!
 //! # Scope of this file today
 //!
-//! `--model single` (#68) and `--model multi`/`--model species` (#69) are
-//! wired up. `--solver` ([#70](https://github.com/biface/chromatography/issues/70))
-//! and `--scenario`
-//! ([#71](https://github.com/biface/chromatography/issues/71)) land in
-//! later, separate commits — this handler grows in place, `commands.yml`
-//! gains a `solver`/`scenario` option alongside `model`.
+//! `--model single`/`multi`/`species` (#68, #69) and `--solver` (#70) are
+//! wired up. `--scenario`
+//! ([#71](https://github.com/biface/chromatography/issues/71)) lands in a
+//! later, separate commit — this handler grows in place, `commands.yml`
+//! gains a `scenario` option alongside `model`/`solver`.
 
 use std::collections::HashMap;
 
@@ -23,7 +22,7 @@ use dynamic_cli::error::ExecutionError;
 use dynamic_cli::{CommandHandler, DynamicCliError, ExecutionContext, ParsedArgs};
 
 use super::app::{ChromContext, to_cli_err};
-use super::builders::{MultiModelBuilder, SingleModelBuilder, SpeciesBuilder};
+use super::builders::{MultiModelBuilder, SingleModelBuilder, SolverBuilder, SpeciesBuilder};
 
 /// `config`/`build` command handler.
 ///
@@ -77,6 +76,18 @@ impl CommandHandler for ConfigHandler {
                         )));
                     }
                 }
+            }
+        }
+
+        if let Some(occurrences) = args.get_repeated("solver") {
+            for occurrence in occurrences {
+                // The discriminant itself ("RK4" or "Euler") *is* the
+                // solver type here — commands.yml's `choices: [RK4, Euler]`
+                // is the only source of truth for valid values, so nothing
+                // is re-validated against it in this handler.
+                let fields = parse_solver_fields(&occurrence.discriminant, &occurrence.params)
+                    .map_err(to_cli_err)?;
+                chrom_ctx.merge_solver(fields);
             }
         }
 
@@ -134,6 +145,25 @@ fn parse_species_fields(params: &HashMap<String, String>) -> anyhow::Result<Spec
         lambda: parse_optional_f64(params, "lambda")?,
         langmuir_k: parse_optional_f64(params, "langmuir-k")?,
         port_number: parse_optional_u32(params, "port-number")?,
+    })
+}
+
+/// Reads one `--solver <RK4|Euler> total-time=... time-steps=... [step=...]`
+/// occurrence into a [`SolverBuilder`]. `discriminant` becomes
+/// `solver_type` directly — it already carries the solver name, so there is
+/// no separate `type=...` sub-parameter to also read. `step` is genuinely
+/// optional here: an occurrence that omits it produces `step: None`,
+/// matching `solver.yml`'s own "absent means full trajectory" convention
+/// rather than introducing a new one.
+fn parse_solver_fields(
+    discriminant: &str,
+    params: &HashMap<String, String>,
+) -> anyhow::Result<SolverBuilder> {
+    Ok(SolverBuilder {
+        solver_type: Some(discriminant.to_string()),
+        total_time: parse_optional_f64(params, "total-time")?,
+        time_steps: parse_optional_usize(params, "time-steps")?,
+        step: parse_optional_usize(params, "step")?,
     })
 }
 
@@ -419,5 +449,91 @@ mod tests {
         let params: HashMap<String, String> = HashMap::new();
         let species = parse_species_fields(&params).expect("parsing itself does not fail");
         assert_eq!(species.name, None);
+    }
+
+    // ── #70: --solver ────────────────────────────────────────────────────
+
+    fn solver_args(occurrences: Vec<OptionOccurrence>) -> ParsedArgs {
+        let mut map = HashMap::new();
+        map.insert("solver".to_string(), ParsedValue::Repeated(occurrences));
+        ParsedArgs::new(map)
+    }
+
+    #[test]
+    fn test_solver_discriminant_becomes_solver_type() {
+        let mut ctx = ChromContext::new();
+        let args = solver_args(vec![occurrence(
+            "RK4",
+            &[("total-time", "600"), ("time-steps", "10000")],
+        )]);
+
+        ConfigHandler
+            .execute(&mut ctx, &args)
+            .expect("must succeed");
+
+        let solver = ctx.pending_solver().expect("must be set");
+        assert_eq!(solver.solver_type.as_deref(), Some("RK4"));
+        assert_eq!(solver.total_time, Some(600.0));
+        assert_eq!(solver.time_steps, Some(10_000));
+        assert_eq!(solver.step, None);
+    }
+
+    #[test]
+    fn test_omitting_step_leaves_it_unset() {
+        let mut ctx = ChromContext::new();
+        let args = solver_args(vec![occurrence(
+            "Euler",
+            &[("total-time", "600"), ("time-steps", "5000")],
+        )]);
+
+        ConfigHandler
+            .execute(&mut ctx, &args)
+            .expect("must succeed");
+
+        let solver = ctx.pending_solver().expect("must be set");
+        assert_eq!(
+            solver.step, None,
+            "omitted 'step' must stay unset, not default to 0 or 1"
+        );
+    }
+
+    #[test]
+    fn test_solver_step_is_set_when_given() {
+        let mut ctx = ChromContext::new();
+        let args = solver_args(vec![occurrence(
+            "RK4",
+            &[
+                ("total-time", "600"),
+                ("time-steps", "10000"),
+                ("step", "100"),
+            ],
+        )]);
+
+        ConfigHandler
+            .execute(&mut ctx, &args)
+            .expect("must succeed");
+
+        assert_eq!(ctx.pending_solver().unwrap().step, Some(100));
+    }
+
+    #[test]
+    fn test_solver_fields_merge_across_chained_calls() {
+        let mut ctx = ChromContext::new();
+        ConfigHandler
+            .execute(
+                &mut ctx,
+                &solver_args(vec![occurrence("RK4", &[("total-time", "600")])]),
+            )
+            .expect("must succeed");
+        ConfigHandler
+            .execute(
+                &mut ctx,
+                &solver_args(vec![occurrence("RK4", &[("time-steps", "10000")])]),
+            )
+            .expect("must succeed");
+
+        let solver = ctx.pending_solver().expect("must be set");
+        assert_eq!(solver.total_time, Some(600.0));
+        assert_eq!(solver.time_steps, Some(10_000));
     }
 }
