@@ -288,6 +288,47 @@ commands:
               required: false
               description: "Number of adsorption sites occupied N for this species, must be > 0"
 
+      # --- --solver, repeatable (DD-016, biface/chromatography#53) ---
+      # Wired up by #70. The discriminant itself is the solver type — no
+      # redundant `type=...` sub-parameter, unlike `--model`/`--scenario`
+      # where the discriminant alone can't carry that information.
+      - name: solver
+        short: ~
+        long: solver
+        option_type: string
+        required: false
+        default: ~
+        description: "Solver fields, repeatable: '--solver RK4 total-time=... time-steps=... [step=...]' or '--solver Euler total-time=... time-steps=... [step=...]'. 'step' is optional and, left unset, means the full trajectory is kept — matching solver.yml's own null convention."
+        choices: [RK4, Euler]
+        repeatable: true
+        option_parameters:
+          RK4:
+            - name: total-time
+              arg_type: float
+              required: false
+              description: "Total simulated time [s]"
+            - name: time-steps
+              arg_type: integer
+              required: false
+              description: "Number of time steps"
+            - name: step
+              arg_type: integer
+              required: false
+              description: "Keep every Nth time step in the trajectory. Omitted means the full trajectory."
+          Euler:
+            - name: total-time
+              arg_type: float
+              required: false
+              description: "Total simulated time [s]"
+            - name: time-steps
+              arg_type: integer
+              required: false
+              description: "Number of time steps"
+            - name: step
+              arg_type: integer
+              required: false
+              description: "Keep every Nth time step in the trajectory. Omitted means the full trajectory."
+
     implementation: config_handler
 
 global_options: []
