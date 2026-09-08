@@ -36,7 +36,8 @@ use dynamic_cli::{CommandHandler, DynamicCliError, ExecutionContext, ParsedArgs}
 
 use crate::config::{model::load_model, scenario::load_scenario, solver::load_solver};
 
-use super::app::{ChromContext, path_to_str, resolve_source_optional, to_cli_err};
+use super::context::ChromContext;
+use super::support::{path_to_str, resolve_source_optional, to_cli_err};
 
 /// `check` command handler.
 ///

@@ -2,7 +2,20 @@
 //!
 //! Assembles the `dynamic-cli` application from a declarative YAML
 //! configuration embedded at compile time and wires it to the simulation
-//! pipeline defined in the [`app`](crate::cli::app) module.
+//! pipeline defined in the [`run`](crate::cli::run) module.
+//!
+//! # Module layout (since the v0.6.0 consolidation)
+//!
+//! One file per command handler, plus two shared-concern modules:
+//!
+//! - [`context`]: [`ChromContext`](context::ChromContext) — the execution
+//!   context every handler downcasts to, including the three
+//!   pending-configuration builder slots (DD-016).
+//! - [`support`]: helpers used by more than one handler
+//!   (`to_cli_err`/`resolve_source_optional`/`path_to_str`).
+//! - [`builders`]: the pending-configuration builder *types* themselves
+//!   (`ModelBuilder`, `SolverBuilder`, `ScenarioBuilder`, ...).
+//! - [`run`], [`check`], [`config`], [`save`]: one command each.
 //!
 //! # Entry point
 //!
@@ -58,7 +71,7 @@
 //! accumulates unvalidated configuration state across one or more
 //! occurrences — in a single invocation or across a chained sequence
 //! (`dynamic-cli` 0.9.0 command chaining, DD-026) — into
-//! [`ChromContext`](crate::cli::app::ChromContext)'s pending slots.
+//! [`ChromContext`](crate::cli::context::ChromContext)'s pending slots.
 //! `--model single`/`multi`/`species`, `--solver`, and
 //! `--initial-condition`/`--injection` are all wired up
 //! ([#68](https://github.com/biface/chromatography/issues/68),
@@ -72,12 +85,15 @@
 //! state built by one or more `config` calls only needs to survive until
 //! the matching `save` call later in the same chain.
 
-/// Execution context, command handlers, and simulation helpers.
-///
-/// All runtime state ([`ChromContext`](crate::cli::app::ChromContext)),
-/// input validation, and the `run` command handler
-/// ([`RunHandler`](crate::cli::app::RunHandler)) live here.
-pub mod app;
+/// Execution context shared by every command handler — see [`ChromContext`](context::ChromContext).
+pub mod context;
+
+/// Helpers shared by more than one command handler — see the module docs.
+pub(crate) mod support;
+
+/// The `run` command handler ([`RunHandler`](crate::cli::run::RunHandler)) —
+/// orchestrates the full simulation pipeline.
+pub mod run;
 
 /// The `check` command handler ([`CheckHandler`](crate::cli::check::CheckHandler)) —
 /// validates configuration files without running a simulation.
@@ -85,30 +101,31 @@ pub mod check;
 
 /// Pending-configuration builder types for the interactive `config`/`build`
 /// command — accumulated, unvalidated state held in
-/// [`ChromContext`](crate::cli::app::ChromContext) across chained
+/// [`ChromContext`](crate::cli::context::ChromContext) across chained
 /// invocations. See DD-016 (issue #53) and issue #67.
 pub mod builders;
 
 /// The `config`/`build` command handler
-/// ([`ConfigHandler`](crate::cli::config_handler::ConfigHandler)) — builds
+/// ([`ConfigHandler`](crate::cli::config::ConfigHandler)) — builds
 /// model/solver/scenario configuration interactively. See issue #68 (and
 /// #69–72 for the parts not wired up yet).
-pub mod config_handler;
+pub mod config;
 
 /// The `save` command handler
-/// ([`SaveHandler`](crate::cli::save_handler::SaveHandler)) — serialises a
+/// ([`SaveHandler`](crate::cli::save::SaveHandler)) — serialises a
 /// pending `config`/`build` builder slot to a real `model.yml`/
 /// `solver.yml`/`scenario.yml` file. See issue #72.
-pub mod save_handler;
+pub mod save;
 
 use anyhow::anyhow;
 use dynamic_cli::config::loader::load_yaml;
 use dynamic_cli::{CliApp, CliBuilder};
 
-use app::{ChromContext, RunHandler};
 use check::CheckHandler;
-use config_handler::ConfigHandler;
-use save_handler::SaveHandler;
+use config::ConfigHandler;
+use context::ChromContext;
+use run::RunHandler;
+use save::SaveHandler;
 
 // ============================================================================
 // Embedded command configuration

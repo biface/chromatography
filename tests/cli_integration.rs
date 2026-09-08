@@ -19,8 +19,9 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use chrom_rs::cli::app::{ChromContext, RunHandler};
 use chrom_rs::cli::check::CheckHandler;
+use chrom_rs::cli::context::ChromContext;
+use chrom_rs::cli::run::RunHandler;
 use dynamic_cli::{CommandHandler, ExecutionContext, ParsedArgs};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
