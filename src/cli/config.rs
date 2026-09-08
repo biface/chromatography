@@ -20,11 +20,12 @@ use anyhow::anyhow;
 use dynamic_cli::error::ExecutionError;
 use dynamic_cli::{CommandHandler, DynamicCliError, ExecutionContext, ParsedArgs};
 
-use super::app::{ChromContext, to_cli_err};
 use super::builders::{
     InjectionBuilder, ModelBuilder, MultiModelBuilder, SingleModelBuilder, SolverBuilder,
     SpeciesBuilder,
 };
+use super::context::ChromContext;
+use super::support::to_cli_err;
 
 /// `config`/`build` command handler.
 ///
