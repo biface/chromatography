@@ -26,11 +26,12 @@ use dynamic_cli::error::ExecutionError;
 use dynamic_cli::{CommandHandler, DynamicCliError, ExecutionContext, ParsedArgs};
 use serde_yaml::{Mapping, Value};
 
-use super::app::{ChromContext, path_to_str, to_cli_err};
 use super::builders::{
     InjectionBuilder, ModelBuilder, MultiModelBuilder, ScenarioBuilder, SingleModelBuilder,
     SolverBuilder,
 };
+use super::context::ChromContext;
+use super::support::{path_to_str, to_cli_err};
 
 /// `save` command handler.
 pub struct SaveHandler;
@@ -362,7 +363,7 @@ fn injection_to_value(injection: &InjectionBuilder, context: &str) -> anyhow::Re
 mod tests {
     use super::*;
     use crate::cli::builders::SpeciesBuilder;
-    use crate::cli::config_handler::ConfigHandler;
+    use crate::cli::config::ConfigHandler;
     use crate::config::model::load_model;
     use crate::config::solver::load_solver;
     use dynamic_cli::parser::cli_parser::{OptionOccurrence, ParsedValue};

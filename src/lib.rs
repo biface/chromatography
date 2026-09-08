@@ -125,7 +125,7 @@ pub mod config;
 ///
 /// Entry point is [`cli::build_app`], which assembles the `dynamic-cli`
 /// application from the embedded `commands.yml` declaration and wires
-/// [`cli::app::RunHandler`] to the simulation pipeline.
+/// [`cli::run::RunHandler`] to the simulation pipeline.
 pub mod cli;
 
 /// Convenient re-exports for the most commonly used types.
