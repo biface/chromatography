@@ -40,6 +40,9 @@
 //!                  [--initial-condition zero]
 //!                  [--injection default type=... center=... width=... peak-concentration=... time=... amount=...]
 //!                  [--injection species-override species=... type=... ...]
+//!
+//! chrom-rs save --target <model-single|model-multi|solver|scenario>
+//!               --file <file.yml> [--project-dir <dir>]
 //! ```
 //!
 //! `run` accepts either the legacy scalar options or the repeatable
@@ -61,8 +64,13 @@
 //! ([#68](https://github.com/biface/chromatography/issues/68),
 //! [#69](https://github.com/biface/chromatography/issues/69),
 //! [#70](https://github.com/biface/chromatography/issues/70),
-//! [#71](https://github.com/biface/chromatography/issues/71)); `save`
-//! lands in a later commit (#72), and nothing is validated until then.
+//! [#71](https://github.com/biface/chromatography/issues/71)). `save`
+//! ([#72](https://github.com/biface/chromatography/issues/72)) serialises
+//! any of those pending slots to a real file, validating required fields
+//! and erroring by name rather than writing a YAML `null`. `config` and
+//! `save` are typically chained in one invocation (DD-026): the pending
+//! state built by one or more `config` calls only needs to survive until
+//! the matching `save` call later in the same chain.
 
 /// Execution context, command handlers, and simulation helpers.
 ///
@@ -87,6 +95,12 @@ pub mod builders;
 /// #69–72 for the parts not wired up yet).
 pub mod config_handler;
 
+/// The `save` command handler
+/// ([`SaveHandler`](crate::cli::save_handler::SaveHandler)) — serialises a
+/// pending `config`/`build` builder slot to a real `model.yml`/
+/// `solver.yml`/`scenario.yml` file. See issue #72.
+pub mod save_handler;
+
 use anyhow::anyhow;
 use dynamic_cli::config::loader::load_yaml;
 use dynamic_cli::{CliApp, CliBuilder};
@@ -94,6 +108,7 @@ use dynamic_cli::{CliApp, CliBuilder};
 use app::{ChromContext, RunHandler};
 use check::CheckHandler;
 use config_handler::ConfigHandler;
+use save_handler::SaveHandler;
 
 // ============================================================================
 // Embedded command configuration
@@ -118,6 +133,10 @@ const CHECK_HANDLER_NAME: &str = "check_handler";
 /// Handler name that must match the `implementation:` field of the `config`
 /// command in `commands.yml`.
 const CONFIG_HANDLER_NAME: &str = "config_handler";
+
+/// Handler name that must match the `implementation:` field of the `save`
+/// command in `commands.yml`.
+const SAVE_HANDLER_NAME: &str = "save_handler";
 
 // ============================================================================
 // build_app
@@ -144,6 +163,7 @@ pub fn build_app() -> anyhow::Result<CliApp> {
         .register_sync_handler(RUN_HANDLER_NAME, Box::new(RunHandler))
         .register_sync_handler(CHECK_HANDLER_NAME, Box::new(CheckHandler))
         .register_sync_handler(CONFIG_HANDLER_NAME, Box::new(ConfigHandler))
+        .register_sync_handler(SAVE_HANDLER_NAME, Box::new(SaveHandler))
         .build()
         .map_err(|e| anyhow!("CLI builder error: {e}"))
 }
@@ -168,5 +188,6 @@ mod tests {
         assert!(config.commands.iter().any(|c| c.name == "run"));
         assert!(config.commands.iter().any(|c| c.name == "check"));
         assert!(config.commands.iter().any(|c| c.name == "config"));
+        assert!(config.commands.iter().any(|c| c.name == "save"));
     }
 }
