@@ -410,4 +410,35 @@ commands:
 
     implementation: config_handler
 
+  - name: save
+    description: "Serialise a pending config/build target (model-single, model-multi, solver, or scenario) to a real model.yml/solver.yml/scenario.yml file, in exactly the shape 'run'/'check' already expect to read back."
+    required: false
+    arguments: []
+    options:
+      - name: project-dir
+        short: "d"
+        long: project-dir
+        option_type: path
+        required: false
+        default: "."
+        description: "Directory the destination file is resolved relative to (no '..' allowed). Defaults to the current directory."
+        choices: []
+      - name: target
+        short: ~
+        long: target
+        option_type: string
+        required: true
+        default: ~
+        description: "Which pending builder slot to serialise."
+        choices: [model-single, model-multi, solver, scenario]
+      - name: file
+        short: ~
+        long: file
+        option_type: path
+        required: true
+        default: ~
+        description: "Destination file path, resolved relative to --project-dir."
+
+    implementation: save_handler
+
 global_options: []
