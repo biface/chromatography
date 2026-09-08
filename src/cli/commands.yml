@@ -184,4 +184,61 @@ commands:
 
     implementation: check_handler
 
+  - name: config
+    aliases:
+      - build
+    description: "Build model/solver/scenario configuration interactively, field by field, without hand-writing YAML."
+    required: false
+    arguments: []
+    options:
+      # --- --model, repeatable (DD-016, biface/chromatography#53) ---
+      # Only the `single` discriminant is wired up so far (#68). `multi` and
+      # `species` are added by #69 — extending this same option's `choices`
+      # and `option_parameters`, not a new option.
+      - name: model
+        short: ~
+        long: model
+        option_type: string
+        required: false
+        default: ~
+        description: "Model fields, repeatable: '--model single lambda=... langmuir-k=... port-number=... column-length=... n-points=... dz=... fe=... ue=...'. Every field is optional; repeated occurrences merge field by field into the pending model (last write wins per field)."
+        choices: [single]
+        repeatable: true
+        option_parameters:
+          single:
+            - name: lambda
+              arg_type: float
+              required: false
+              description: "Residual linear retention λ [dimensionless], must be >= 0"
+            - name: langmuir-k
+              arg_type: float
+              required: false
+              description: "Langmuir equilibrium constant K [L/mol], must be > 0"
+            - name: port-number
+              arg_type: float
+              required: false
+              description: "Adsorption capacity N [dimensionless], must be > 0"
+            - name: column-length
+              arg_type: float
+              required: false
+              description: "Column length L [m]"
+            - name: n-points
+              arg_type: integer
+              required: false
+              description: "Number of spatial discretisation points Nz"
+            - name: dz
+              arg_type: float
+              required: false
+              description: "Cell width, L / Nz [m] — precomputed in model.yml, not derived here"
+            - name: fe
+              arg_type: float
+              required: false
+              description: "Phase ratio, (1 - porosity) / porosity [dimensionless] — precomputed in model.yml, not derived here"
+            - name: ue
+              arg_type: float
+              required: false
+              description: "Interstitial velocity, velocity / porosity [m/s] — precomputed in model.yml, not derived here"
+
+    implementation: config_handler
+
 global_options: []
