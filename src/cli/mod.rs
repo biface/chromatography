@@ -35,6 +35,8 @@
 //!                  [--model multi n-points=... porosity=... velocity=...
 //!                                 column-length=... dz=... fe=... ue=... stationary-fraction=...]
 //!                  [--model species name=... lambda=... langmuir-k=... port-number=...]
+//!                  [--solver RK4 total-time=... time-steps=... [step=...]]
+//!                  [--solver Euler total-time=... time-steps=... [step=...]]
 //! ```
 //!
 //! `run` accepts either the legacy scalar options or the repeatable
@@ -51,11 +53,12 @@
 //! occurrences — in a single invocation or across a chained sequence
 //! (`dynamic-cli` 0.9.0 command chaining, DD-026) — into
 //! [`ChromContext`](crate::cli::app::ChromContext)'s pending slots.
-//! `--model single`/`multi`/`species` are wired up
+//! `--model single`/`multi`/`species` and `--solver` are wired up
 //! ([#68](https://github.com/biface/chromatography/issues/68),
-//! [#69](https://github.com/biface/chromatography/issues/69)); `--solver`
-//! and `--scenario` land in later commits (#70–#72), and nothing is
-//! validated until a future `save`/`run`.
+//! [#69](https://github.com/biface/chromatography/issues/69),
+//! [#70](https://github.com/biface/chromatography/issues/70)); `--scenario`
+//! lands in a later commit (#71), and nothing is validated until a future
+//! `save`/`run`.
 
 /// Execution context, command handlers, and simulation helpers.
 ///
