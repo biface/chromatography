@@ -9,6 +9,9 @@ Versioning: [SemVer](https://semver.org/)
 
 ## [Unreleased]
 
+### Added — CI
+- `.github/workflows/release-binary.yml` — builds `cargo build --release --bin chrom-rs` on every pushed `vX.Y.Z` tag, verifies via `ldd` that it does not link `fontconfig`/`freetype` (see #61), packages it with `LICENSE-APACHE`, `LICENSE-DEJAVU.txt`, `README.md`/`README.fr.md`, and `examples/config/`, and attaches the tarball + `.sha256` to the GitHub Release for that tag. Deliberately decoupled from `release-drafter.yml` — reacts only to the tag, doesn't read or depend on the drafted release notes. `actions/checkout@v5`, `actions/cache@v5`, `softprops/action-gh-release@v3` — all already on the Node 24 runtime (issue #75's audit).
+
 ### Changed — chore #74 (binary release readiness check)
 - `src/main.rs`: `# Usage` doc comment updated to include `config`/`build` and `save`, which were missing (stale since #68) — no functional change, `build_app()` already loaded every command from `commands.yml` regardless of what this comment documented.
 
