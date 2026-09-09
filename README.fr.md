@@ -21,7 +21,7 @@ La version anglaise de ce README est disponible : [README.md](README.md).
 - **Profils d'injection** : Dirac, Gaussien, Rectangle, ou closure personnalisée
 - **Interface par fichiers de configuration** : trois fichiers YAML/JSON indépendants (`model.yml`, `scenario.yml`, `solver.yml`)
 - **Sorties** : export CSV, export JSON, chromatogrammes via `plotters`
-- **CLI** : `chrom-rs run` (alias `simulate`, `solve`) et `chrom-rs check`, propulsées par `dynamic-cli`
+- **CLI** : `chrom-rs run` (alias `simulate`, `solve`), `chrom-rs check`, et `chrom-rs config`/`build` + `save` pour une configuration interactive et enchaînable — propulsées par `dynamic-cli`
 
 ---
 
@@ -29,7 +29,7 @@ La version anglaise de ce README est disponible : [README.md](README.md).
 
 ```toml
 [dependencies]
-chrom-rs = "0.5"
+chrom-rs = "0.6"
 ```
 
 ---
@@ -108,6 +108,21 @@ chrom-rs check \
 
 Voir `examples/config/` pour des fichiers prêts à l'emploi et `examples/tfa_from_config.rs` /
 `examples/acids_from_config.rs` pour les points d'entrée Rust correspondants.
+
+La configuration peut aussi être construite de façon interactive, champ
+par champ, sans écrire de YAML à la main — utile pour du scripting ou des
+balayages de paramètres ponctuels. `config` (alias `build`) accumule
+l'état sur une ou plusieurs occurrences, y compris chaînées au sein d'une
+même invocation (chaînage de commandes `dynamic-cli`) ; `save` écrit le
+résultat une fois complet :
+
+```bash
+chrom-rs config --model single lambda=1.2 langmuir-k=0.4 port-number=2.0 \
+                                column-length=0.25 n-points=100 dz=0.0025 fe=1.5 ue=0.0025 \
+        config --solver RK4 total-time=600 time-steps=10000 \
+        save --target model-single --file model.yml \
+        save --target solver --file solver.yml
+```
 
 ---
 

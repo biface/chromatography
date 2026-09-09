@@ -20,7 +20,7 @@ A French version of this README is available: [README.fr.md](README.fr.md).
 - **Injection profiles**: Dirac, Gaussian, Rectangle, or custom closure
 - **Config-file interface**: three independent YAML/JSON files (`model.yml`, `scenario.yml`, `solver.yml`)
 - **Outputs**: CSV export, JSON export, chromatogram plots via `plotters`
-- **CLI**: `chrom-rs run` (aliases `simulate`, `solve`) and `chrom-rs check`, powered by `dynamic-cli`
+- **CLI**: `chrom-rs run` (aliases `simulate`, `solve`), `chrom-rs check`, and `chrom-rs config`/`build` + `save` for interactive, chainable configuration — powered by `dynamic-cli`
 
 ---
 
@@ -28,7 +28,7 @@ A French version of this README is available: [README.fr.md](README.fr.md).
 
 ```toml
 [dependencies]
-chrom-rs = "0.5"
+chrom-rs = "0.6"
 ```
 
 ---
@@ -106,6 +106,20 @@ chrom-rs check \
 
 See `examples/config/` for ready-to-use fixtures and `examples/tfa_from_config.rs` /
 `examples/acids_from_config.rs` for the corresponding Rust entry points.
+
+Configuration can also be built interactively, field by field, without
+hand-writing YAML — useful for scripting or one-off parameter sweeps.
+`config` (alias `build`) accumulates state across one or more occurrences,
+including chained across a single invocation (`dynamic-cli` command
+chaining); `save` writes the result out once it's complete:
+
+```bash
+chrom-rs config --model single lambda=1.2 langmuir-k=0.4 port-number=2.0 \
+                                column-length=0.25 n-points=100 dz=0.0025 fe=1.5 ue=0.0025 \
+        config --solver RK4 total-time=600 time-steps=10000 \
+        save --target model-single --file model.yml \
+        save --target solver --file solver.yml
+```
 
 ---
 
