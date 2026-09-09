@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ModelBuilder","ShapeSwitch"],"struct":["InjectionBuilder","MultiModelBuilder","ScenarioBuilder","SingleModelBuilder","SolverBuilder","SpeciesBuilder"]};

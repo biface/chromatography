@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["build_model_multi","build_model_single","build_scenario","build_solver","injection_to_value","none_injection","require"],"struct":["SaveHandler"]};
