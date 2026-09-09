@@ -1,0 +1,69 @@
+name: Release Binary (Linux)
+
+# -----------------------------------------------------------------------------
+# Builds the standalone chrom-rs binary (embedded font, no fontconfig/freetype
+# dependency — see issue #61) and attaches it to the GitHub Release matching
+# the pushed tag.
+#
+# Deliberately decoupled from release-drafter.yml: this workflow only reacts
+# to the tag itself and does not read or depend on the drafted release notes.
+# softprops/action-gh-release creates the release if none exists yet for this
+# tag, or attaches to it if release-drafter (or a manual publish) already
+# created one — either order works.
+#
+# Linux only for now (x86_64-unknown-linux-gnu). macOS and Windows targeted
+# for v1.0.0.
+# -----------------------------------------------------------------------------
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-attach:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binary
+        run: cargo build --release --bin chrom-rs
+
+      - name: Verify no fontconfig/freetype dependency
+        run: |
+          if ldd target/release/chrom-rs | grep -Eq 'fontconfig|freetype'; then
+            echo "::error::chrom-rs binary unexpectedly links against fontconfig/freetype"
+            ldd target/release/chrom-rs
+            exit 1
+          fi
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          pkg="chrom-rs-${{ github.ref_name }}-x86_64-unknown-linux-gnu"
+          mkdir -p "dist/${pkg}"
+          cp target/release/chrom-rs "dist/${pkg}/"
+          cp LICENSE-APACHE assets/fonts/LICENSE-DEJAVU.txt README.md README.fr.md "dist/${pkg}/"
+          cp -r examples/config "dist/${pkg}/"
+          tar czf "${pkg}.tar.gz" -C dist "${pkg}"
+          sha256sum "${pkg}.tar.gz" > "${pkg}.tar.gz.sha256"
+
+      - name: Attach to GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            chrom-rs-*.tar.gz
+            chrom-rs-*.tar.gz.sha256
