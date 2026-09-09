@@ -9,6 +9,14 @@ Versioning: [SemVer](https://semver.org/)
 
 ## [Unreleased]
 
+### Changed — chore #74 (binary release readiness check)
+- `src/main.rs`: `# Usage` doc comment updated to include `config`/`build` and `save`, which were missing (stale since #68) — no functional change, `build_app()` already loaded every command from `commands.yml` regardless of what this comment documented.
+
+### Changed — CI (Node.js 20 deprecation, issue #75)
+- `ci.yml`, `coverage.yml`, `mirror.yml`: `actions/checkout` v4 → v5, `actions/cache` v4 → v5 (both confirmed fully backward-compatible — Node 24 runtime only, no input changes).
+- `coverage.yml`: `actions/upload-artifact` v4 → v6, `codecov/codecov-action` v4 → v6 (v5 of each still defaults to Node 20 per their own changelogs, so v4 → v5 alone would not have cleared the deprecation warning). `codecov-action`'s v5 breaking rename (`file:` → `files:`) does not apply here — this workflow already used the plural `files:` key.
+- `peaceiris/actions-gh-pages@v4` and `release-drafter/release-drafter@v6` audited; no evidence found that either still targets Node 20, left unchanged.
+
 ### Added
 - `src/cli/builders.rs` — pending-configuration builder types (`ModelBuilder`, `SingleModelBuilder`, `MultiModelBuilder`, `SpeciesBuilder`, `SolverBuilder`, `ScenarioBuilder`, `InjectionBuilder`) for the interactive `config`/`build` command surface (DD-016, [#53](https://github.com/biface/chromatography/issues/53), [#67](https://github.com/biface/chromatography/issues/67)). Every field is optional and unvalidated at this stage; validation is deferred to `save`/`run`.
 - `ChromContext` gains three builder slots (`pending_model`, `pending_solver`, `pending_scenario`) plus accessors and merge methods (`merge_model_single`, `merge_model_multi`, `add_species`, `merge_solver`, `set_scenario_initial_condition`, `merge_scenario_default_injection`, `merge_scenario_species_override`). Repeated calls into the same target merge field by field (last-write-wins per field); a `species` occurrence alone is enough to lock the model slot into multi-species shape, no prior scalar `multi` call required ([#67](https://github.com/biface/chromatography/issues/67)).
