@@ -19,6 +19,21 @@
 //!                [--source model    file=<file.yml>]
 //!                [--source scenario file=<file.yml>]
 //!                [--source solver   file=<file.yml>]
+//!
+//! chrom-rs config (alias build)
+//!                  [--model single lambda=... langmuir-k=... port-number=...
+//!                                  column-length=... n-points=... dz=... fe=... ue=...]
+//!                  [--model multi n-points=... porosity=... velocity=...
+//!                                 column-length=... dz=... fe=... ue=... stationary-fraction=...]
+//!                  [--model species name=... lambda=... langmuir-k=... port-number=...]
+//!                  [--solver RK4 total-time=... time-steps=... [step=...]]
+//!                  [--solver Euler total-time=... time-steps=... [step=...]]
+//!                  [--initial-condition zero]
+//!                  [--injection default type=... center=... width=... peak-concentration=... time=... amount=...]
+//!                  [--injection species-override species=... type=... ...]
+//!
+//! chrom-rs save --target <model-single|model-multi|solver|scenario>
+//!               --file <file.yml> [--project-dir <dir>]
 //! ```
 //!
 //! `run` accepts either the legacy scalar options or the repeatable
@@ -26,7 +41,9 @@
 //! role in the same invocation (aliases: `simulate`, `solve`). `check`
 //! only has the repeatable syntax, and every role is optional: with none
 //! given it just lists the project directory's config-like files; with
-//! any given, it validates exactly those.
+//! any given, it validates exactly those. `config` (alias `build`)
+//! accumulates configuration state across one or more occurrences,
+//! typically chained with `save` in the same invocation (DD-016).
 
 fn main() {
     // Standalone binary variant (Variant B) — see
